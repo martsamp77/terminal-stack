@@ -69,7 +69,7 @@ wezterm.on('update-right-status', function(window, pane)
   local workspace = window:active_workspace()
   local cwd = pane:get_current_working_dir()
   local cwd_str = cwd and (cwd.file_path or '') or ''
-  local time = wezterm.strftime('%H:%M')
+  local time = wezterm.strftime('%-I:%M %p')
   window:set_right_status(wezterm.format {
     { Foreground = { AnsiColor = 'Green' } },  { Text = '  ' .. workspace .. '  ' },
     { Foreground = { AnsiColor = 'Blue' } },   { Text = '│  ' .. cwd_str .. '  ' },
