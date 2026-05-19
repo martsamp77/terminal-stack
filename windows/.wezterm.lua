@@ -1,0 +1,76 @@
+local wezterm = require 'wezterm'
+local act = wezterm.action
+local config = wezterm.config_builder()
+
+config.default_prog = { 'pwsh.exe', '-NoLogo' }
+
+config.launch_menu = {
+  { label = 'PowerShell 7', args = { 'pwsh.exe', '-NoLogo' } },
+  { label = 'WSL zsh',      args = { 'wsl.exe', '--cd', '~', '-e', 'zsh', '-l' } },
+}
+
+config.ssh_domains = wezterm.default_ssh_domains()
+for _, dom in ipairs(config.ssh_domains) do
+  dom.assume_shell = 'Posix'
+end
+
+config.font = wezterm.font_with_fallback {
+  'JetBrainsMono Nerd Font',
+  'CaskaydiaCove Nerd Font',
+  'Cascadia Code',
+}
+config.font_size = 11.5
+config.color_scheme = 'Catppuccin Mocha'
+config.window_background_opacity = 0.97
+config.use_fancy_tab_bar = false
+config.tab_bar_at_bottom = true
+config.hide_tab_bar_if_only_one_tab = false
+config.window_decorations = 'RESIZE'
+
+config.front_end = 'WebGpu'
+config.webgpu_power_preference = 'HighPerformance'
+config.max_fps = 120
+config.scrollback_lines = 50000
+
+config.leader = { key = 'a', mods = 'CTRL', timeout_milliseconds = 1500 }
+
+config.keys = {
+  { key = 'l', mods = 'ALT', action = act.ShowLauncherArgs {
+      flags = 'FUZZY|TABS|DOMAINS|LAUNCH_MENU_ITEMS|WORKSPACES|COMMANDS' } },
+  { key = 'w', mods = 'LEADER', action = act.ShowLauncherArgs { flags = 'FUZZY|WORKSPACES' } },
+  { key = 'n', mods = 'LEADER', action = act.PromptInputLine {
+      description = 'New/switch workspace:',
+      action = wezterm.action_callback(function(window, pane, line)
+        if line and #line > 0 then
+          window:perform_action(act.SwitchToWorkspace { name = line }, pane)
+        end
+      end) } },
+  { key = '\\', mods = 'LEADER', action = act.SplitHorizontal { domain = 'CurrentPaneDomain' } },
+  { key = '-',  mods = 'LEADER', action = act.SplitVertical   { domain = 'CurrentPaneDomain' } },
+  { key = 'h', mods = 'LEADER', action = act.ActivatePaneDirection 'Left' },
+  { key = 'l', mods = 'LEADER', action = act.ActivatePaneDirection 'Right' },
+  { key = 'k', mods = 'LEADER', action = act.ActivatePaneDirection 'Up' },
+  { key = 'j', mods = 'LEADER', action = act.ActivatePaneDirection 'Down' },
+  { key = 'a', mods = 'LEADER|CTRL', action = act.SendKey { key = 'a', mods = 'CTRL' } },
+}
+
+wezterm.on('format-tab-title', function(tab)
+  local title = tab.tab_title
+  if not title or #title == 0 then title = tab.active_pane.title end
+  if #title > 36 then title = title:sub(1, 35) .. '…' end
+  return ' ' .. title .. ' '
+end)
+
+wezterm.on('update-right-status', function(window, pane)
+  local workspace = window:active_workspace()
+  local cwd = pane:get_current_working_dir()
+  local cwd_str = cwd and (cwd.file_path or '') or ''
+  local time = wezterm.strftime('%H:%M')
+  window:set_right_status(wezterm.format {
+    { Foreground = { AnsiColor = 'Green' } },  { Text = '  ' .. workspace .. '  ' },
+    { Foreground = { AnsiColor = 'Blue' } },   { Text = '│  ' .. cwd_str .. '  ' },
+    { Foreground = { AnsiColor = 'Yellow' } }, { Text = '│  ' .. time .. ' ' },
+  })
+end)
+
+return config
