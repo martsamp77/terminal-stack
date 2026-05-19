@@ -16,7 +16,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "pwsh -NoLogo -NonInteractive -ExecutionPolicy Bypass -File C:\\Users\\msampson\\.claude\\hooks\\wez-tab-status.ps1 -State thinking"
+            "command": "pwsh -NoLogo -NonInteractive -ExecutionPolicy Bypass -File C:/Users/msampson/.claude/hooks/wez-tab-status.ps1 -State thinking"
           }
         ]
       }
@@ -27,7 +27,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "pwsh -NoLogo -NonInteractive -ExecutionPolicy Bypass -File C:\\Users\\msampson\\.claude\\hooks\\wez-tab-status.ps1 -State waiting"
+            "command": "pwsh -NoLogo -NonInteractive -ExecutionPolicy Bypass -File C:/Users/msampson/.claude/hooks/wez-tab-status.ps1 -State waiting"
           }
         ]
       }
@@ -38,7 +38,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "pwsh -NoLogo -NonInteractive -ExecutionPolicy Bypass -File C:\\Users\\msampson\\.claude\\hooks\\wez-tab-status.ps1 -State error"
+            "command": "pwsh -NoLogo -NonInteractive -ExecutionPolicy Bypass -File C:/Users/msampson/.claude/hooks/wez-tab-status.ps1 -State error"
           }
         ]
       }
