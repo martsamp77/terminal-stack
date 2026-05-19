@@ -82,18 +82,56 @@ else
     echo "$INFO JetBrainsMono Nerd Font already in fontconfig"
 fi
 
-# 8. chezmoi.toml override pointing at this repo (only if not already set)
-SOURCE_DIR="/mnt/c/DATA/Workspace/terminal-stack"
-if [ ! -f "$HOME/.config/chezmoi/chezmoi.toml" ]; then
+# 8. Resolve the Windows username (used by run_after_90-sync-windows.sh to target
+#    /mnt/c/Users/<user>/). Try WSL interop first, then prompt for confirmation.
+detect_win_user() {
+    if [ -x /mnt/c/Windows/System32/cmd.exe ]; then
+        /mnt/c/Windows/System32/cmd.exe /c 'echo %USERNAME%' 2>/dev/null | tr -d '\r\n' || true
+    fi
+}
+
+DETECTED_WIN_USER="$(detect_win_user)"
+echo ""
+if [ -n "$DETECTED_WIN_USER" ]; then
+    printf "Windows username for /mnt/c/Users/<user>/ [%s]: " "$DETECTED_WIN_USER"
+else
+    printf "Windows username for /mnt/c/Users/<user>/: "
+fi
+read -r WIN_USER
+WIN_USER="${WIN_USER:-$DETECTED_WIN_USER}"
+
+if [ -z "$WIN_USER" ]; then
+    echo "$WARN No Windows username provided. The sync hook will retry detection at apply time."
+fi
+
+# 9. chezmoi.toml — point sourceDir at this repo and persist windowsUsername under [data].
+SOURCE_DIR="${SOURCE_DIR:-/mnt/c/DATA/Workspace/terminal-stack}"
+TOML="$HOME/.config/chezmoi/chezmoi.toml"
+mkdir -p "$(dirname "$TOML")"
+
+if [ ! -f "$TOML" ]; then
     if [ -d "$SOURCE_DIR" ]; then
-        echo "$INFO Writing ~/.config/chezmoi/chezmoi.toml with sourceDir=$SOURCE_DIR"
-        mkdir -p "$HOME/.config/chezmoi"
-        printf 'sourceDir = "%s"\n' "$SOURCE_DIR" > "$HOME/.config/chezmoi/chezmoi.toml"
+        echo "$INFO Writing $TOML"
+        {
+            printf 'sourceDir = "%s"\n' "$SOURCE_DIR"
+            if [ -n "$WIN_USER" ]; then
+                printf '\n[data]\nwindowsUsername = "%s"\n' "$WIN_USER"
+            fi
+        } > "$TOML"
     else
-        echo "$WARN $SOURCE_DIR not found; skipping chezmoi.toml. Edit manually if needed."
+        echo "$WARN $SOURCE_DIR not found; skipping chezmoi.toml. Set SOURCE_DIR env var and re-run, or edit manually."
     fi
 else
-    echo "$INFO ~/.config/chezmoi/chezmoi.toml already exists; not overwriting"
+    echo "$INFO $TOML already exists; not overwriting sourceDir."
+    if [ -n "$WIN_USER" ] && ! grep -q 'windowsUsername' "$TOML"; then
+        if grep -q '^\[data\]' "$TOML"; then
+            echo "$WARN $TOML has a [data] section but no windowsUsername key."
+            echo "    Add manually under [data]:  windowsUsername = \"$WIN_USER\""
+        else
+            printf '\n[data]\nwindowsUsername = "%s"\n' "$WIN_USER" >> "$TOML"
+            echo "$INFO Appended [data].windowsUsername = $WIN_USER to $TOML"
+        fi
+    fi
 fi
 
 echo ""

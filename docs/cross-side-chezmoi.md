@@ -4,7 +4,7 @@ ARCHITECTURE.md gives the 30-second version. This file is for when you (or your 
 
 ## The basic problem
 
-You're using one tool — chezmoi — to manage configuration files. Some of those files live in your WSL/Linux home (`/home/msampson/`). Others live on the Windows side (`C:\Users\msampson\`). Both are mounted on the same machine, but they're separate filesystems with separate `$HOME` concepts.
+You're using one tool — chezmoi — to manage configuration files. Some of those files live in your WSL/Linux home (`/home/<you>/`). Others live on the Windows side (`C:\Users\<you>\`). Both are mounted on the same machine, but they're separate filesystems with separate `$HOME` concepts.
 
 chezmoi, by default, manages exactly one target tree: `$HOME` on the machine where it's running. Whichever side you run `chezmoi apply` from is the side whose home gets updated. The other side gets nothing.
 
@@ -24,17 +24,44 @@ windows/**
 
 This excludes anything under `windows/` from chezmoi's normal apply. chezmoi-managed files (`dot_zshrc`, `dot_tmux.conf`, etc.) outside of `windows/` are applied normally to WSL home.
 
-Files under `windows/` use absolute-path-mirror naming:
+Files under `windows/` use absolute-path-mirror naming (with `$WIN_USER` resolved at sync time — see § "Username resolution" below):
 
 | Source path | Sync destination |
 |---|---|
-| `windows/.wezterm.lua` | `/mnt/c/Users/msampson/.wezterm.lua` |
-| `windows/.config/starship.toml` | `/mnt/c/Users/msampson/.config/starship.toml` |
-| `windows/Documents/PowerShell/Microsoft.PowerShell_profile.ps1` | `/mnt/c/Users/msampson/Documents/PowerShell/Microsoft.PowerShell_profile.ps1` |
-| `windows/.claude/settings.json` | `/mnt/c/Users/msampson/.claude/settings.json` |
-| `windows/.claude/hooks/wez-tab-status.ps1` | `/mnt/c/Users/msampson/.claude/hooks/wez-tab-status.ps1` |
+| `windows/.wezterm.lua` | `/mnt/c/Users/$WIN_USER/.wezterm.lua` |
+| `windows/.config/starship.toml` | `/mnt/c/Users/$WIN_USER/.config/starship.toml` |
+| `windows/Documents/PowerShell/Microsoft.PowerShell_profile.ps1` | `/mnt/c/Users/$WIN_USER/Documents/PowerShell/Microsoft.PowerShell_profile.ps1` |
+| `windows/.claude/settings.json.tmpl` | `/mnt/c/Users/$WIN_USER/.claude/settings.json` (rendered) |
+| `windows/.claude/hooks/wez-tab-status.ps1` | `/mnt/c/Users/$WIN_USER/.claude/hooks/wez-tab-status.ps1` |
 
-The destination is computed from the source relative path by joining onto `$dst_dir` (`/mnt/c/Users/msampson` in our case).
+The destination is computed from the source relative path by joining onto `$dst_dir` (`/mnt/c/Users/$WIN_USER`). Files ending in `.tmpl` are rendered through a `sed` substitution that replaces `__WIN_USER__` with the resolved value, then the `.tmpl` suffix is stripped from the destination path.
+
+## Username resolution
+
+`run_after_90-sync-windows.sh` resolves the Windows username in this order:
+
+1. **`chezmoi data` → `windowsUsername`.** If `~/.config/chezmoi/chezmoi.toml` contains:
+
+   ```toml
+   [data]
+   windowsUsername = "your-windows-user"
+   ```
+
+   the script reads it via `chezmoi execute-template '{{ if hasKey . "windowsUsername" }}{{ .windowsUsername }}{{ end }}'`. The WSL bootstrap (`bootstrap/wsl-bootstrap.sh`) writes this during install.
+
+2. **`cmd.exe /c echo %USERNAME%` via WSL interop.** Used when chezmoi data is unset; usually returns the same value `$env:USERNAME` would report on the Windows side.
+
+If both resolution paths fail, the script exits 1 with a message telling you to add `windowsUsername` to `chezmoi.toml`.
+
+## Adding a templated Windows-side file
+
+If you need a Windows-side file that should reference the username:
+
+1. Name the source file with a `.tmpl` suffix, e.g. `windows/SomeApp/config.toml.tmpl`.
+2. Inside the file, use `__WIN_USER__` wherever the username should appear.
+3. `chezmoi apply` → the hook renders to `/mnt/c/Users/<you>/SomeApp/config.toml`.
+
+No additional placeholder syntax (no Go templates, no jinja). Just the single `__WIN_USER__` token.
 
 ## The post-apply hook
 
@@ -74,7 +101,7 @@ First overwrite of the day still goes to `.bak.YYYYMMDD`. Second goes to `.bak.Y
 if [ ! -d "$src_dir" ]; then exit 0; fi
 ```
 
-If `$CHEZMOI_SOURCE_DIR/windows/` doesn't exist (which would happen if you've stripped it out), the script noops. Same logic applied to `$dst_dir` — if `/mnt/c/Users/msampson` doesn't exist (you're on macOS), the script exits clean without errors.
+If `$CHEZMOI_SOURCE_DIR/windows/` doesn't exist (which would happen if you've stripped it out), the script noops. Same logic applied to `$dst_dir` — if `/mnt/c/Users/<you>` doesn't exist (you're on macOS), the script exits clean without errors.
 
 Actually that's how it works today. Worth double-checking the source.
 
@@ -100,13 +127,13 @@ If you wanted to run chezmoi from the Windows side natively (without WSL), you'd
 
 1. Install chezmoi on Windows (`winget install twpayne.chezmoi`)
 2. Write a separate `%USERPROFILE%\AppData\Local\chezmoi\chezmoi.toml` with `sourceDir = "C:\\DATA\\Workspace\\terminal-stack"` (note: Windows path)
-3. Run `chezmoi apply` from Windows pwsh — this would apply to `C:\Users\msampson\` directly, *without* running the run_after script (since `.sh` files require a shell to execute, and chezmoi's Windows binary doesn't have a POSIX shell to fall back on for `run_after_*.sh`)
+3. Run `chezmoi apply` from Windows pwsh — this would apply to `C:\Users\<you>\` directly, *without* running the run_after script (since `.sh` files require a shell to execute, and chezmoi's Windows binary doesn't have a POSIX shell to fall back on for `run_after_*.sh`)
 
 We deliberately don't do this. Running chezmoi from WSL on this machine gives us one orchestrator and one source of truth.
 
 ## What if I want to add more Windows-side files?
 
-1. Drop the file in the right place under `windows/`. Example: a new Windows-side CLI tool config at `C:\Users\msampson\.foo\config.toml` → put it at `windows/.foo/config.toml` in the chezmoi source.
+1. Drop the file in the right place under `windows/`. Example: a new Windows-side CLI tool config at `C:\Users\<you>\.foo\config.toml` → put it at `windows/.foo/config.toml` in the chezmoi source. If the file needs to embed the username, add a `.tmpl` suffix and use the `__WIN_USER__` placeholder.
 2. `chezmoi apply` — the run_after script picks it up and syncs.
 3. `chezmoi git -- add -A && chezmoi git -- commit -m "..."`.
 
@@ -118,6 +145,6 @@ Standard chezmoi conventions. `dot_foo` → `~/.foo`. `dot_config/foo/bar` → `
 
 ## Limitations
 
-- **`windows/` subtree is invisible to chezmoi's diff machinery.** `chezmoi diff` doesn't show pending changes to `/mnt/c/Users/msampson/...` because chezmoi doesn't know about them. You can preview the run_after sync by running the script directly with `--dry-run` semantics (not built in; you'd need to add it).
+- **`windows/` subtree is invisible to chezmoi's diff machinery.** `chezmoi diff` doesn't show pending changes to `/mnt/c/Users/<you>/...` because chezmoi doesn't know about them. You can preview the run_after sync by running the script directly with `--dry-run` semantics (not built in; you'd need to add it).
 - **No templating in `windows/`.** chezmoi's `.tmpl` files only apply to chezmoi-managed paths. If you need OS- or hostname-conditional content in a `windows/` file, you'd add it via the run_after script reading templates, or just maintain platform-specific files.
-- **Mac side is a clean miss.** macOS won't have `windows/.wezterm.lua` synced anywhere; the run_after script noops. That's correct — macOS doesn't have `C:\Users\msampson\.wezterm.lua`. macOS-specific configs (if any) would live as native chezmoi-managed files (e.g., `dot_zshrc` continues to work).
+- **Mac side is a clean miss.** macOS won't have `windows/.wezterm.lua` synced anywhere; the run_after script noops. That's correct — macOS doesn't have `C:\Users\<you>\.wezterm.lua`. macOS-specific configs (if any) would live as native chezmoi-managed files (e.g., `dot_zshrc` continues to work).

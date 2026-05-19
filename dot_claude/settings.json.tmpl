@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/home/msampson/.claude/hooks/wez-tab-status.sh thinking"
+            "command": "{{ .chezmoi.homeDir }}/.claude/hooks/wez-tab-status.sh thinking"
           }
         ]
       }
@@ -17,7 +17,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/home/msampson/.claude/hooks/wez-tab-status.sh waiting"
+            "command": "{{ .chezmoi.homeDir }}/.claude/hooks/wez-tab-status.sh waiting"
           }
         ]
       }
@@ -28,7 +28,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/home/msampson/.claude/hooks/wez-tab-status.sh error"
+            "command": "{{ .chezmoi.homeDir }}/.claude/hooks/wez-tab-status.sh error"
           }
         ]
       }

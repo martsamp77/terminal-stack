@@ -103,4 +103,4 @@ fi
 echo ""
 echo "$INFO macOS bootstrap done (UNTESTED — please report any issues)."
 echo "    Next: chezmoi apply -v"
-echo "    macOS will skip the windows/** subtree automatically (no /mnt/c/Users/msampson)."
+echo "    macOS will skip the windows/** subtree automatically (no /mnt/c/Users/<user>)."

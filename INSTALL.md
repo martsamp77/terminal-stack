@@ -4,7 +4,7 @@ Two paths. Pick the one matching how much trust you have in the scripts.
 
 ## Scripted (fastest)
 
-For a fresh Windows 11 + WSL2 machine with `msampson` as the username on both sides.
+For a fresh Windows 11 + WSL2 machine. The WSL bootstrap will prompt for your Windows username (it pre-fills the value reported by `cmd.exe` via interop, so usually you can just press Enter).
 
 ### 1. Windows side
 
@@ -48,27 +48,23 @@ Re-run as needed; the script is idempotent.
 
 ### 3. Apply chezmoi
 
-Both sides done. Now point chezmoi at this repo and apply:
+The WSL bootstrap already wrote `~/.config/chezmoi/chezmoi.toml` with `sourceDir` and `[data].windowsUsername`. Just apply:
 
 ```sh
 # Inside WSL
-mkdir -p ~/.config/chezmoi
-cat > ~/.config/chezmoi/chezmoi.toml <<EOF
-sourceDir = "/mnt/c/DATA/Workspace/terminal-stack"
-EOF
 ~/.local/bin/chezmoi apply -v
 ```
 
-Or, on a Mac:
+Or, on a Mac (no Windows side to sync):
 
 ```sh
 # Inside Terminal / iTerm
 mkdir -p ~/.config/chezmoi
-echo 'sourceDir = "/Users/msampson/code/terminal-stack"' > ~/.config/chezmoi/chezmoi.toml  # adjust path
+echo 'sourceDir = "$HOME/code/terminal-stack"' > ~/.config/chezmoi/chezmoi.toml  # adjust path
 chezmoi apply -v
 ```
 
-(macOS skips the Windows side automatically via the `run_after` hook's `/mnt/c/Users/msampson/` existence check.)
+(macOS skips the Windows side automatically: the `run_after` hook's `/mnt/c/Users/<user>/` existence check noops when the path doesn't exist.)
 
 ### 4. Reopen WezTerm
 
@@ -177,15 +173,22 @@ ln -sf /usr/bin/batcat ~/.local/bin/bat
 ### Phase 8 — Apply chezmoi
 
 ```sh
+# Detect your Windows username (or hard-code it below)
+WIN_USER=$(/mnt/c/Windows/System32/cmd.exe /c 'echo %USERNAME%' | tr -d '\r\n')
 mkdir -p ~/.config/chezmoi
 cat > ~/.config/chezmoi/chezmoi.toml <<EOF
 sourceDir = "/mnt/c/DATA/Workspace/terminal-stack"
+
+[data]
+windowsUsername = "$WIN_USER"
 EOF
-~/.local/bin/chezmoi diff      # preview what will change
+~/.local/bin/chezmoi diff      # preview what will change (WSL targets only)
 ~/.local/bin/chezmoi apply -v
 ```
 
-You'll see one creation summary plus a `sync-windows:` line confirming the run_after hook ran.
+You'll see one creation summary plus a `sync-windows: user=<you>, …` line confirming the run_after hook ran.
+
+If you skip the `[data].windowsUsername` line, the sync hook will fall back to `cmd.exe /c echo %USERNAME%` via interop and use that — explicitly setting it just makes the value stable across machine renames.
 
 ### Phase 9 — Verify
 

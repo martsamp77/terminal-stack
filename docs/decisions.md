@@ -90,13 +90,13 @@ If you want transparency back, change to `0.95` or so. Don't go below `0.85` —
 
 ## Why local-only chezmoi git (no remote yet)?
 
-Originally pushed to nowhere. User chose local-first during the repo-promotion step. Adding a private GitHub remote is a follow-up: `git remote add origin git@github.com:msampson/terminal-stack.git && git push -u origin main`.
+Originally pushed to nowhere. User chose local-first during the repo-promotion step. Adding a private GitHub remote is a follow-up: `git remote add origin git@github.com:<you>/terminal-stack.git && git push -u origin main`.
 
 The Mac sync mentioned at project kickoff is enabled once a remote exists. Until then, manual file copies or local clones over the network.
 
 ## Why MIT license?
 
-Standard, permissive, well-understood. The stack contains nothing proprietary. If you fork it for a different user, just edit the personal paths (search the repo for `msampson`) and update the copyright line in `LICENSE`.
+Standard, permissive, well-understood. The stack contains nothing proprietary. If you fork it for personal use, the source carries no hard-coded usernames (the sync hook resolves the Windows user at apply time — see `cross-side-chezmoi.md` § "Username resolution"). You may want to update the copyright line in `LICENSE`.
 
 ## Why not just use a single GUI tool like Microsoft Terminal?
 

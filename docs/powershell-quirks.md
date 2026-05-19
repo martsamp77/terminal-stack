@@ -39,7 +39,7 @@ Future PSReadLine versions that do export it will pick it up automatically; olde
 
 ## Backslashes in JSON paths get stripped twice
 
-**Symptom.** Claude Code hooks fail with `The argument 'C:Usersmsampson.claudehookswez-tab-status.ps1' is not recognized as the name of a script file.` (Note: zero backslashes in the path.)
+**Symptom.** Claude Code hooks fail with `The argument 'C:Users<you>.claudehookswez-tab-status.ps1' is not recognized as the name of a script file.` (Note: zero backslashes in the path.)
 
 **Cause.** Two passes of backslash interpretation:
 
@@ -51,7 +51,7 @@ The net effect: the path arrives at PowerShell with zero backslashes.
 **Fix.** Use forward slashes in the JSON path:
 
 ```json
-"command": "pwsh -NoLogo -NonInteractive -ExecutionPolicy Bypass -File C:/Users/msampson/.claude/hooks/wez-tab-status.ps1 -State thinking"
+"command": "pwsh -NoLogo -NonInteractive -ExecutionPolicy Bypass -File C:/Users/__WIN_USER__/.claude/hooks/wez-tab-status.ps1 -State thinking"
 ```
 
 PowerShell's `-File` accepts forward slashes on Windows. Forward slashes have no special meaning in any shell, so neither layer interprets them.

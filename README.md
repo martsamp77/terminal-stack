@@ -59,7 +59,7 @@ terminal-stack/
 
 ## Repeatability
 
-The work was done on Windows 11 Pro 26200 + WSL2 Ubuntu 26.04 LTS + PowerShell 7.6.1 with `msampson` as the user on both sides. The bootstrap scripts assume the same `$env:USERNAME` / `$USER` and the same path conventions; if you fork this repo for a different user, edit the few absolute paths in `windows/Documents/PowerShell/Microsoft.PowerShell_profile.ps1` and `windows/.claude/settings.json` (search for `msampson` — about a dozen hits).
+The work was done on Windows 11 Pro 26200 + WSL2 Ubuntu 26.04 LTS + PowerShell 7.6.1. The repo carries no hard-coded usernames: the WSL bootstrap prompts for your Windows username (defaulting to whatever `cmd.exe` reports via interop) and persists it under `[data].windowsUsername` in `~/.config/chezmoi/chezmoi.toml`. The sync hook substitutes that value into `windows/**/*.tmpl` files (e.g., `windows/.claude/settings.json.tmpl`) at apply time, and WSL-side templates use chezmoi's native `{{ .chezmoi.homeDir }}`. See `ARCHITECTURE.md` § "Username resolution" for the resolution order.
 
 ## License
 
