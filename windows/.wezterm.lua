@@ -26,9 +26,9 @@ config.use_fancy_tab_bar = true
 config.tab_bar_at_bottom = true
 config.hide_tab_bar_if_only_one_tab = false
 config.window_decorations = 'RESIZE'
-config.tab_max_width = 80
+config.tab_max_width = 120
 config.window_frame = {
-  font_size = 9.0,
+  font_size = 11.0,
 }
 
 config.front_end = 'WebGpu'
