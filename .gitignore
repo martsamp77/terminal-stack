@@ -1,0 +1,17 @@
+# Backup files produced by run_after_90-sync-windows.sh and ad-hoc backups
+*.bak.*
+
+# OS junk
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor temporaries
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# chezmoi local-only artifacts that should never be committed
+.chezmoiscripts/

@@ -1,1 +1,14 @@
+# Exclude the Windows-side tree from chezmoi's normal apply; it's synced by run_after_90-sync-windows.sh
 windows/**
+
+# Repo-level docs and infrastructure (not user-config files)
+README.md
+ARCHITECTURE.md
+CHANGELOG.md
+INSTALL.md
+LICENSE
+.gitignore
+.gitattributes
+.github/**
+bootstrap/**
+docs/**
