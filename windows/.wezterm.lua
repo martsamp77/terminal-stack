@@ -22,10 +22,14 @@ config.font = wezterm.font_with_fallback {
 config.font_size = 11.5
 config.color_scheme = 'Catppuccin Mocha'
 config.window_background_opacity = 0.97
-config.use_fancy_tab_bar = false
+config.use_fancy_tab_bar = true
 config.tab_bar_at_bottom = true
 config.hide_tab_bar_if_only_one_tab = false
 config.window_decorations = 'RESIZE'
+config.tab_max_width = 80
+config.window_frame = {
+  font_size = 9.0,
+}
 
 config.front_end = 'WebGpu'
 config.webgpu_power_preference = 'HighPerformance'
@@ -54,10 +58,10 @@ config.keys = {
   { key = 'a', mods = 'LEADER|CTRL', action = act.SendKey { key = 'a', mods = 'CTRL' } },
 }
 
-wezterm.on('format-tab-title', function(tab)
+wezterm.on('format-tab-title', function(tab, tabs, panes, config, hover, max_width)
   local title = tab.tab_title
   if not title or #title == 0 then title = tab.active_pane.title end
-  if #title > 36 then title = title:sub(1, 35) .. '…' end
+  title = wezterm.truncate_right(title, max_width - 2)
   return ' ' .. title .. ' '
 end)
 
