@@ -16,10 +16,10 @@ symbol = " "
 ahead     = "⇡${count}"
 behind    = "⇣${count}"
 diverged  = "⇕⇡${ahead_count}⇣${behind_count}"
-conflicted= ""
-untracked = ""
-modified  = ""
-staged    = ""
+conflicted= "="
+untracked = "?"
+modified  = "!"
+staged    = "+"
 
 [cmd_duration]
 min_time = 500
