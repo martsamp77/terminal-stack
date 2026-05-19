@@ -1,0 +1,47 @@
+{
+  "model": "opus[1m]",
+  "effortLevel": "xhigh",
+  "autoUpdatesChannel": "latest",
+  "tui": "fullscreen",
+  "skipDangerousModePermissionPrompt": true,
+  "theme": "dark",
+  "skipAutoPermissionPrompt": true,
+  "permissions": {
+    "defaultMode": "auto"
+  },
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "pwsh -NoLogo -NonInteractive -ExecutionPolicy Bypass -File C:\\Users\\msampson\\.claude\\hooks\\wez-tab-status.ps1 -State thinking"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "pwsh -NoLogo -NonInteractive -ExecutionPolicy Bypass -File C:\\Users\\msampson\\.claude\\hooks\\wez-tab-status.ps1 -State waiting"
+          }
+        ]
+      }
+    ],
+    "StopFailure": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "pwsh -NoLogo -NonInteractive -ExecutionPolicy Bypass -File C:\\Users\\msampson\\.claude\\hooks\\wez-tab-status.ps1 -State error"
+          }
+        ]
+      }
+    ]
+  }
+}
