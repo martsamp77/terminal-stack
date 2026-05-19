@@ -21,7 +21,7 @@ config.font = wezterm.font_with_fallback {
 }
 config.font_size = 11.5
 config.color_scheme = 'Catppuccin Mocha'
-config.window_background_opacity = 0.97
+config.window_background_opacity = 1.0
 config.use_fancy_tab_bar = true
 config.tab_bar_at_bottom = true
 config.hide_tab_bar_if_only_one_tab = false
