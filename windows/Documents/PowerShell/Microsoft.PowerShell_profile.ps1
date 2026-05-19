@@ -22,6 +22,10 @@ Invoke-Expression (&starship init powershell)
 if (Get-Command Enable-TransientPrompt -ErrorAction SilentlyContinue) { Enable-TransientPrompt }
 
 function Invoke-Starship-PreCommand {
+    if ([Console]::OutputEncoding.CodePage -ne 65001) {
+        [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+        [Console]::InputEncoding  = [System.Text.Encoding]::UTF8
+    }
     $loc = $executionContext.SessionState.Path.CurrentLocation
     if ($loc.Provider.Name -eq 'FileSystem') {
         Write-Host -NoNewline "`e]7;file://localhost/$($loc.Path)`a"
