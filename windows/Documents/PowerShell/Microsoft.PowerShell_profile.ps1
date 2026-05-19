@@ -25,6 +25,9 @@ function Invoke-Starship-PreCommand {
     $loc = $executionContext.SessionState.Path.CurrentLocation
     if ($loc.Provider.Name -eq 'FileSystem') {
         Write-Host -NoNewline "`e]7;file://localhost/$($loc.Path)`a"
+        $leaf = Split-Path -Leaf $loc.Path
+        if ([string]::IsNullOrEmpty($leaf)) { $leaf = $loc.Path }
+        Write-Host -NoNewline "`e]0;pwsh • $leaf`a"
     }
 }
 # ---- starship-stack-end ----
