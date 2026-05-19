@@ -11,11 +11,15 @@ function wspu { Set-Location C:\DATA\Workspace_Public }
 function wscalibra { Set-Location C:\DATA\Workspace\md-validator }
 function wsnetsuite { Set-Location C:\DATA\Workspace\netsuite-customizations }
 
-function cc { claude @args }
-function ccc { claude --continue @args }
-function ccd { claude --dangerously-skip-permissions @args }
-function ccdc { claude --dangerously-skip-permissions --continue @args }
-function cca { claude agents }
+function Set-WezTabTitle([string]$title) {
+    Write-Host -NoNewline "`e]0;$title`a"
+}
+
+function cc    { Set-WezTabTitle "cc • $(Split-Path -Leaf $PWD)"; claude @args }
+function ccc   { Set-WezTabTitle "cc • $(Split-Path -Leaf $PWD)"; claude --continue @args }
+function ccd   { Set-WezTabTitle "cc • $(Split-Path -Leaf $PWD)"; claude --dangerously-skip-permissions @args }
+function ccdc  { Set-WezTabTitle "cc • $(Split-Path -Leaf $PWD)"; claude --dangerously-skip-permissions --continue @args }
+function cca   { Set-WezTabTitle "cc • agents"; claude agents }
 
 # ---- starship-stack-start ----
 Invoke-Expression (&starship init powershell)
