@@ -12,14 +12,16 @@ function wscalibra { Set-Location C:\DATA\Workspace\md-validator }
 function wsnetsuite { Set-Location C:\DATA\Workspace\netsuite-customizations }
 
 function Set-WezTabTitle([string]$title) {
-    Write-Host -NoNewline "`e]0;$title`a"
+    if ($env:WEZTERM_PANE) {
+        & wezterm.exe cli set-tab-title $title 2>$null
+    }
 }
 
-function cc    { Set-WezTabTitle "cc • $(Split-Path -Leaf $PWD)"; claude @args }
-function ccc   { Set-WezTabTitle "cc • $(Split-Path -Leaf $PWD)"; claude --continue @args }
-function ccd   { Set-WezTabTitle "cc • $(Split-Path -Leaf $PWD)"; claude --dangerously-skip-permissions @args }
-function ccdc  { Set-WezTabTitle "cc • $(Split-Path -Leaf $PWD)"; claude --dangerously-skip-permissions --continue @args }
-function cca   { Set-WezTabTitle "cc • agents"; claude agents }
+function cc    { Set-WezTabTitle "cc • $(Split-Path -Leaf $PWD)"; try { claude @args } finally { Set-WezTabTitle "" } }
+function ccc   { Set-WezTabTitle "cc • $(Split-Path -Leaf $PWD)"; try { claude --continue @args } finally { Set-WezTabTitle "" } }
+function ccd   { Set-WezTabTitle "cc • $(Split-Path -Leaf $PWD)"; try { claude --dangerously-skip-permissions @args } finally { Set-WezTabTitle "" } }
+function ccdc  { Set-WezTabTitle "cc • $(Split-Path -Leaf $PWD)"; try { claude --dangerously-skip-permissions --continue @args } finally { Set-WezTabTitle "" } }
+function cca   { Set-WezTabTitle "cc • agents"; try { claude agents } finally { Set-WezTabTitle "" } }
 
 # ---- starship-stack-start ----
 Invoke-Expression (&starship init powershell)
