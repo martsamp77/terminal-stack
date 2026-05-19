@@ -56,6 +56,7 @@ config.keys = {
   { key = 'k', mods = 'LEADER', action = act.ActivatePaneDirection 'Up' },
   { key = 'j', mods = 'LEADER', action = act.ActivatePaneDirection 'Down' },
   { key = 'a', mods = 'LEADER|CTRL', action = act.SendKey { key = 'a', mods = 'CTRL' } },
+  { key = 'v', mods = 'CTRL', action = act.PasteFrom 'Clipboard' },
 }
 
 wezterm.on('format-tab-title', function(tab, tabs, panes, config, hover, max_width)
