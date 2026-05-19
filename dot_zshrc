@@ -108,7 +108,7 @@ eval "$(starship init zsh)"
 # ---- starship-stack-end ----
 
 # ---- terminal-stack-helpers-start ----
-precmd() { print -Pn "\e]0;%n@%m:%~\a" }
+precmd() { print -Pn "\e]0;zsh • %1~\a" }
 
 # Start/attach a Claude Code tmux session for the current repo or named task.
 ccs() {
