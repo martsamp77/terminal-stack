@@ -30,9 +30,8 @@ config.window_frame = {
   font_size = 11.0,
 }
 
-config.front_end = 'WebGpu'
-config.webgpu_power_preference = 'HighPerformance'
-config.max_fps = 120
+-- OpenGL avoids the WebGpu output-buffer stall where child-process output (e.g. Claude Code starting up) only renders after the next input event.
+config.front_end = 'OpenGL'
 config.scrollback_lines = 50000
 
 config.leader = { key = 'a', mods = 'CTRL', timeout_milliseconds = 1500 }

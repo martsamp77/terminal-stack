@@ -24,11 +24,26 @@ function ccdc  { Set-WezTabTitle "cc • $(Split-Path -Leaf $PWD)"; try { claude
 function cca   { Set-WezTabTitle "cc • agents"; try { claude agents } finally { Set-WezTabTitle "" } }
 
 # ---- starship-stack-start ----
+
+# Native console children (Claude Code, etc.) can SetConsoleOutputCP back to 437 on exit; [Console]::OutputEncoding caches and won't catch it, so probe the OS codepage directly.
+if (-not ('Native.ConsoleCP' -as [type])) {
+    Add-Type -Namespace Native -Name ConsoleCP -MemberDefinition @'
+[System.Runtime.InteropServices.DllImport("kernel32.dll")]
+public static extern uint GetConsoleOutputCP();
+[System.Runtime.InteropServices.DllImport("kernel32.dll")]
+public static extern bool SetConsoleOutputCP(uint wCodePageID);
+'@ | Out-Null
+}
+[Native.ConsoleCP]::SetConsoleOutputCP(65001) | Out-Null
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+[Console]::InputEncoding  = [System.Text.Encoding]::UTF8
+
 Invoke-Expression (&starship init powershell)
 if (Get-Command Enable-TransientPrompt -ErrorAction SilentlyContinue) { Enable-TransientPrompt }
 
 function Invoke-Starship-PreCommand {
-    if ([Console]::OutputEncoding.CodePage -ne 65001) {
+    if ([Native.ConsoleCP]::GetConsoleOutputCP() -ne 65001) {
+        [Native.ConsoleCP]::SetConsoleOutputCP(65001) | Out-Null
         [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
         [Console]::InputEncoding  = [System.Text.Encoding]::UTF8
     }
@@ -45,5 +60,14 @@ function Invoke-Starship-PreCommand {
 # ---- cli-tools-start ----
 if (Get-Command zoxide -ErrorAction SilentlyContinue) {
     Invoke-Expression (& { (zoxide init powershell | Out-String) })
+}
+
+if (Get-Command eza -ErrorAction SilentlyContinue) {
+    # Built-in `ls` is an alias to Get-ChildItem; remove before redefining as a function.
+    Remove-Item Alias:ls -Force -ErrorAction SilentlyContinue
+    function ls { eza --icons=always --git --group-directories-first @args }
+    function ll { eza -l --icons=always --git --group-directories-first @args }
+    function la { eza -la --icons=always --git --group-directories-first @args }
+    function lt { eza --tree --icons=always --git --group-directories-first @args }
 }
 # ---- cli-tools-end ----
