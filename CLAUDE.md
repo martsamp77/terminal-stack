@@ -62,7 +62,7 @@ If you need to modify `$PROFILE`, edit **only inside an existing marker block** 
 
 These are written up at length in `docs/powershell-quirks.md`; the short version:
 
-- **CRLF drift.** Editing a chezmoi-source file via Windows-side tools (the Edit tool when CWD is `C:\DATA\...`) can inject CRLF. The run_after hook will then think the destination differs and back it up unnecessarily. Defensive fix when you've just edited a source file through Windows: `sed -i 's/\r$//' <file>` (from inside WSL).
+- **CRLF drift.** The repo's `.gitattributes` (`* text=auto eol=lf`) overrides Windows' `core.autocrlf=true` and forces LF in the working tree on every platform. Without it, every chezmoi-source file on a Windows clone gets CRLF on checkout, which breaks `~/.zshrc` under zsh (`^M` errors), `run_after_90-sync-windows.sh` (`#!/usr/bin/env bash\r` is not executable), and produces spurious `.bak` files on every apply. Don't remove `.gitattributes`. Rescue path for a single file that slipped through (e.g., an editor that ignored attributes): `sed -i 's/\r$//' <file>` from inside WSL.
 - **JSON paths in Claude Code hooks must use forward slashes**, not backslashes. Two shell layers strip backslashes; forward slashes survive. See `windows/.claude/settings.json.tmpl` for examples (`C:/Users/__WIN_USER__/.claude/hooks/...`).
 - **Tab title for `cc` wrappers uses `wezterm cli set-tab-title`, not OSC 0.** Claude Code's TUI overwrites `pane.title` (OSC) with its conversation slug; `tab.tab_title` is sticky and survives. The `format-tab-title` Lua hook in `windows/.wezterm.lua` checks `tab.tab_title` first.
 - **`Enable-TransientPrompt` is guarded with `Get-Command`** because PSReadLine 2.4.5 doesn't export it. Don't remove the guard.

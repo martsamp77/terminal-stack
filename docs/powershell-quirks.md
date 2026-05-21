@@ -6,20 +6,69 @@ A field guide to the subtle Windows-side gotchas this stack works around. If som
 
 **Symptom.** After exiting Claude Code (`/exit` or Ctrl-D), the next pwsh prompt shows `Γ¥»` (or similar three-character mojibake) where the starship `❯` glyph should be.
 
-**Cause.** Claude Code's TUI changes the Win32 console output code page during its runtime and doesn't restore it on exit. After exit, pwsh emits the UTF-8 bytes of `❯` (3 bytes: `0xE2 0x9D 0xAF`), but the console is now in CP437 (the legacy DOS code page). CP437 decodes those bytes as three separate characters: `Γ` `¥` `»`.
+**Cause.** Claude Code's TUI calls Win32 `SetConsoleOutputCP()` to change the OS-level console code page (typically to 437) during runtime and doesn't restore it on exit. After exit, pwsh emits the UTF-8 bytes of `❯` (`E2 9D AF`), but the OS console is in CP437. CP437 decodes those bytes as three separate characters: `Γ` `¥` `»`.
 
-**Fix.** In `Invoke-Starship-PreCommand` in `$PROFILE`, restore UTF-8 console encoding at the start of every prompt cycle:
+**Fix.** P/Invoke `kernel32!GetConsoleOutputCP` and `SetConsoleOutputCP` in `Invoke-Starship-PreCommand`, probing the OS console state every prompt:
 
 ```powershell
-if ([Console]::OutputEncoding.CodePage -ne 65001) {
-    [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
-    [Console]::InputEncoding  = [System.Text.Encoding]::UTF8
+if (-not ('Native.ConsoleCP' -as [type])) {
+    Add-Type -Namespace Native -Name ConsoleCP -MemberDefinition @'
+[System.Runtime.InteropServices.DllImport("kernel32.dll")]
+public static extern uint GetConsoleOutputCP();
+[System.Runtime.InteropServices.DllImport("kernel32.dll")]
+public static extern bool SetConsoleOutputCP(uint wCodePageID);
+'@ | Out-Null
+}
+[Native.ConsoleCP]::SetConsoleOutputCP(65001) | Out-Null
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+
+function Invoke-Starship-PreCommand {
+    if ([Native.ConsoleCP]::GetConsoleOutputCP() -ne 65001) {
+        [Native.ConsoleCP]::SetConsoleOutputCP(65001) | Out-Null
+        [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+    }
+    ...
 }
 ```
 
-Cheap (integer compare when codepage is already correct), defensive (heals state from any tool that misbehaves, not just CC), and runs early enough that the prompt's `❯` decodes correctly on the very first redraw after CC exit.
+**Why `[Console]::OutputEncoding` alone wasn't enough.** The first version of this fix (commit `116087d`) only consulted `[Console]::OutputEncoding.CodePage` — a .NET-side cached value that does NOT get invalidated when a native child process changes the codepage via raw `SetConsoleOutputCP`. After Claude Code exited, .NET still believed the codepage was 65001 and the conditional skipped the reset, while the underlying OS console was actually at 437. The P/Invoke version asks the OS directly.
 
-Commit: [`116087d`](../CHANGELOG.md).
+## Claude Code startup output stalls until next keypress
+
+**Symptom.** You type `ccd`, hit Enter. The cursor moves to a new line but Claude Code's TUI doesn't draw. You press any key — even space — and the entire Claude Code intro screen pops into existence at once.
+
+**Cause.** WezTerm's `WebGpu` front_end has an output-buffer behavior on some Intel iGPU drivers where rapid post-redirect output from a child process doesn't trigger an immediate redraw. The buffer is flushed only when WezTerm processes the next input event.
+
+**Fix.** Switch the front_end to `OpenGL` in `.wezterm.lua`:
+
+```lua
+config.front_end = 'OpenGL'
+```
+
+Also drop `webgpu_power_preference` (no longer applies) and `max_fps = 120` (default 60 matches typical panel refresh and avoids wasted frames). The trade-off is slightly less polished scrolling animation; interactive responsiveness wins. If you're on a discrete GPU and don't see the stall, you can keep WebGpu.
+
+## CRLF drift on chezmoi sources
+
+**Symptom.** In WSL, starting `zsh` shows a stream of `~/.zshrc:N: command not found: ^M` errors. Or `chezmoi apply` fails with `env: $'bash\r': No such file or directory` (the `run_after` hook). Or every apply produces a fresh `.bak.YYYYMMDD.N` file even though you didn't change anything.
+
+**Cause.** Windows git's system-wide `core.autocrlf=true` rewrites LF-stored files as CRLF on checkout. POSIX shells and `env`-based shebangs choke on the trailing `\r`. chezmoi then dutifully copies the CRLF working-tree file to `~/.zshrc`.
+
+**Fix.** This repo's `.gitattributes` (`* text=auto eol=lf`) overrides `core.autocrlf` and forces LF in the working tree on every platform. On a fresh clone, no further action is needed.
+
+To rescue an existing clone where the damage was already done:
+
+```sh
+git add --renormalize .
+# any newly-staged changes are pure line-ending normalization — commit them
+```
+
+Defensive last-resort for a single file that slipped through (e.g., an editor that ignored attributes):
+
+```sh
+sed -i 's/\r$//' <file>
+```
+
+Do not remove the `.gitattributes` to "match the user's git config" — it intentionally overrides the user's config so the repo is correct regardless of `autocrlf` setting.
 
 ## `Enable-TransientPrompt` cmdlet not found
 

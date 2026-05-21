@@ -89,6 +89,36 @@ The Mac sync mentioned at project kickoff is enabled once a remote exists. Until
 
 Standard, permissive, well-understood. The stack contains nothing proprietary. If you fork it for personal use, the source carries no hard-coded usernames (the sync hook resolves the Windows user at apply time — see `cross-side-chezmoi.md` § "Username resolution"). You may want to update the copyright line in `LICENSE`.
 
+## Why `.gitattributes` with `eol=lf` instead of trusting developer git config?
+
+Windows installers typically enable `core.autocrlf=true` at the system level. Without a `.gitattributes`, every git checkout on Windows rewrites every text file in the working tree as CRLF, which then propagates through chezmoi to the WSL home directory. Symptoms on first apply: `zsh ~/.zshrc:N: command not found: ^M` errors on every line, `run_after_90-sync-windows.sh` failing because `#!/usr/bin/env bash\r` is not an executable name, spurious `.bak` files on every subsequent apply because the source and destination differ on phantom line endings.
+
+`* text=auto eol=lf` in `.gitattributes` overrides `core.autocrlf` at the repo level, so cloning is correct regardless of the developer's global config. Binary markers (`*.jpg binary`, etc.) protect non-text files from being touched.
+
+Trade-off: PowerShell `*.ps1` files end up LF too. pwsh accepts both encodings natively, so this is fine. The only consumers that care about CRLF specifically are some legacy `cmd.exe` batch parsers, which we don't ship.
+
+## Why single-source the starship config across Windows and WSL?
+
+Originally there were two divergent `starship.toml` files — `dot_config/starship.toml` had the rounded-frame two-line prompt, `windows/.config/starship.toml` had a stripped-down single-line variant. Maintaining both meant any glyph or layout change had to be made twice and stayed out of sync until someone noticed.
+
+The two sides have always wanted the same prompt structure — only the OS glyph differs at render time (starship auto-detects). So we collapsed to one canonical config at `dot_config/starship.toml` and a byte-identical mirror at `windows/.config/starship.toml`. Both deploy through their respective paths (chezmoi for WSL, `run_after_90-sync-windows.sh` for Windows). Edit `dot_config/starship.toml`, `cp` to the windows mirror, apply.
+
+Trade-off: nothing automatic enforces the mirror — a CI check or pre-commit hook could, but for a single-maintainer repo this hasn't been worth wiring up yet.
+
+## Why P/Invoke for the UTF-8 console codepage, not `[Console]::OutputEncoding`?
+
+The .NET `[Console]::OutputEncoding` property is a cached value. When you set it, .NET calls `SetConsoleOutputCP()` under the hood. When you read it, .NET returns the cached value — it does NOT re-query Win32 to see whether something else (e.g., a native child process like Claude Code) changed the underlying codepage out from under it.
+
+Native console TUIs routinely call `SetConsoleOutputCP()` directly to change the OS-level codepage during runtime, and don't always restore it on exit. After such a child process exits, .NET's cached `OutputEncoding` says "UTF-8" while the OS console is actually at CP437 — and any conditional fix that checks the .NET cache short-circuits as "already UTF-8", skipping the reset, leaving the user staring at `Γ¥»` mojibake.
+
+The P/Invoke version (`Native.ConsoleCP::GetConsoleOutputCP()`) asks the OS directly. It runs once per prompt, costs a few microseconds, and is the authoritative source.
+
+## Why OpenGL front_end instead of WezTerm's default WebGpu?
+
+WebGpu is the default and generally faster on a discrete GPU, but on some Intel iGPU drivers (we've reproduced on the local Windows 11 setup) it has an output-buffer queueing behavior where rapid post-redirect output from a child process (Claude Code starting up, large `cat` of a colored log, etc.) doesn't trigger an immediate redraw. The buffer flushes only when WezTerm processes the next input event — which manifests as "type `ccd`, hit Enter, nothing happens, hit space, Claude Code's whole intro screen suddenly appears."
+
+`OpenGL` doesn't have this problem on the same hardware. The trade-off is slightly less polished animation/scrolling under heavy load. For an interactive terminal workflow that's the right call. If a future user is on a discrete GPU and wants WebGpu back, change `config.front_end = 'OpenGL'` to `'WebGpu'` and restore the `webgpu_power_preference` + `max_fps` lines.
+
 ## Why not just use a single GUI tool like Microsoft Terminal?
 
 Microsoft Terminal is fine, but:

@@ -2,7 +2,25 @@
 
 All notable changes captured here. Format loosely follows [Keep a Changelog](https://keepachangelog.com/). Dates are MM/DD/YYYY for display, `git log` is authoritative.
 
-## [Unreleased]
+## [Unreleased] — 05/21/2026
+
+### Added
+
+- **`.gitattributes`** enforcing `* text=auto eol=lf` plus binary markers for image/archive types. Overrides Windows' `core.autocrlf=true` (which is on at the system level by default) so fresh clones get LF in the working tree on every platform. Without this, every chezmoi-source file was being silently rewritten as CRLF on Windows checkout, then propagated through chezmoi to WSL — symptoms: `~/.zshrc:3: command not found: ^M`, `run_after_90-sync-windows.sh` failing with `env: $'bash\r': No such file or directory`, and spurious `.bak` files on every apply. See `docs/decisions.md` § "Why `.gitattributes` with `eol=lf`".
+- **Cross-platform Nerd Font glyphs in `starship.toml`**: folder ( U+F07B), octocat ( U+F408) + git-branch ( U+E725), clock ( U+F017), per-distro OS logos (Ubuntu , Debian , Arch , Alpine , Fedora , macOS , Windows , and ~15 others). Both `dot_config/starship.toml` and `windows/.config/starship.toml` are now byte-identical and produce the rounded-frame two-line prompt from `context/bestprompt.jpg` on both sides — only the OS glyph differs by platform.
+- **eza-backed `ls/ll/la/lt` functions** in the pwsh `cli-tools` marker block, matching the Linux `dot_zshrc` alias (`eza --icons=always --git --group-directories-first`). The built-in `ls` alias is removed first since pwsh pre-aliases it to `Get-ChildItem`. `ll` adds long-form (`-l`), `la` adds hidden+long (`-la`), `lt` switches to tree view (`--tree`).
+
+### Fixed
+
+- **Deeper `Γ¥»` mojibake** — Claude Code and other native console children call `SetConsoleOutputCP()` and can leave the OS-level console codepage as 437 on exit. The previous fix (commit `116087d`) only consulted `[Console]::OutputEncoding.CodePage`, which is a .NET-side cached value that does NOT reflect direct Win32 codepage changes. The conditional short-circuited as "already UTF-8" while the underlying console was actually 437 → next prompt's `❯` decoded as `Γ¥»`. New approach: P/Invoke `kernel32!GetConsoleOutputCP` / `SetConsoleOutputCP(65001)` in `Invoke-Starship-PreCommand`, probing OS state authoritatively each prompt.
+- **All `os.symbols` empty in `starship.toml`** — the Private-Use-Area Nerd Font glyphs had been silently stripped at some prior write, leaving every entry as `""`. The OS module emitted only a trailing space. `bestprompt.jpg` predates the strip. Restored with explicit visible glyphs; comment warns future edits not to round-trip the file through tools that drop PUA characters (U+E000–U+F8FF).
+- **`OpenSUSE` rejected by starship's variant parser** — correct casing is `openSUSE`. The parse error silently disabled the entire `[os.symbols]` table on Windows, falling back to starship's emoji defaults (which render as `?` in most Nerd Fonts).
+- **WezTerm Claude-Code startup render stall** — switched `front_end` from `WebGpu` to `OpenGL`. The post-Enter output-buffer stall ("type `ccd`, Claude doesn't draw until I press a key") is a known WebGpu behavior on certain Intel iGPU drivers. Also dropped `webgpu_power_preference` (no longer applies) and `max_fps = 120` (default 60 matches typical panel refresh, avoids wasted frames).
+
+### Changed
+
+- **Starship config now single-sourced.** `dot_config/starship.toml` is canonical; `windows/.config/starship.toml` is a byte-identical copy maintained via `run_after_90-sync-windows.sh`. To edit, change `dot_config/starship.toml`, then `cp dot_config/starship.toml windows/.config/starship.toml`.
+- **`Invoke-Starship-PreCommand` UTF-8 restore** (in `$PROFILE`) is now the P/Invoke version described under "Fixed". The old `[Console]::OutputEncoding.CodePage` check is gone.
 
 ## [1.0.0] — 05/19/2026
 
