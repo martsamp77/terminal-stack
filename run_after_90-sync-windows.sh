@@ -19,6 +19,13 @@ if [ ! -d "$src_dir" ]; then
   exit 0
 fi
 
+# Non-WSL / no Windows mount available — no destination to sync to. Bail before
+# we try to resolve a Windows username we can't possibly find. Native Linux and
+# macOS land here.
+if [ ! -d /mnt/c/Users ]; then
+  exit 0
+fi
+
 resolve_win_user() {
   local cz=""
   if command -v chezmoi >/dev/null 2>&1; then

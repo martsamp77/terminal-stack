@@ -6,9 +6,11 @@ README.md
 ARCHITECTURE.md
 CHANGELOG.md
 INSTALL.md
+CLAUDE.md
 LICENSE
 .gitignore
 .gitattributes
 .github/**
 bootstrap/**
 docs/**
+context/**

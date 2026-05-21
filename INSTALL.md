@@ -4,7 +4,7 @@ Two paths. Pick the one matching how much trust you have in the scripts.
 
 ## Scripted (fastest)
 
-For a fresh Windows 11 + WSL2 machine. The WSL bootstrap will prompt for your Windows username (it pre-fills the value reported by `cmd.exe` via interop, so usually you can just press Enter).
+For a fresh Windows 11 + WSL2 machine, follow sections 1 → 4 below. For a native Linux box (Debian/Ubuntu), skip sections 1–2 and follow section 2L (Linux) → 3 → 4. The WSL bootstrap will prompt for your Windows username (it pre-fills the value reported by `cmd.exe` via interop, so usually you can just press Enter); the Linux bootstrap has no Windows-side prompts.
 
 ### 1. Windows side
 
@@ -46,6 +46,26 @@ This installs:
 
 Re-run as needed; the script is idempotent.
 
+### 2L. Linux side (native Debian/Ubuntu, instead of WSL)
+
+For lambda-dual, internal, or any native Debian/Ubuntu host:
+
+```sh
+git clone <repo-url> ~/code/terminal-stack    # or your chosen path
+cd ~/code/terminal-stack
+bash ./bootstrap/linux-bootstrap.sh
+```
+
+Installs the same toolchain as the WSL bootstrap (zsh, oh-my-zsh, chezmoi, Starship, Nerd Font, modern CLI tools), writes `~/.config/chezmoi/chezmoi.toml` with `sourceDir` pointing at the clone, and skips all Windows-side handling. The post-apply sync hook self-no-ops when `/mnt/c/Users/` is absent, so `chezmoi apply` Just Works.
+
+Override the source path via env var if you cloned elsewhere:
+
+```sh
+SOURCE_DIR=/srv/dotfiles/terminal-stack bash ./bootstrap/linux-bootstrap.sh
+```
+
+Re-run as needed; the script is idempotent.
+
 ### 3. Apply chezmoi
 
 The WSL bootstrap already wrote `~/.config/chezmoi/chezmoi.toml` with `sourceDir` and `[data].windowsUsername`. Just apply:
@@ -64,7 +84,9 @@ echo 'sourceDir = "$HOME/code/terminal-stack"' > ~/.config/chezmoi/chezmoi.toml 
 chezmoi apply -v
 ```
 
-(macOS skips the Windows side automatically: the `run_after` hook's `/mnt/c/Users/<user>/` existence check noops when the path doesn't exist.)
+(macOS and native Linux skip the Windows side automatically: the `run_after` hook's `/mnt/c/Users/<user>/` existence check noops when the path doesn't exist.)
+
+For per-machine overrides (peer-sync helpers, server-role aliases, anything that shouldn't propagate via the shared repo), copy `~/.zshrc.local.example` to `~/.zshrc.local` and edit. `dot_zshrc` sources it at the end if present.
 
 ### 4. Reopen WezTerm
 

@@ -1,0 +1,18 @@
+# ~/.zshrc.local — per-machine overrides, sourced at the end of ~/.zshrc.
+# This file is NOT tracked by chezmoi. Copy this example, drop the .example
+# suffix, and edit for the current host:
+#
+#   cp ~/.zshrc.local.example ~/.zshrc.local
+#
+# Things that belong here: hostname-specific aliases, peer addresses,
+# GPU/server-role helpers, credentials paths — anything that shouldn't
+# propagate to other machines via the shared repo.
+
+# ── Example: dotfiles sync between two specific peers ─────────────────────────
+# Used on lambda-dual <-> internal (10.30.1.14). Hostname check makes the same
+# file work on either side without edits — peer is always "the other one".
+#
+# _DOTFILES=(~/.zshrc ~/.ssh/config)
+# _DOTPEER=$( [[ $(hostname -s) == "lambda-dual" ]] && echo "internal" || echo "lambda-dual" )
+# dot-push() { rsync -av "${_DOTFILES[@]}" "msampson@${_DOTPEER}:~/"; }
+# dot-pull() { rsync -av "msampson@${_DOTPEER}:~/.zshrc" "msampson@${_DOTPEER}:~/.ssh/config" ~/; }

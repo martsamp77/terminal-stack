@@ -1,0 +1,17 @@
+{{- /*
+  Run by `chezmoi init`. Writes ~/.config/chezmoi/chezmoi.toml.
+  Provides [data].os ∈ {wsl, linux, darwin, windows} so files can fork by OS.
+
+  Note: the bootstrap scripts (bootstrap/{wsl,linux}-bootstrap.sh) are the
+  documented setup path. They write chezmoi.toml directly (including sourceDir
+  and, on WSL, windowsUsername). This template only matters if you skip the
+  bootstrap and run `chezmoi init <repo>` instead.
+*/ -}}
+{{- $os := .chezmoi.os -}}
+{{- if eq .chezmoi.os "linux" -}}
+{{-   if contains "microsoft" (lower .chezmoi.kernel.osrelease) -}}
+{{-     $os = "wsl" -}}
+{{-   end -}}
+{{- end }}
+[data]
+os = "{{ $os }}"

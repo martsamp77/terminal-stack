@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this repo is
 
-A chezmoi source tree that deploys a Windows 11 + WSL2 Ubuntu terminal stack (WezTerm, tmux, Starship, zsh, PowerShell `$PROFILE`, Claude Code hooks/settings, modern CLI tools) from one git repo to two operating systems with a single `chezmoi apply`.
+A chezmoi source tree that deploys a Windows 11 + WSL2 Ubuntu + native Linux (Debian/Ubuntu) terminal stack (WezTerm, tmux, Starship, zsh, PowerShell `$PROFILE`, Claude Code hooks/settings, modern CLI tools) from one git repo to three targets with a single `chezmoi apply`. On native Linux the `run_after` Windows-sync hook self-no-ops (no `/mnt/c/` mount), so the same source tree is correct everywhere.
 
 There is no build, no test suite, no lint. "Running" the project means applying configs to the host machine.
 
@@ -26,13 +26,17 @@ chezmoi re-add ~/.claude/settings.json
 
 There is no CI. Verification is manual — see `INSTALL.md` § Phase 9.
 
-## The architectural twist: one source repo, two operating systems
+## The architectural twist: one source repo, three targets
 
-chezmoi natively only manages `$HOME` on the machine where it runs. We need both Windows `C:\Users\<you>\` and WSL `/home/<you>/`. The solution:
+chezmoi natively only manages `$HOME` on the machine where it runs. We need Windows `C:\Users\<you>\`, WSL `/home/<you>/`, and native Linux `/home/<you>/` covered by the same source tree. The solution:
 
-1. **WSL-targeted files** use chezmoi's standard `dot_*` / `dot_config/` / `executable_*` naming at the repo root → applied to WSL `$HOME` normally.
+1. **WSL- and native-Linux-targeted files** use chezmoi's standard `dot_*` / `dot_config/` / `executable_*` naming at the repo root → applied to `$HOME` normally. The same files cover both: WSL-specific code paths (e.g., `wezterm cli set-tab-title`) are already guarded by `$WEZTERM_PANE` and no-op outside WezTerm, so they're harmless on native Linux servers reached via ssh/PuTTY.
 2. **Windows-targeted files** live under `windows/` and are **excluded** from chezmoi's apply by `.chezmoiignore` (`windows/**`).
-3. **`run_after_90-sync-windows.sh`** walks `windows/` after each apply and mirrors every file to `/mnt/c/Users/<you>/<same relative path>`, with `.bak.YYYYMMDD[.N]` backups for any overwrite.
+3. **`run_after_90-sync-windows.sh`** walks `windows/` after each apply and mirrors every file to `/mnt/c/Users/<you>/<same relative path>`, with `.bak.YYYYMMDD[.N]` backups for any overwrite. **On native Linux the hook exits cleanly when `/mnt/c/Users/` is missing** — same script, three platforms.
+
+**Bootstrap split.** `bootstrap/wsl-bootstrap.sh` (WSL) and `bootstrap/linux-bootstrap.sh` (native Debian/Ubuntu) both source the shared `bootstrap/_common-debian.sh` helper for the install steps (apt, oh-my-zsh, chezmoi, Starship, Nerd Font). The wrappers diverge only on Windows-username handling and the default `SOURCE_DIR`.
+
+**Per-machine overrides.** `dot_zshrc` sources `~/.zshrc.local` at the end if it exists. That file is **not** tracked by chezmoi — use it for peer-sync helpers, server-role aliases, anything that shouldn't propagate. See `dot_zshrc.local.example` for the documented pattern.
 
 Source → destination mapping for the `windows/` subtree is **relative-path-preserving**: `windows/.wezterm.lua` → `/mnt/c/Users/<you>/.wezterm.lua`. To add a new Windows-side file, drop it at the mirror path under `windows/` — no script changes needed. Full mechanism in `docs/cross-side-chezmoi.md`.
 

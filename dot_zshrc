@@ -37,8 +37,8 @@ ZSH_THEME=""
 # Uncomment the following line to disable colors in ls.
 # DISABLE_LS_COLORS="true"
 
-# Uncomment the following line to disable auto-setting terminal title.
-# DISABLE_AUTO_TITLE="true"
+# We set our own terminal title via add-zsh-hook below; disable OMZ's auto-title.
+DISABLE_AUTO_TITLE="true"
 
 # Uncomment the following line to enable command auto-correction.
 # ENABLE_CORRECTION="true"
@@ -60,7 +60,7 @@ ZSH_THEME=""
 # "mm/dd/yyyy"|"dd.mm.yyyy"|"yyyy-mm-dd"
 # or set a custom format using the strftime function format specifications,
 # see 'man strftime' for details.
-# HIST_STAMPS="mm/dd/yyyy"
+HIST_STAMPS="mm/dd/yyyy"
 
 # Would you like to use another custom folder than $ZSH/custom?
 # ZSH_CUSTOM=/path/to/new-custom-folder
@@ -70,9 +70,43 @@ ZSH_THEME=""
 # Custom plugins may be added to $ZSH_CUSTOM/plugins/
 # Example format: plugins=(rails git textmate ruby lighthouse)
 # Add wisely, as too many plugins slow down shell startup.
-plugins=(git)
+plugins=(git z sudo)
 
 source $ZSH/oh-my-zsh.sh
+
+# ---- terminal-stack-zsh-start ----
+# History — 50k lines, share between shells, drop entries containing secrets.
+HISTFILE="$HOME/.zsh_history"
+HISTSIZE=50000
+SAVEHIST=50000
+setopt HIST_IGNORE_DUPS
+setopt HIST_IGNORE_ALL_DUPS
+setopt HIST_IGNORE_SPACE
+setopt HIST_REDUCE_BLANKS
+setopt HIST_VERIFY
+setopt SHARE_HISTORY
+setopt EXTENDED_HISTORY
+
+# Filter secrets from history entirely (return 1 = discard, not just hide from file).
+zshaddhistory() {
+  local line="${1%%$'\n'}"
+  [[ "$line" =~ '(sk-|Bearer |--token|_KEY=|_SECRET=|_PASSWORD=|_TOKEN=)' ]] && return 1
+  return 0
+}
+
+export EDITOR='nano'
+
+# Claude Code shorthands (PowerShell equivalents live in windows/Documents/PowerShell/Microsoft.PowerShell_profile.ps1).
+alias cc="claude"
+alias ccc="claude --continue"
+alias ccd="claude --dangerously-skip-permissions"
+alias ccdc="claude --dangerously-skip-permissions --continue"
+alias cca="claude agents"
+
+# Fix Home/End keys in PuTTY / some terminals.
+bindkey "\e[1~" beginning-of-line
+bindkey "\e[4~" end-of-line
+# ---- terminal-stack-zsh-end ----
 
 # User configuration
 
@@ -108,7 +142,10 @@ eval "$(starship init zsh)"
 # ---- starship-stack-end ----
 
 # ---- terminal-stack-helpers-start ----
-precmd() { print -Pn "\e]0;zsh • %1~\a" }
+autoload -Uz add-zsh-hook
+# Hostname-aware title — useful when ssh'ing between boxes; composes with other precmd hooks.
+_set_title() { print -Pn "\e]0;%m: %~\a" }
+add-zsh-hook precmd _set_title
 
 # Start/attach a Claude Code tmux session for the current repo or named task.
 ccs() {
@@ -134,3 +171,6 @@ command -v fzf    >/dev/null && source <(fzf --zsh) 2>/dev/null
 command -v eza    >/dev/null && alias ls='eza --icons=always --git --group-directories-first'
 command -v bat    >/dev/null && alias cat='bat --paging=never'
 # ---- cli-tools-end ----
+
+# Per-machine overrides (not tracked by chezmoi). See dot_zshrc.local.example.
+[[ -r "$HOME/.zshrc.local" ]] && source "$HOME/.zshrc.local"
