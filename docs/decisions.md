@@ -73,15 +73,6 @@ Tested at 80 (too tight for tilde-paths in subprojects), 120 (current — fits m
 
 120 cells gives ~14ch margin over the longest expected title (`cc ⏳ ap-bill-automation-standalone`) and leaves room for project name to be the dominant visual signal.
 
-## Why `tab_bar_at_bottom = true` with `use_fancy_tab_bar = true`?
-
-The fancy tab bar usually goes at the top (matches browser conventions). We override to put it at the bottom because:
-- That's where my eyes are when reading terminal output (the cursor sits low).
-- It pairs cleanly with the right-status (workspace · cwd · time) which renders in the same bar.
-- WezTerm's `tab_bar_at_bottom` does respect fancy mode (verified during deployment).
-
-If a future WezTerm release breaks fancy + bottom, fall back to simple mode (`use_fancy_tab_bar = false`) which loses the smaller frame font but keeps the bottom position.
-
 ## Why `window_background_opacity = 1.0` (no transparency)?
 
 Originally `0.97` (slight transparency). User rejected after seeing it — the slight bleed-through from background apps hurt readability of code/output. Switched to fully opaque.
