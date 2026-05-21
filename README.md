@@ -6,7 +6,7 @@ Built incrementally on 05/19/2026 over a single working session. Every commit is
 
 ## What you get
 
-- **WezTerm nightly** with a fancy tab bar at the bottom, JetBrainsMono Nerd Font at 11.5pt, 12-hour clock in the right-status, `Ctrl+V` rebound for synthetic-paste compatibility (Wispr Flow, etc.).
+- **WezTerm nightly** with a fancy tab bar, JetBrainsMono Nerd Font at 11.5pt, workspace · cwd in the right-status, `Ctrl+V` rebound for synthetic-paste compatibility (Wispr Flow, etc.).
 - **PowerShell 7 `$PROFILE`** with Starship prompt, OSC 7 cwd hint, tilde-abbreviated tab title, UTF-8 console restore (heals Claude-Code `Γ¥»` mojibake), and `cc`/`ccc`/`ccd`/`ccdc`/`cca` wrappers that set per-tab project titles.
 - **WSL zsh** with oh-my-zsh, theme cleared so Starship owns the prompt, a `precmd` that sets tab titles, and `ccs` / `ssht` helpers for tmux-attached Claude Code and SSH sessions.
 - **Claude Code hooks** that flip the WezTerm tab title to `cc ⏳ <project>` while Claude is thinking and `cc ✓ <project>` when it's waiting for your input — symmetric across Windows pwsh and WSL bash.

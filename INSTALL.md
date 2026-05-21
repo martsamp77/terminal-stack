@@ -232,7 +232,7 @@ rg --version | head -1
 chezmoi doctor | head -5
 ```
 
-Open WezTerm, confirm tab status bar shows workspace · cwd · 12-hour time. Open a zsh pane, confirm Starship prompt with the branch glyph renders. Open a pwsh pane, run `cc` from a project dir, confirm tab title flips to `cc • <project>`.
+Open WezTerm, confirm tab status bar shows workspace · cwd. Open a zsh pane, confirm Starship prompt with the branch glyph renders. Open a pwsh pane, run `cc` from a project dir, confirm tab title flips to `cc • <project>`.
 
 ### Phase 10 — Done
 

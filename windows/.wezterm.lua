@@ -23,7 +23,6 @@ config.font_size = 11.5
 config.color_scheme = 'Catppuccin Mocha'
 config.window_background_opacity = 1.0
 config.use_fancy_tab_bar = true
-config.tab_bar_at_bottom = true
 config.hide_tab_bar_if_only_one_tab = false
 config.window_decorations = 'RESIZE'
 config.tab_max_width = 120
@@ -70,11 +69,9 @@ wezterm.on('update-right-status', function(window, pane)
   local workspace = window:active_workspace()
   local cwd = pane:get_current_working_dir()
   local cwd_str = cwd and (cwd.file_path or '') or ''
-  local time = wezterm.strftime('%-I:%M %p')
   window:set_right_status(wezterm.format {
-    { Foreground = { AnsiColor = 'Green' } },  { Text = '  ' .. workspace .. '  ' },
-    { Foreground = { AnsiColor = 'Blue' } },   { Text = '│  ' .. cwd_str .. '  ' },
-    { Foreground = { AnsiColor = 'Yellow' } }, { Text = '│  ' .. time .. ' ' },
+    { Foreground = { AnsiColor = 'Green' } }, { Text = '  ' .. workspace .. '  ' },
+    { Foreground = { AnsiColor = 'Blue' } },  { Text = '│  ' .. cwd_str .. ' ' },
   })
 end)
 
