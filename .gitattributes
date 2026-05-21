@@ -1,0 +1,15 @@
+# Enforce LF for every text file in the working tree on every platform.
+# `core.autocrlf=true` on Windows otherwise rewrites chezmoi-source dotfiles
+# with CRLF on checkout, which breaks them under WSL/zsh (e.g. `^M` errors)
+# and tricks the run_after sync hook into spurious backups.
+* text=auto eol=lf
+
+# Known binaries — never normalize.
+*.jpg binary
+*.jpeg binary
+*.png binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.pdf binary
+*.zip binary
