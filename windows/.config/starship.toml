@@ -1,26 +1,116 @@
-add_newline = true
-command_timeout = 1000
+"$schema" = "https://starship.rs/config-schema.json"
 
+# Powerlevel10k Rainbow-style two-line prompt rebuilt in Starship.
+# Reference: context/bestprompt.jpg (lambda-dual circa 2026-05).
+# Top line: ╭─ os · cwd · git-branch · git-status · ……… · user@host · clock · ─╮
+# Bottom line: ╰─ ❯
+#
+# Glyph requirements: any Nerd Font (JetBrainsMono Nerd Font is the stack default).
+# Nerd Font glyphs use \u escapes — the Private-Use-Area characters (U+E000–U+F8FF)
+# are not safe to paste literally because some editors silently strip them.
+
+add_newline      = true
+command_timeout  = 1000
+
+format = """
+[╭─ ](bold green)\
+$os\
+$directory\
+$git_branch\
+$git_status\
+$fill\
+$username\
+[@](bold green)\
+$hostname\
+$time\
+[ ─╮](bold green)
+[╰─](bold green)$character"""
+
+# ── Prompt arrow (line 2) ─────────────────────────────────────────────────────
 [character]
 success_symbol = "[❯](bold green)"
 error_symbol   = "[❯](bold red)"
+vimcmd_symbol  = "[❮](bold green)"
 
+# ── OS icon (distro/platform logo, Nerd Font) ─────────────────────────────────
+[os]
+disabled = false
+format   = "[$symbol ](bold cyan)"
+
+[os.symbols]
+Alpine           = ""
+Arch             = ""
+CentOS           = ""
+Debian           = ""
+Fedora           = ""
+Linux            = ""
+Macos            = ""
+Manjaro          = ""
+Mint             = ""
+NixOS            = ""
+openSUSE         = ""
+Pop              = ""
+Raspbian         = ""
+Redhat           = ""
+RedHatEnterprise = ""
+Ubuntu           = ""
+Unknown          = ""
+Windows          = ""
+
+# ── Current directory (folder glyph + path) ───────────────────────────────────
 [directory]
+format            = "[   $path]($style)"
+style             = "bold cyan"
 truncation_length = 4
-truncate_to_repo  = true
+truncate_to_repo  = false
+read_only         = "  "
 
+# ── Git branch (octocat + branch glyph + name) ────────────────────────────────
 [git_branch]
-symbol = " "
+format = "[    $branch]($style)"
+symbol = ""
+style  = "bold green"
 
+# ── Git status (modified/untracked/etc., yellow) ──────────────────────────────
 [git_status]
-ahead     = "⇡${count}"
-behind    = "⇣${count}"
-diverged  = "⇕⇡${ahead_count}⇣${behind_count}"
-conflicted= "="
-untracked = "?"
-modified  = "!"
-staged    = "+"
+format     = " [$all_status$ahead_behind]($style)"
+style      = "bold yellow"
+ahead      = "⇡${count} "
+behind     = "⇣${count} "
+diverged   = "⇕⇡${ahead_count}⇣${behind_count} "
+conflicted = "= "
+untracked  = "?${count} "
+modified   = "!${count} "
+staged     = "+${count} "
+renamed    = "»${count} "
+deleted    = "✘${count} "
+stashed    = "≡ "
 
+# ── Dots fill between left and right segments ─────────────────────────────────
+[fill]
+symbol = "."
+style  = "bold black"
+
+# ── User @ host ───────────────────────────────────────────────────────────────
+[username]
+show_always = true
+format      = "[$user]($style)"
+style_user  = "bold green"
+style_root  = "bold red"
+
+[hostname]
+ssh_only = false
+format   = "[$hostname]($style)"
+style    = "bold green"
+
+# ── Clock ─────────────────────────────────────────────────────────────────────
+[time]
+disabled    = false
+format      = " [ $time]($style)"
+time_format = "%r"
+style       = "bold cyan"
+
+# ── Misc ──────────────────────────────────────────────────────────────────────
 [cmd_duration]
 min_time = 500
 format   = "took [$duration]($style) "

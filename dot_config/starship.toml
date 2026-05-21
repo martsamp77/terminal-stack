@@ -6,6 +6,8 @@
 # Bottom line: ╰─ ❯
 #
 # Glyph requirements: any Nerd Font (JetBrainsMono Nerd Font is the stack default).
+# Nerd Font glyphs use \u escapes — the Private-Use-Area characters (U+E000–U+F8FF)
+# are not safe to paste literally because some editors silently strip them.
 
 add_newline      = true
 command_timeout  = 1000
@@ -30,33 +32,42 @@ success_symbol = "[❯](bold green)"
 error_symbol   = "[❯](bold red)"
 vimcmd_symbol  = "[❮](bold green)"
 
-# ── OS icon (gear/distro logo) ────────────────────────────────────────────────
+# ── OS icon (distro/platform logo, Nerd Font) ─────────────────────────────────
 [os]
 disabled = false
 format   = "[$symbol ](bold cyan)"
 
 [os.symbols]
-Ubuntu  = ""
-Debian  = ""
-Arch    = ""
-Alpine  = ""
-Fedora  = ""
-Linux   = ""
-Macos   = ""
-Windows = ""
-Unknown = ""
+Alpine           = ""
+Arch             = ""
+CentOS           = ""
+Debian           = ""
+Fedora           = ""
+Linux            = ""
+Macos            = ""
+Manjaro          = ""
+Mint             = ""
+NixOS            = ""
+openSUSE         = ""
+Pop              = ""
+Raspbian         = ""
+Redhat           = ""
+RedHatEnterprise = ""
+Ubuntu           = ""
+Unknown          = ""
+Windows          = ""
 
-# ── Current directory ─────────────────────────────────────────────────────────
+# ── Current directory (folder glyph + path) ───────────────────────────────────
 [directory]
-format            = "[ $path]($style)"
+format            = "[   $path]($style)"
 style             = "bold cyan"
 truncation_length = 4
 truncate_to_repo  = false
-read_only         = "  "
+read_only         = "  "
 
 # ── Git branch (octocat + branch glyph + name) ────────────────────────────────
 [git_branch]
-format = "[  $symbol $branch]($style)"
+format = "[    $branch]($style)"
 symbol = ""
 style  = "bold green"
 
@@ -95,7 +106,7 @@ style    = "bold green"
 # ── Clock ─────────────────────────────────────────────────────────────────────
 [time]
 disabled    = false
-format      = " [ $time]($style)"
+format      = " [ $time]($style)"
 time_format = "%r"
 style       = "bold cyan"
 
