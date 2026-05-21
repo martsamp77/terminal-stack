@@ -97,11 +97,18 @@ zshaddhistory() {
 export EDITOR='nano'
 
 # Claude Code shorthands (PowerShell equivalents live in windows/Documents/PowerShell/Microsoft.PowerShell_profile.ps1).
-alias cc="claude"
-alias ccc="claude --continue"
-alias ccd="claude --dangerously-skip-permissions"
-alias ccdc="claude --dangerously-skip-permissions --continue"
-alias cca="claude agents"
+# Each cc* sets the WezTerm tab title to "cc • <leaf>" while claude runs and
+# clears it on exit, so multiple concurrent Claude panes are visually distinct.
+_wez_tab_title() {
+  [[ -n "$WEZTERM_PANE" ]] && wezterm cli set-tab-title "$1" >/dev/null 2>&1
+}
+cc()    { _wez_tab_title "cc • ${PWD:t}"; claude "$@";                                           local rc=$?; _wez_tab_title ""; return $rc }
+ccc()   { _wez_tab_title "cc • ${PWD:t}"; claude --continue "$@";                                local rc=$?; _wez_tab_title ""; return $rc }
+ccd()   { _wez_tab_title "cc • ${PWD:t}"; claude --dangerously-skip-permissions "$@";            local rc=$?; _wez_tab_title ""; return $rc }
+ccdc()  { _wez_tab_title "cc • ${PWD:t}"; claude --dangerously-skip-permissions --continue "$@"; local rc=$?; _wez_tab_title ""; return $rc }
+ccr()   { _wez_tab_title "cc • ${PWD:t}"; claude --resume "$@";                                  local rc=$?; _wez_tab_title ""; return $rc }
+ccdr()  { _wez_tab_title "cc • ${PWD:t}"; claude --dangerously-skip-permissions --resume "$@";   local rc=$?; _wez_tab_title ""; return $rc }
+cca()   { _wez_tab_title "cc • agents";   claude agents;                                         local rc=$?; _wez_tab_title ""; return $rc }
 
 # Fix Home/End keys in PuTTY / some terminals.
 bindkey "\e[1~" beginning-of-line
@@ -162,6 +169,16 @@ ssht() {
   [[ -n "$WEZTERM_PANE" ]] && wezterm cli set-tab-title "ssh-$host:$sess" >/dev/null 2>&1
   ssh -t -- "$host" "tmux new-session -A -s $(printf '%q' "$sess")"
 }
+
+# WSL workspace navigation (mirrors the ws* PowerShell functions). Guarded on
+# /mnt/c so the same dot_zshrc stays correct on native Linux, where it no-ops.
+if [[ -d /mnt/c/DATA/Workspace ]]; then
+  ws()         { cd /mnt/c/DATA/Workspace }
+  wsp()        { cd /mnt/c/DATA/Workspace_Personal }
+  wspu()       { cd /mnt/c/DATA/Workspace_Public }
+  wscalibra()  { cd /mnt/c/DATA/Workspace/md-validator }
+  wsnetsuite() { cd /mnt/c/DATA/Workspace/netsuite-customizations }
+fi
 # ---- terminal-stack-helpers-end ----
 
 # ---- cli-tools-start ----
