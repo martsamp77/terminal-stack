@@ -59,7 +59,7 @@ if (Test-Path (Join-Path $targetDir '.git')) {
     & git clone $repoUrl $targetDir
 }
 
-# 4. Bootstrap
+# 4. Bootstrap (winget packages + binaries)
 $bootstrap = Join-Path $targetDir 'bootstrap\windows-bootstrap.ps1'
 if (-not (Test-Path $bootstrap)) {
     throw "Expected bootstrap script not found at $bootstrap"
@@ -67,14 +67,26 @@ if (-not (Test-Path $bootstrap)) {
 Write-Host "==> Running $bootstrap"
 & $bootstrap
 
-# 5. Next-step hint
+# 5. Sync windows/** to %USERPROFILE% (PowerShell-native equivalent of the WSL
+#    run_after hook). Lands $PROFILE, .wezterm.lua, .claude\settings.json, etc.
+#    without needing WSL.
+$sync = Join-Path $targetDir 'scripts\sync-windows.ps1'
+if (Test-Path $sync) {
+    Write-Host "==> Running $sync"
+    & $sync -SourceDir $targetDir
+} else {
+    Write-Warning "$sync not found; Windows-side dotfiles were not applied."
+}
+
+# 6. Next-step hint
 Write-Host ''
 Write-Host '==> Windows install done.'
 Write-Host "    Clone: $targetDir"
-Write-Host '    Next (inside WSL Ubuntu): apply the WSL side to land all dotfiles.'
+Write-Host '    Update later from any pwsh window:  ts-update'
 Write-Host ''
+Write-Host '    If you also use WSL Ubuntu, apply the WSL-side dotfiles too:'
 Write-Host '        curl -fsSL https://raw.githubusercontent.com/martsamp77/terminal-stack/main/install-wsl.sh | bash'
 Write-Host ''
-Write-Host '    Or, for native Linux / macOS hosts (skip the line above and run on that machine):'
+Write-Host '    For native Linux / macOS hosts (run on that machine instead):'
 Write-Host '        curl -fsSL https://raw.githubusercontent.com/martsamp77/terminal-stack/main/install-linux.sh | bash'
 Write-Host '        curl -fsSL https://raw.githubusercontent.com/martsamp77/terminal-stack/main/install-mac.sh | bash'

@@ -71,6 +71,6 @@ The WSL bootstrap (`bootstrap/wsl-bootstrap.sh`) prompts for the Windows usernam
 
 ## Backup discipline
 
-Every overwrite of a user file (not chezmoi-managed apply, but human-or-script overwrites) writes a `.bak.YYYYMMDD` first. If multiple overwrites happen in one day, they get `.1` / `.2` / etc. suffixes. The `run_after_90-sync-windows.sh` script implements this; the bootstrap scripts follow the same convention.
+Every overwrite of a user file (not chezmoi-managed apply, but human-or-script overwrites) writes a `.bak.YYYYMMDD` first. If multiple overwrites happen in one day, they get `.1` / `.2` / etc. suffixes — the same-day backup is never clobbered. The `run_after_90-sync-windows.sh` script implements this; `scripts/sync-windows.ps1` (the PowerShell-native equivalent used by `install.ps1` / `Update-TerminalStack`) and the bootstrap scripts follow the same convention.
 
-This was added after a Phase 7 incident where the original `$PROFILE.bak.20260519` got clobbered by an unwitting same-day re-run. The recovery file `Microsoft.PowerShell_profile.ps1.bak.20260519.original` (manually restored from the conversation log) exists in `C:\Users\<you>\Documents\PowerShell\` to this day. See `docs/decisions.md` for the full forensic.
+See `docs/decisions.md` § "Why two backups" for the incident that motivated the `.N` suffix collision guard.

@@ -2,8 +2,6 @@
 
 A reproducible Windows 11 + WSL2 Ubuntu + native Linux (Debian/Ubuntu) + macOS terminal-development stack: WezTerm + tmux + Starship + Claude Code wrappers + Nerd Font + modern CLI tools, with a single-source-of-truth chezmoi repo that manages config files across all targets.
 
-Built incrementally on 05/19/2026 over a single working session. Every commit is canonical change history; see `CHANGELOG.md` for curated highlights and `git log` for the raw record.
-
 ## Quick install
 
 One command per environment. GitHub renders a copy button on each code block (top-right corner on hover). Each installer is idempotent and ends with `chezmoi apply` — a fresh box becomes a working stack in one shot.
@@ -34,6 +32,22 @@ curl -fsSL https://raw.githubusercontent.com/martsamp77/terminal-stack/main/inst
 
 Defaults: the Windows installer clones to `%USERPROFILE%\terminal-stack` (visible from WSL as `/mnt/c/Users/<you>/terminal-stack`); Linux and macOS clone to `~/code/terminal-stack`. Override with `$env:TERMINAL_STACK_DIR` (PowerShell) or `TERMINAL_STACK_DIR=…` (bash). Expects a clean home directory — if you already have a hand-edited `~/.zshrc` or `$PROFILE`, see `INSTALL.md` for the per-step path that preserves user content.
 
+## Updating
+
+After install, `ts-update` is available in both pwsh and zsh. It pulls the latest from GitHub and re-applies:
+
+```powershell
+# PowerShell — pulls + runs scripts\sync-windows.ps1 (Windows-side only; no WSL needed)
+ts-update
+```
+
+```sh
+# zsh on WSL / Linux / macOS — pulls + chezmoi apply -v
+ts-update
+```
+
+Re-running the original install one-liner from § Quick install does the same thing (the installers are idempotent and `git pull` if the clone exists).
+
 ## What you get
 
 - **WezTerm nightly** with a fancy tab bar, JetBrainsMono Nerd Font at 11.5pt, workspace · cwd in the right-status, `Ctrl+V` rebound for synthetic-paste compatibility (Wispr Flow, etc.).
@@ -49,12 +63,12 @@ This is a chezmoi repo with a twist: chezmoi natively manages Linux/WSL home (`~
 
 Single source of truth, single `chezmoi apply`, three targets updated. See `ARCHITECTURE.md` for the long version.
 
-## Install
+## Install (longer paths)
 
-Two paths, pick one:
+The § Quick install one-liners above are the recommended path. For people who want to read each step before running it, `INSTALL.md` documents two alternatives:
 
-- **Scripted bootstrap** — `bootstrap/windows-bootstrap.ps1` then `bootstrap/wsl-bootstrap.sh` (WSL), or `bootstrap/linux-bootstrap.sh` (native Linux), or `bootstrap/mac-bootstrap.sh` (macOS), then `chezmoi init --apply <local-path-or-remote>`. Fastest on a fresh machine. See `INSTALL.md` § Scripted.
-- **Manual walkthrough** — follow `INSTALL.md` § Manual. Mirrors the Phase 0–10 sequence the stack was originally built with. Slower, but every step is documented with its "why".
+- **Scripted bootstrap** — run each `bootstrap/*` script by hand, then `chezmoi apply`. See `INSTALL.md` § Scripted.
+- **Step-by-step walkthrough** — every install step documented with its "why". Slower, but each command is annotated. See `INSTALL.md` § Manual.
 
 For an existing machine with chezmoi already pointed elsewhere, just clone this repo and write `~/.config/chezmoi/chezmoi.toml` with `sourceDir = "<absolute path to your clone>"`.
 
@@ -65,36 +79,44 @@ terminal-stack/
 ├── README.md             # this file
 ├── ARCHITECTURE.md       # cross-side chezmoi, run_after hook, sync semantics
 ├── CHANGELOG.md          # curated change history
-├── INSTALL.md            # manual + scripted install paths
+├── INSTALL.md            # scripted + step-by-step install paths
 ├── LICENSE               # MIT
-├── bootstrap/            # one-shot installers for fresh machines
+├── install.ps1           # one-liner Windows installer (irm | iex)
+├── install-wsl.sh        # one-liner WSL installer (curl | bash)
+├── install-linux.sh      # one-liner native-Linux installer
+├── install-mac.sh        # one-liner macOS installer
+├── bootstrap/            # deeper bootstraps invoked by the installers
 │   ├── windows-bootstrap.ps1
 │   ├── wsl-bootstrap.sh
-│   ├── linux-bootstrap.sh   # native Debian/Ubuntu
-│   ├── _common-debian.sh    # shared install helpers (sourced)
-│   └── mac-bootstrap.sh     # macOS (Homebrew)
+│   ├── linux-bootstrap.sh
+│   ├── _common-debian.sh    # shared Debian install helpers (sourced)
+│   └── mac-bootstrap.sh
+├── scripts/
+│   └── sync-windows.ps1  # Windows-native port of run_after sync (no WSL needed)
 ├── docs/                 # design-decision documentation
 │   ├── cross-side-chezmoi.md
 │   ├── powershell-quirks.md
 │   └── decisions.md
 ├── dot_zshrc             # ↘ chezmoi-managed (WSL + native Linux + macOS home)
 ├── dot_zshrc.local.example  # template for per-machine overrides (~/.zshrc.local)
-├── dot_tmux.conf         #
+├── dot_tmux.conf
 ├── dot_wezterm.lua       # macOS WezTerm config (gated to darwin in .chezmoiignore)
-├── dot_config/           #
-├── dot_claude/           #
+├── dot_config/
+├── dot_claude/
 ├── .chezmoi.toml.tmpl    # OS-detection seam → [data].os = wsl|linux|darwin|windows
-├── windows/              # ↘ NOT chezmoi-managed; synced by run_after hook
-│   ├── .wezterm.lua      #
-│   ├── .config/          #
-│   ├── Documents/        #
-│   └── .claude/          #
+├── windows/              # ↘ NOT chezmoi-managed; synced by run_after hook (or sync-windows.ps1)
+│   ├── .wezterm.lua
+│   ├── .config/
+│   ├── Documents/
+│   └── .claude/
 └── run_after_90-sync-windows.sh
 ```
 
-## Repeatability
+## Portability
 
-The work was done on Windows 11 Pro 26200 + WSL2 Ubuntu 26.04 LTS + PowerShell 7.6.1. The repo carries no hard-coded usernames: the WSL bootstrap prompts for your Windows username (defaulting to whatever `cmd.exe` reports via interop) and persists it under `[data].windowsUsername` in `~/.config/chezmoi/chezmoi.toml`. The sync hook substitutes that value into `windows/**/*.tmpl` files (e.g., `windows/.claude/settings.json.tmpl`) at apply time, and WSL-side templates use chezmoi's native `{{ .chezmoi.homeDir }}`. See `ARCHITECTURE.md` § "Username resolution" for the resolution order.
+The repo carries no hard-coded usernames. The WSL bootstrap detects your Windows username (via `cmd.exe` interop) and persists it under `[data].windowsUsername` in `~/.config/chezmoi/chezmoi.toml`. The sync hook substitutes that value into `windows/**/*.tmpl` files (e.g., `windows/.claude/settings.json.tmpl`) at apply time, and WSL-side templates use chezmoi's native `{{ .chezmoi.homeDir }}`. See `ARCHITECTURE.md` § "Username resolution" for the resolution order.
+
+Tested on Windows 11 + WSL2 Ubuntu, native Debian/Ubuntu, and macOS (Apple Silicon + Intel).
 
 ## License
 

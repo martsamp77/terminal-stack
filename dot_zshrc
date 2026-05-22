@@ -170,6 +170,28 @@ ssht() {
   ssh -t -- "$host" "tmux new-session -A -s $(printf '%q' "$sess")"
 }
 
+# Pull the latest terminal-stack from GitHub and re-apply via chezmoi.
+# Resolves the clone via $TERMINAL_STACK_DIR → `chezmoi source-path` → default.
+# Same name as the PowerShell alias for cross-shell muscle memory.
+ts-update() {
+  local src="${TERMINAL_STACK_DIR:-}"
+  local cz
+  if [[ -x "$HOME/.local/bin/chezmoi" ]]; then
+    cz="$HOME/.local/bin/chezmoi"
+  elif command -v chezmoi >/dev/null 2>&1; then
+    cz="$(command -v chezmoi)"
+  else
+    echo "ts-update: chezmoi not found on PATH." >&2; return 1
+  fi
+  [[ -z "$src" ]] && src="$("$cz" source-path 2>/dev/null)"
+  if [[ -z "$src" || ! -d "$src/.git" ]]; then
+    echo "ts-update: terminal-stack clone not found ($src). Re-run the install one-liner." >&2
+    return 1
+  fi
+  git -C "$src" pull --ff-only || return $?
+  "$cz" apply -v
+}
+
 # Workspace navigation (mirrors the ws* PowerShell functions). Each branch is
 # guarded on the specific directory's existence, so the same dot_zshrc stays
 # correct on WSL, native Linux (no-op), and macOS.

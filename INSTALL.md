@@ -34,10 +34,10 @@ For a fresh Windows 11 + WSL2 machine, follow sections 1 → 4 below. For a nati
 
 ### 1. Windows side
 
-Open PowerShell 7 (`pwsh`) and run:
+Open PowerShell 7 (`pwsh`) and run (adjust the path if you cloned elsewhere — the default for the one-liner installer is `$env:USERPROFILE\terminal-stack`):
 
 ```powershell
-cd C:\DATA\Workspace\terminal-stack
+cd $env:USERPROFILE\terminal-stack
 .\bootstrap\windows-bootstrap.ps1
 ```
 
@@ -52,11 +52,11 @@ Pass `-WhatIf` to preview without installing. UAC prompts on machine-scope insta
 
 ### 2. WSL side
 
-Open WSL Ubuntu:
+Open WSL Ubuntu (substitute your Windows username for `<you>`):
 
 ```sh
 wsl -d Ubuntu
-cd /mnt/c/DATA/Workspace/terminal-stack
+cd /mnt/c/Users/<you>/terminal-stack
 bash ./bootstrap/wsl-bootstrap.sh
 ```
 
@@ -74,7 +74,7 @@ Re-run as needed; the script is idempotent.
 
 ### 2L. Linux side (native Debian/Ubuntu, instead of WSL)
 
-For lambda-dual, internal, or any native Debian/Ubuntu host:
+For any native Debian/Ubuntu host:
 
 ```sh
 git clone <repo-url> ~/code/terminal-stack    # or your chosen path
@@ -156,7 +156,7 @@ On macOS, quit and relaunch WezTerm so it sets JetBrainsMono Nerd Font from the 
 
 ## Manual
 
-For when you want to understand each step. Mirrors the Phase 0 → Phase 10 sequence the stack was originally built with.
+For when you want to understand each step. Every command is annotated; numbered headings just keep the steps ordered.
 
 ### Phase 0 — Detect environment
 
@@ -261,7 +261,7 @@ ln -sf /usr/bin/batcat ~/.local/bin/bat
 WIN_USER=$(/mnt/c/Windows/System32/cmd.exe /c 'echo %USERNAME%' | tr -d '\r\n')
 mkdir -p ~/.config/chezmoi
 cat > ~/.config/chezmoi/chezmoi.toml <<EOF
-sourceDir = "/mnt/c/DATA/Workspace/terminal-stack"
+sourceDir = "/mnt/c/Users/${WIN_USER}/terminal-stack"
 
 [data]
 windowsUsername = "$WIN_USER"

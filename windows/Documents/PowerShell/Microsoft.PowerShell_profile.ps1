@@ -73,3 +73,34 @@ if (Get-Command eza -ErrorAction SilentlyContinue) {
     function lt { eza --tree --icons=always --git --group-directories-first @args }
 }
 # ---- cli-tools-end ----
+
+# ---- terminal-stack-update-start ----
+function Update-TerminalStack {
+    [CmdletBinding()]
+    param([string]$SourceDir)
+
+    if (-not $SourceDir) { $SourceDir = $env:TERMINAL_STACK_DIR }
+    if (-not $SourceDir -and (Get-Command chezmoi -ErrorAction SilentlyContinue)) {
+        $SourceDir = (& chezmoi source-path 2>$null | Select-Object -First 1)
+    }
+    if (-not $SourceDir) { $SourceDir = Join-Path $env:USERPROFILE 'terminal-stack' }
+
+    if (-not (Test-Path (Join-Path $SourceDir '.git'))) {
+        Write-Warning "terminal-stack clone not found at $SourceDir. Re-run install.ps1 first."
+        return
+    }
+    Write-Host "==> git -C $SourceDir pull --ff-only"
+    & git -C $SourceDir pull --ff-only
+    if ($LASTEXITCODE -ne 0) {
+        Write-Warning "git pull failed; not applying."
+        return
+    }
+    $sync = Join-Path $SourceDir 'scripts\sync-windows.ps1'
+    if (Test-Path $sync) {
+        & $sync -SourceDir $SourceDir
+    } else {
+        Write-Warning "$sync not found; Windows-side dotfiles not applied."
+    }
+}
+Set-Alias -Name ts-update -Value Update-TerminalStack
+# ---- terminal-stack-update-end ----
