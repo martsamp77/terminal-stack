@@ -170,14 +170,17 @@ ssht() {
   ssh -t -- "$host" "tmux new-session -A -s $(printf '%q' "$sess")"
 }
 
-# WSL workspace navigation (mirrors the ws* PowerShell functions). Guarded on
-# /mnt/c so the same dot_zshrc stays correct on native Linux, where it no-ops.
+# Workspace navigation (mirrors the ws* PowerShell functions). Each branch is
+# guarded on the specific directory's existence, so the same dot_zshrc stays
+# correct on WSL, native Linux (no-op), and macOS.
 if [[ -d /mnt/c/DATA/Workspace ]]; then
   ws()         { cd /mnt/c/DATA/Workspace }
   wsp()        { cd /mnt/c/DATA/Workspace_Personal }
   wspu()       { cd /mnt/c/DATA/Workspace_Public }
   wscalibra()  { cd /mnt/c/DATA/Workspace/md-validator }
   wsnetsuite() { cd /mnt/c/DATA/Workspace/netsuite-customizations }
+elif [[ -d "$HOME/Documents/Workspace" ]]; then
+  ws() { cd "$HOME/Documents/Workspace" }
 fi
 # ---- terminal-stack-helpers-end ----
 
