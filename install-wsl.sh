@@ -27,17 +27,22 @@ fi
 echo "$INFO terminal-stack WSL installer"
 echo "    Detected: user $USER, home $HOME"
 
-# 1. apt prereqs
+# 1. apt prereqs. `</dev/null` on each call so sudo / apt can't read from
+# our script pipe (see the cmd.exe comment below).
 if ! command -v git >/dev/null 2>&1 || ! command -v curl >/dev/null 2>&1; then
     echo "$INFO Installing git + curl via apt"
-    sudo apt-get update -qq
-    sudo apt-get install -y git curl >/dev/null
+    sudo apt-get update -qq </dev/null
+    sudo apt-get install -y git curl </dev/null >/dev/null
 fi
 
-# 2. Windows username via cmd.exe interop
+# 2. Windows username via cmd.exe interop.
+# `</dev/null` is load-bearing under `curl | bash`: WSL's cmd.exe interop
+# inherits the caller's stdin (our script pipe) and consumes it before exiting
+# even though we only pass /c. Without this redirect, the rest of the script
+# disappears into cmd.exe and bash exits 0 silently after the banner.
 detect_win_user() {
     if [ -x /mnt/c/Windows/System32/cmd.exe ]; then
-        /mnt/c/Windows/System32/cmd.exe /c 'echo %USERNAME%' 2>/dev/null | tr -d '\r\n' || true
+        /mnt/c/Windows/System32/cmd.exe /c 'echo %USERNAME%' </dev/null 2>/dev/null | tr -d '\r\n' || true
     fi
 }
 WIN_USER="${WIN_USER:-$(detect_win_user)}"
@@ -69,11 +74,15 @@ if [ ! -f "$BOOTSTRAP" ]; then
     exit 1
 fi
 echo "$INFO Running $BOOTSTRAP"
-bash "$BOOTSTRAP"
+# `</dev/null` for the same reason as the cmd.exe call above — any child of
+# this script under `curl | bash` could otherwise read from the script pipe
+# and truncate our remaining source. The bootstrap is fully non-interactive
+# (WIN_USER comes from env), so closing stdin is safe.
+bash "$BOOTSTRAP" </dev/null
 
 # 5. chezmoi apply
 echo "$INFO Running chezmoi apply -v"
-"$HOME/.local/bin/chezmoi" apply -v
+"$HOME/.local/bin/chezmoi" apply -v </dev/null
 
 echo ""
 echo "$INFO WSL install done."

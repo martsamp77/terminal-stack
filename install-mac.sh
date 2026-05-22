@@ -29,10 +29,12 @@ fi
 echo "$INFO terminal-stack macOS installer"
 echo "    Detected: user $USER, home $HOME, arch $(uname -m)"
 
-# 1. Homebrew
+# 1. Homebrew. NONINTERACTIVE=1 suppresses the installer's "Press RETURN to
+# continue" prompt — required when this script is itself piped through bash,
+# where /dev/tty may not be attached.
 if ! command -v brew >/dev/null 2>&1; then
     echo "$INFO Installing Homebrew"
-    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+    NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" </dev/null
 fi
 
 # Make brew available for the rest of this script (path varies by Apple Silicon vs Intel).
@@ -69,11 +71,13 @@ if [ ! -f "$BOOTSTRAP" ]; then
     exit 1
 fi
 echo "$INFO Running $BOOTSTRAP"
-bash "$BOOTSTRAP"
+# `</dev/null` defends against the curl|bash stdin-consumption pitfall — see
+# the matching comment in install-wsl.sh. The bootstrap is non-interactive.
+bash "$BOOTSTRAP" </dev/null
 
 # 5. chezmoi apply
 echo "$INFO Running chezmoi apply -v"
-chezmoi apply -v
+chezmoi apply -v </dev/null
 
 echo ""
 echo "$INFO macOS install done."

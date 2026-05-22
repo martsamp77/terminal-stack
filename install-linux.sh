@@ -27,11 +27,12 @@ fi
 echo "$INFO terminal-stack Linux installer"
 echo "    Detected: user $USER, home $HOME"
 
-# 1. apt prereqs
+# 1. apt prereqs. `</dev/null` on each call so sudo / apt can't read from
+# our script pipe under `curl | bash`.
 if ! command -v git >/dev/null 2>&1 || ! command -v curl >/dev/null 2>&1; then
     echo "$INFO Installing git + curl via apt"
-    sudo apt-get update -qq
-    sudo apt-get install -y git curl >/dev/null
+    sudo apt-get update -qq </dev/null
+    sudo apt-get install -y git curl </dev/null >/dev/null
 fi
 
 # 2. Clone
@@ -55,11 +56,15 @@ if [ ! -f "$BOOTSTRAP" ]; then
     exit 1
 fi
 echo "$INFO Running $BOOTSTRAP"
-bash "$BOOTSTRAP"
+# `</dev/null` defends against the curl|bash stdin-consumption pitfall: any
+# child of this script could otherwise read from the script pipe and truncate
+# our remaining source. The bootstrap is non-interactive, so closing stdin is
+# safe. Same applies to the chezmoi apply below.
+bash "$BOOTSTRAP" </dev/null
 
 # 4. chezmoi apply
 echo "$INFO Running chezmoi apply -v"
-"$HOME/.local/bin/chezmoi" apply -v
+"$HOME/.local/bin/chezmoi" apply -v </dev/null
 
 echo ""
 echo "$INFO Linux install done."
