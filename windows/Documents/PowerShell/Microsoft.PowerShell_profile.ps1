@@ -79,14 +79,16 @@ function Update-TerminalStack {
     [CmdletBinding()]
     param([string]$SourceDir)
 
+    # Resolution order: -SourceDir → $env:TERMINAL_STACK_DIR → install.ps1 default
+    # ($env:USERPROFILE\terminal-stack). We deliberately do NOT consult
+    # `chezmoi source-path` here: on Windows that returns chezmoi's default
+    # sourceDir (~/.local/share/chezmoi) regardless of where the actual clone
+    # lives, because Windows users don't configure chezmoi.toml (the WSL side does).
     if (-not $SourceDir) { $SourceDir = $env:TERMINAL_STACK_DIR }
-    if (-not $SourceDir -and (Get-Command chezmoi -ErrorAction SilentlyContinue)) {
-        $SourceDir = (& chezmoi source-path 2>$null | Select-Object -First 1)
-    }
     if (-not $SourceDir) { $SourceDir = Join-Path $env:USERPROFILE 'terminal-stack' }
 
     if (-not (Test-Path (Join-Path $SourceDir '.git'))) {
-        Write-Warning "terminal-stack clone not found at $SourceDir. Re-run install.ps1 first."
+        Write-Warning "terminal-stack clone not found at $SourceDir. Pass -SourceDir <path> or re-run install.ps1."
         return
     }
     Write-Host "==> git -C $SourceDir pull --ff-only"
