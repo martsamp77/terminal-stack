@@ -4,6 +4,36 @@ A reproducible Windows 11 + WSL2 Ubuntu + native Linux (Debian/Ubuntu) + macOS t
 
 Built incrementally on 05/19/2026 over a single working session. Every commit is canonical change history; see `CHANGELOG.md` for curated highlights and `git log` for the raw record.
 
+## Quick install
+
+One command per environment. GitHub renders a copy button on each code block (top-right corner on hover). Each installer is idempotent and ends with `chezmoi apply` — a fresh box becomes a working stack in one shot.
+
+**Windows 11** (PowerShell 7+, from an elevated or normal pwsh window):
+
+```powershell
+irm https://raw.githubusercontent.com/martsamp77/terminal-stack/main/install.ps1 | iex
+```
+
+**WSL Ubuntu** (run *after* the Windows step above):
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/martsamp77/terminal-stack/main/install-wsl.sh | bash
+```
+
+**Native Debian/Ubuntu**:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/martsamp77/terminal-stack/main/install-linux.sh | bash
+```
+
+**macOS** (Apple Silicon or Intel):
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/martsamp77/terminal-stack/main/install-mac.sh | bash
+```
+
+Defaults: the Windows installer clones to `%USERPROFILE%\terminal-stack` (visible from WSL as `/mnt/c/Users/<you>/terminal-stack`); Linux and macOS clone to `~/code/terminal-stack`. Override with `$env:TERMINAL_STACK_DIR` (PowerShell) or `TERMINAL_STACK_DIR=…` (bash). Expects a clean home directory — if you already have a hand-edited `~/.zshrc` or `$PROFILE`, see `INSTALL.md` for the per-step path that preserves user content.
+
 ## What you get
 
 - **WezTerm nightly** with a fancy tab bar, JetBrainsMono Nerd Font at 11.5pt, workspace · cwd in the right-status, `Ctrl+V` rebound for synthetic-paste compatibility (Wispr Flow, etc.).

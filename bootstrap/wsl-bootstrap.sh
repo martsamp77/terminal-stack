@@ -25,13 +25,19 @@ detect_win_user() {
 
 DETECTED_WIN_USER="$(detect_win_user)"
 echo ""
-if [ -n "$DETECTED_WIN_USER" ]; then
-    printf "Windows username for /mnt/c/Users/<user>/ [%s]: " "$DETECTED_WIN_USER"
+# Honor WIN_USER from env (set by install-wsl.sh wrapper for non-interactive curl|bash flow);
+# only prompt when running interactively from a clone.
+if [ -z "${WIN_USER:-}" ]; then
+    if [ -n "$DETECTED_WIN_USER" ]; then
+        printf "Windows username for /mnt/c/Users/<user>/ [%s]: " "$DETECTED_WIN_USER"
+    else
+        printf "Windows username for /mnt/c/Users/<user>/: "
+    fi
+    read -r WIN_USER
+    WIN_USER="${WIN_USER:-$DETECTED_WIN_USER}"
 else
-    printf "Windows username for /mnt/c/Users/<user>/: "
+    echo "$INFO WIN_USER=$WIN_USER (from env; skipping prompt)"
 fi
-read -r WIN_USER
-WIN_USER="${WIN_USER:-$DETECTED_WIN_USER}"
 
 if [ -z "$WIN_USER" ]; then
     echo "$WARN No Windows username provided. The sync hook will retry detection at apply time."

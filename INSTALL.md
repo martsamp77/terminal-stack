@@ -4,6 +4,32 @@ Two paths. Pick the one matching how much trust you have in the scripts.
 
 ## Scripted (fastest)
 
+### Quick install (one-liner per environment)
+
+The fastest path: a single command per environment, runnable from a fresh box. Installs prereqs, clones the repo, runs the bootstrap, and ends with `chezmoi apply`. Idempotent.
+
+```powershell
+# Windows 11 — PowerShell 7+
+irm https://raw.githubusercontent.com/martsamp77/terminal-stack/main/install.ps1 | iex
+```
+
+```sh
+# WSL Ubuntu — run after the Windows one-liner
+curl -fsSL https://raw.githubusercontent.com/martsamp77/terminal-stack/main/install-wsl.sh | bash
+
+# Native Debian/Ubuntu
+curl -fsSL https://raw.githubusercontent.com/martsamp77/terminal-stack/main/install-linux.sh | bash
+
+# macOS
+curl -fsSL https://raw.githubusercontent.com/martsamp77/terminal-stack/main/install-mac.sh | bash
+```
+
+Defaults: Windows clones to `%USERPROFILE%\terminal-stack` (WSL sees it as `/mnt/c/Users/<you>/terminal-stack`); Linux/macOS clone to `~/code/terminal-stack`. Override with `$env:TERMINAL_STACK_DIR` (PowerShell) or `TERMINAL_STACK_DIR=…` (bash). The WSL installer auto-detects your Windows username via `cmd.exe` interop, so it runs without prompts under `curl | bash`.
+
+If you want to walk through each step instead (recommended for first-time inspection, or when chezmoi would clobber an existing hand-edited dotfile), keep reading.
+
+### Step-by-step (same end result, with intermediate stops)
+
 For a fresh Windows 11 + WSL2 machine, follow sections 1 → 4 below. For a native Linux box (Debian/Ubuntu), skip sections 1–2 and follow section 2L (Linux) → 3 → 4. For a macOS host, skip sections 1–2 and follow section 2M (macOS) → 3 → 4. The WSL bootstrap will prompt for your Windows username (it pre-fills the value reported by `cmd.exe` via interop, so usually you can just press Enter); the Linux and macOS bootstraps have no Windows-side prompts.
 
 ### 1. Windows side
