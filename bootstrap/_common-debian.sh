@@ -140,7 +140,11 @@ common_nerd_font_jetbrains() {
         curl -fL --silent --show-error \
             -o "$tmp_zip" \
             https://github.com/ryanoasis/nerd-fonts/releases/latest/download/JetBrainsMono.zip
-        unzip -q "$tmp_zip" -d "$HOME/.local/share/fonts/JetBrainsMonoNerdFont/"
+        # `-o` overwrites without prompting. Without it, a re-run where the
+        # files already exist on disk (e.g. fontconfig lost them but the .ttf
+        # files survived) prompts "replace ...? [y]es..." on stdin, which is
+        # /dev/null under the curl|bash installer flow and aborts the unzip.
+        unzip -qo "$tmp_zip" -d "$HOME/.local/share/fonts/JetBrainsMonoNerdFont/"
         rm -f "$tmp_zip"
         fc-cache -f "$HOME/.local/share/fonts" >/dev/null
     else
