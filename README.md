@@ -1,6 +1,6 @@
 # terminal-stack
 
-A reproducible Windows 11 + WSL2 Ubuntu + native Linux (Debian/Ubuntu) (+ macOS, stubbed) terminal-development stack: WezTerm + tmux + Starship + Claude Code wrappers + Nerd Font + modern CLI tools, with a single-source-of-truth chezmoi repo that manages config files across all targets.
+A reproducible Windows 11 + WSL2 Ubuntu + native Linux (Debian/Ubuntu) + macOS terminal-development stack: WezTerm + tmux + Starship + Claude Code wrappers + Nerd Font + modern CLI tools, with a single-source-of-truth chezmoi repo that manages config files across all targets.
 
 Built incrementally on 05/19/2026 over a single working session. Every commit is canonical change history; see `CHANGELOG.md` for curated highlights and `git log` for the raw record.
 
@@ -15,7 +15,7 @@ Built incrementally on 05/19/2026 over a single working session. Every commit is
 
 ## Architecture in 30 seconds
 
-This is a chezmoi repo with a twist: chezmoi natively manages Linux/WSL home (`~/.zshrc`, `~/.tmux.conf`, `~/.config/starship.toml`, `~/.claude/*`), but Windows-side files live in a `windows/` subdirectory excluded from chezmoi's normal apply via `.chezmoiignore`. A `run_after_90-sync-windows.sh` hook then mirrors `windows/` to `/mnt/c/Users/<user>/` on every `chezmoi apply`, with same-day `.bak.YYYYMMDD[.N]` backups for any file it overwrites. On native Linux the hook self-no-ops (no `/mnt/c/` mount), so the same source tree drives WSL, native Linux, and Windows from one apply.
+This is a chezmoi repo with a twist: chezmoi natively manages Linux/WSL home (`~/.zshrc`, `~/.tmux.conf`, `~/.config/starship.toml`, `~/.claude/*`), but Windows-side files live in a `windows/` subdirectory excluded from chezmoi's normal apply via `.chezmoiignore`. A `run_after_90-sync-windows.sh` hook then mirrors `windows/` to `/mnt/c/Users/<user>/` on every `chezmoi apply`, with same-day `.bak.YYYYMMDD[.N]` backups for any file it overwrites. On native Linux and macOS the hook self-no-ops (no `/mnt/c/` mount), so the same source tree drives WSL, native Linux, macOS, and Windows from one apply.
 
 Single source of truth, single `chezmoi apply`, three targets updated. See `ARCHITECTURE.md` for the long version.
 
@@ -23,7 +23,7 @@ Single source of truth, single `chezmoi apply`, three targets updated. See `ARCH
 
 Two paths, pick one:
 
-- **Scripted bootstrap** — `bootstrap/windows-bootstrap.ps1` then `bootstrap/wsl-bootstrap.sh` (WSL) or `bootstrap/linux-bootstrap.sh` (native Linux), then `chezmoi init --apply <local-path-or-remote>`. Fastest on a fresh machine. See `INSTALL.md` § Scripted.
+- **Scripted bootstrap** — `bootstrap/windows-bootstrap.ps1` then `bootstrap/wsl-bootstrap.sh` (WSL), or `bootstrap/linux-bootstrap.sh` (native Linux), or `bootstrap/mac-bootstrap.sh` (macOS), then `chezmoi init --apply <local-path-or-remote>`. Fastest on a fresh machine. See `INSTALL.md` § Scripted.
 - **Manual walkthrough** — follow `INSTALL.md` § Manual. Mirrors the Phase 0–10 sequence the stack was originally built with. Slower, but every step is documented with its "why".
 
 For an existing machine with chezmoi already pointed elsewhere, just clone this repo and write `~/.config/chezmoi/chezmoi.toml` with `sourceDir = "<absolute path to your clone>"`.
@@ -42,14 +42,15 @@ terminal-stack/
 │   ├── wsl-bootstrap.sh
 │   ├── linux-bootstrap.sh   # native Debian/Ubuntu
 │   ├── _common-debian.sh    # shared install helpers (sourced)
-│   └── mac-bootstrap.sh  # UNTESTED stub
+│   └── mac-bootstrap.sh     # macOS (Homebrew)
 ├── docs/                 # design-decision documentation
 │   ├── cross-side-chezmoi.md
 │   ├── powershell-quirks.md
 │   └── decisions.md
-├── dot_zshrc             # ↘ chezmoi-managed (WSL + native Linux home)
+├── dot_zshrc             # ↘ chezmoi-managed (WSL + native Linux + macOS home)
 ├── dot_zshrc.local.example  # template for per-machine overrides (~/.zshrc.local)
 ├── dot_tmux.conf         #
+├── dot_wezterm.lua       # macOS WezTerm config (gated to darwin in .chezmoiignore)
 ├── dot_config/           #
 ├── dot_claude/           #
 ├── .chezmoi.toml.tmpl    # OS-detection seam → [data].os = wsl|linux|darwin|windows

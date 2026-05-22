@@ -4,7 +4,7 @@ Two paths. Pick the one matching how much trust you have in the scripts.
 
 ## Scripted (fastest)
 
-For a fresh Windows 11 + WSL2 machine, follow sections 1 → 4 below. For a native Linux box (Debian/Ubuntu), skip sections 1–2 and follow section 2L (Linux) → 3 → 4. The WSL bootstrap will prompt for your Windows username (it pre-fills the value reported by `cmd.exe` via interop, so usually you can just press Enter); the Linux bootstrap has no Windows-side prompts.
+For a fresh Windows 11 + WSL2 machine, follow sections 1 → 4 below. For a native Linux box (Debian/Ubuntu), skip sections 1–2 and follow section 2L (Linux) → 3 → 4. For a macOS host, skip sections 1–2 and follow section 2M (macOS) → 3 → 4. The WSL bootstrap will prompt for your Windows username (it pre-fills the value reported by `cmd.exe` via interop, so usually you can just press Enter); the Linux and macOS bootstraps have no Windows-side prompts.
 
 ### 1. Windows side
 
@@ -66,6 +66,38 @@ SOURCE_DIR=/srv/dotfiles/terminal-stack bash ./bootstrap/linux-bootstrap.sh
 
 Re-run as needed; the script is idempotent.
 
+### 2M. macOS side (instead of WSL/Linux)
+
+For a MacBook or any macOS host:
+
+```sh
+git clone <repo-url> ~/code/terminal-stack    # or your chosen path
+cd ~/code/terminal-stack
+bash ./bootstrap/mac-bootstrap.sh
+```
+
+Installs via Homebrew (installing Homebrew itself first if absent):
+- zsh, git, tmux
+- oh-my-zsh (unattended)
+- chezmoi, Starship
+- eza, zoxide, fzf, bat, git-delta, ripgrep
+- WezTerm nightly (`--cask wezterm@nightly`) and JetBrainsMono Nerd Font (`--cask font-jetbrains-mono-nerd-font`)
+
+The plain `wezterm` cask is pinned to the stale `20240203` stable; the stack uses the `wezterm@nightly` cask so macOS matches the WezTerm nightly installed on the Windows side.
+
+It also writes `~/.config/chezmoi/chezmoi.toml` with `sourceDir` pointing at the
+clone (auto-detected from the script's own location). macOS keeps the system
+`/bin/zsh` as the login shell; the Windows-side `windows/**` subtree is skipped
+automatically because `/mnt/c/Users/` doesn't exist.
+
+Override the source path via env var if you cloned elsewhere:
+
+```sh
+SOURCE_DIR=~/dotfiles/terminal-stack bash ./bootstrap/mac-bootstrap.sh
+```
+
+Re-run as needed; the script is idempotent.
+
 ### 3. Apply chezmoi
 
 The WSL bootstrap already wrote `~/.config/chezmoi/chezmoi.toml` with `sourceDir` and `[data].windowsUsername`. Just apply:
@@ -75,12 +107,14 @@ The WSL bootstrap already wrote `~/.config/chezmoi/chezmoi.toml` with `sourceDir
 ~/.local/bin/chezmoi apply -v
 ```
 
-Or, on a Mac (no Windows side to sync):
+The Linux and macOS bootstraps likewise write `~/.config/chezmoi/chezmoi.toml`
+(no `windowsUsername` — there's no Windows side). If you skipped the bootstrap,
+write it by hand — chezmoi expands a leading `~` but **not** `$HOME`, so use a
+tilde or an absolute path:
 
 ```sh
-# Inside Terminal / iTerm
 mkdir -p ~/.config/chezmoi
-echo 'sourceDir = "$HOME/code/terminal-stack"' > ~/.config/chezmoi/chezmoi.toml  # adjust path
+echo 'sourceDir = "~/code/terminal-stack"' > ~/.config/chezmoi/chezmoi.toml  # adjust path
 chezmoi apply -v
 ```
 
@@ -91,6 +125,8 @@ For per-machine overrides (peer-sync helpers, server-role aliases, anything that
 ### 4. Reopen WezTerm
 
 Open a new WezTerm tab — auto-reload picks up the new `.wezterm.lua`. Open a pwsh tab and a `Alt-L → WSL zsh` tab to confirm starship renders correctly with the Nerd Font.
+
+On macOS, quit and relaunch WezTerm so it sets JetBrainsMono Nerd Font from the freshly-applied `~/.wezterm.lua`, then open a new tab and confirm the Starship two-line prompt renders with glyphs. WezTerm itself must be set to a Nerd Font for the launch-window prompt; the config does that automatically.
 
 ## Manual
 

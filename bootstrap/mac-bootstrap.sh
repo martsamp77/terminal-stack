@@ -1,12 +1,10 @@
 #!/usr/bin/env bash
-# mac-bootstrap.sh — install macOS-side prerequisites for the terminal-stack
+# mac-bootstrap.sh — install macOS-side prerequisites for the terminal-stack.
+# Targets macOS (Apple Silicon or Intel) via Homebrew. Idempotent: re-run safely.
+# See ../INSTALL.md § macOS for the full sequence.
 #
-# !! UNTESTED STUB !! - written 05/19/2026 alongside the Windows + WSL bootstrap scripts.
-# Will be validated when the stack is first applied to the user's MacBook Pro M5 Pro.
-# Treat the brew package IDs as the most likely culprits to need adjustment.
-#
-# Idempotent: re-run safely.
-# See ../INSTALL.md § Scripted for context (Windows/WSL); macOS section is TODO.
+# macOS skips the windows/** subtree automatically (no /mnt/c/Users/<user>): the
+# post-apply hook (run_after_90-sync-windows.sh) self-no-ops when that path is absent.
 
 set -euo pipefail
 
@@ -18,8 +16,8 @@ if [ "$(uname -s)" != "Darwin" ]; then
     exit 1
 fi
 
-echo "$INFO Terminal stack macOS bootstrap (UNTESTED)"
-echo "    Detected: user $USER, home $HOME"
+echo "$INFO Terminal stack macOS bootstrap"
+echo "    Detected: user $USER, home $HOME, arch $(uname -m)"
 
 # 1. Homebrew
 if ! command -v brew >/dev/null 2>&1; then
@@ -43,18 +41,20 @@ brew install \
     eza zoxide fzf bat git-delta ripgrep \
     starship chezmoi
 
-# 3. WezTerm (cask)
-if ! brew list --cask wezterm >/dev/null 2>&1; then
-    echo "$INFO Installing WezTerm cask"
-    brew install --cask wezterm
+# 3. WezTerm (cask) — nightly, matching the Windows side.
+# The plain `wezterm` cask is pinned to the stale 20240203 stable; this stack
+# expects a current build (see INSTALL.md Phase 0).
+if ! brew list --cask wezterm@nightly >/dev/null 2>&1; then
+    echo "$INFO Installing WezTerm nightly cask"
+    brew install --cask wezterm@nightly
 else
-    echo "$INFO WezTerm cask already installed"
+    echo "$INFO WezTerm nightly cask already installed"
 fi
 
 # 4. JetBrainsMono Nerd Font (cask)
+# Font casks moved into homebrew/cask in 2024; the old homebrew/cask-fonts tap is gone.
 if ! brew list --cask font-jetbrains-mono-nerd-font >/dev/null 2>&1; then
     echo "$INFO Installing JetBrainsMono Nerd Font cask"
-    brew tap homebrew/cask-fonts 2>/dev/null || true
     brew install --cask font-jetbrains-mono-nerd-font
 else
     echo "$INFO JetBrainsMono Nerd Font cask already installed"
@@ -84,23 +84,25 @@ else
     echo "$INFO Login shell already zsh"
 fi
 
-# 7. chezmoi.toml override
-# On Mac, you'll clone the terminal-stack repo somewhere (e.g., ~/code/terminal-stack).
-# Adjust SOURCE_DIR below to match where you put it.
-SOURCE_DIR="$HOME/code/terminal-stack"
-if [ ! -f "$HOME/.config/chezmoi/chezmoi.toml" ]; then
+# 7. chezmoi.toml — point sourceDir at this repo.
+# Default: the repo this script lives in (bootstrap/ is one level below the root).
+# Override by exporting SOURCE_DIR before running.
+SCRIPT_DIR="$(cd -- "$(dirname -- "$0")" && pwd)"
+SOURCE_DIR="${SOURCE_DIR:-$(cd -- "$SCRIPT_DIR/.." && pwd)}"
+TOML="$HOME/.config/chezmoi/chezmoi.toml"
+if [ ! -f "$TOML" ]; then
     if [ -d "$SOURCE_DIR" ]; then
-        echo "$INFO Writing ~/.config/chezmoi/chezmoi.toml with sourceDir=$SOURCE_DIR"
-        mkdir -p "$HOME/.config/chezmoi"
-        printf 'sourceDir = "%s"\n' "$SOURCE_DIR" > "$HOME/.config/chezmoi/chezmoi.toml"
+        echo "$INFO Writing $TOML with sourceDir=$SOURCE_DIR"
+        mkdir -p "$(dirname "$TOML")"
+        printf 'sourceDir = "%s"\n' "$SOURCE_DIR" > "$TOML"
     else
-        echo "$WARN $SOURCE_DIR not found; clone the terminal-stack repo there, then re-run."
+        echo "$WARN $SOURCE_DIR not found; set SOURCE_DIR and re-run, or edit $TOML manually."
     fi
 else
-    echo "$INFO ~/.config/chezmoi/chezmoi.toml already exists; not overwriting"
+    echo "$INFO $TOML already exists; not overwriting sourceDir."
 fi
 
 echo ""
-echo "$INFO macOS bootstrap done (UNTESTED — please report any issues)."
+echo "$INFO macOS bootstrap done."
 echo "    Next: chezmoi apply -v"
-echo "    macOS will skip the windows/** subtree automatically (no /mnt/c/Users/<user>)."
+echo "    macOS skips the windows/** subtree automatically (no /mnt/c/Users/<user>)."

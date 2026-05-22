@@ -9,4 +9,9 @@ case "$state" in
 esac
 project_dir="${CLAUDE_PROJECT_DIR:-$PWD}"
 project=$(basename "$project_dir")
-wezterm.exe cli set-tab-title "cc $glyph $project" 2>/dev/null || true
+# wezterm on Mac/native-Linux; wezterm.exe via interop on WSL.
+if command -v wezterm >/dev/null 2>&1; then
+    wezterm cli set-tab-title "cc $glyph $project" 2>/dev/null || true
+elif command -v wezterm.exe >/dev/null 2>&1; then
+    wezterm.exe cli set-tab-title "cc $glyph $project" 2>/dev/null || true
+fi
