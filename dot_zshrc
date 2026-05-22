@@ -180,7 +180,8 @@ if [[ -d /mnt/c/DATA/Workspace ]]; then
   wscalibra()  { cd /mnt/c/DATA/Workspace/md-validator }
   wsnetsuite() { cd /mnt/c/DATA/Workspace/netsuite-customizations }
 elif [[ -d "$HOME/Documents/Workspace" ]]; then
-  ws() { cd "$HOME/Documents/Workspace" }
+  ws()   { cd "$HOME/Documents/Workspace" }
+  wspu() { cd "$HOME/Documents/Workspace-Public" }
 fi
 # ---- terminal-stack-helpers-end ----
 
