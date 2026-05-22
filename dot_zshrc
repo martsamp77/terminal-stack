@@ -192,7 +192,11 @@ ts-update() {
     return 1
   fi
   git -C "$src" pull --ff-only || return $?
-  "$cz" apply -v
+  # `apply` without -v: -v prints the full content of every run_after_*
+  # script (incl. our 114-line sync hook) as a git-style diff on every run,
+  # which looks like a pager opening on long-output. Use `chezmoi diff` if
+  # you want to preview.
+  "$cz" apply
 }
 
 # Workspace navigation (mirrors the ws* PowerShell functions). Each branch is
