@@ -87,4 +87,18 @@ echo "$INFO Running chezmoi apply -v"
 echo ""
 echo "$INFO WSL install done."
 echo "    Clone:  $TARGET_DIR"
-echo "    Next:   open a new WezTerm tab (auto-reload picks up .wezterm.lua)."
+
+# Verify the login shell actually flipped to zsh. chsh updates /etc/passwd but
+# the *current* session stays in whatever shell launched this script.
+LOGIN_SHELL="$(getent passwd "$USER" | cut -d: -f7)"
+case "$LOGIN_SHELL" in
+    /usr/bin/zsh|/bin/zsh)
+        echo "    Shell:  login shell is $LOGIN_SHELL (chsh applied)."
+        echo "    Next:   open a new WezTerm tab (auto-reload picks up .wezterm.lua),"
+        echo "            or run 'exec zsh -l' here to start using zsh + Starship now."
+        ;;
+    *)
+        echo "$WARN  Login shell is still $LOGIN_SHELL — chsh did not take effect."
+        echo "    Run 'sudo chsh -s /usr/bin/zsh $USER' manually, then open a new WSL tab."
+        ;;
+esac

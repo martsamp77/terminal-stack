@@ -62,11 +62,50 @@ echo "$INFO Running $BOOTSTRAP"
 # safe. Same applies to the chezmoi apply below.
 bash "$BOOTSTRAP" </dev/null
 
-# 4. chezmoi apply
+# 4. Sanity-check bootstrap output before chezmoi apply.
+# If the bootstrap aborted mid-way (e.g. Nerd Font download or Starship installer
+# failed), the chezmoi.toml writing block is the first thing skipped. Without it,
+# `chezmoi apply` falls back to its default ~/.local/share/chezmoi and errors out.
+TOML="$HOME/.config/chezmoi/chezmoi.toml"
+if [ ! -f "$TOML" ]; then
+    echo "$WARN $TOML was not written by the bootstrap."
+    echo "    This means a step inside bootstrap/linux-bootstrap.sh failed silently"
+    echo "    before reaching the toml-writing block. Recovery:"
+    echo "      mkdir -p $(dirname "$TOML")"
+    echo "      printf 'sourceDir = \"%s\"\\n' \"$TARGET_DIR\" > $TOML"
+    echo "      ~/.local/bin/chezmoi apply -v"
+    exit 1
+fi
+
+# 5. chezmoi apply
 echo "$INFO Running chezmoi apply -v"
 "$HOME/.local/bin/chezmoi" apply -v </dev/null
+
+# 6. Sanity-check that our dot_zshrc actually landed (chezmoi apply can silently
+# skip files on permissions / template errors).
+if ! grep -q 'terminal-stack-zsh-start' "$HOME/.zshrc" 2>/dev/null; then
+    echo "$WARN ~/.zshrc does not contain the terminal-stack marker after chezmoi apply."
+    echo "    Either chezmoi apply silently skipped it, or it's reading from the wrong source."
+    echo "    Check: ~/.local/bin/chezmoi source-path  (should print $TARGET_DIR)"
+    exit 1
+fi
 
 echo ""
 echo "$INFO Linux install done."
 echo "    Clone:  $TARGET_DIR"
-echo "    Next:   open a new terminal and confirm Starship prompt + Nerd Font glyphs."
+
+# Verify the login shell actually flipped to zsh. chsh updates /etc/passwd but
+# the *current* session stays in whatever shell launched this script, so users
+# under `curl | bash` invariably ask "why am I still in bash?".
+LOGIN_SHELL="$(getent passwd "$USER" | cut -d: -f7)"
+case "$LOGIN_SHELL" in
+    /usr/bin/zsh|/bin/zsh)
+        echo "    Shell:  login shell is $LOGIN_SHELL (chsh applied)."
+        echo "    Next:   this session is still your old shell. Either log out and back in,"
+        echo "            or run 'exec zsh -l' here, to start using zsh + Starship now."
+        ;;
+    *)
+        echo "$WARN  Login shell is still $LOGIN_SHELL — chsh did not take effect."
+        echo "    Run 'sudo chsh -s /usr/bin/zsh $USER' manually, then log out / back in."
+        ;;
+esac

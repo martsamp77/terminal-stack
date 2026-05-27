@@ -22,7 +22,7 @@ common_apt_prereqs() {
     sudo apt-get install -y \
         zsh git curl unzip tmux \
         zoxide fzf bat ripgrep \
-        fonts-jetbrains-mono \
+        fonts-jetbrains-mono fontconfig \
         >/dev/null
     # Optional — present on Ubuntu 23.10+, missing on 22.04 (jammy). Try, ignore failures;
     # common_install_optional_binaries fills the gap from upstream releases.
