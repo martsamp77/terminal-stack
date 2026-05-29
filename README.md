@@ -50,7 +50,7 @@ Re-running the original install one-liner from § Quick install does the same th
 
 ## What you get
 
-- **WezTerm nightly** with a fancy tab bar, JetBrainsMono Nerd Font at 11.5pt, workspace · cwd in the right-status, `Ctrl+V` rebound for synthetic-paste compatibility (Wispr Flow, etc.).
+- **WezTerm nightly** with a fancy tab bar carrying integrated window buttons (minimize/maximize/close), JetBrainsMono Nerd Font at 11.5pt, workspace · cwd in the right-status, `Ctrl+V` rebound for synthetic-paste compatibility (Wispr Flow, etc.), and `Ctrl+A o` to pop the current tab into its own window.
 - **PowerShell 7 `$PROFILE`** with Starship prompt, OSC 7 cwd hint, tilde-abbreviated tab title, UTF-8 console restore (heals Claude-Code `Γ¥»` mojibake), and `cc`/`ccc`/`ccd`/`ccdc`/`cca` wrappers that set per-tab project titles.
 - **WSL zsh** with oh-my-zsh, theme cleared so Starship owns the prompt, a `precmd` that sets tab titles, and `ccs` / `ssht` helpers for tmux-attached Claude Code and SSH sessions.
 - **Claude Code hooks** that flip the WezTerm tab title to `cc ⏳ <project>` while Claude is thinking and `cc ✓ <project>` when it's waiting for your input — symmetric across Windows pwsh and WSL bash.

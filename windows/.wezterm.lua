@@ -24,7 +24,7 @@ config.color_scheme = 'Catppuccin Mocha'
 config.window_background_opacity = 1.0
 config.use_fancy_tab_bar = true
 config.hide_tab_bar_if_only_one_tab = false
-config.window_decorations = 'RESIZE'
+config.window_decorations = 'INTEGRATED_BUTTONS|RESIZE'
 config.initial_cols = 120
 config.initial_rows = 30
 config.tab_max_width = 120
@@ -56,6 +56,11 @@ config.keys = {
   { key = 'k', mods = 'LEADER', action = act.ActivatePaneDirection 'Up' },
   { key = 'j', mods = 'LEADER', action = act.ActivatePaneDirection 'Down' },
   { key = 'a', mods = 'LEADER|CTRL', action = act.SendKey { key = 'a', mods = 'CTRL' } },
+  -- Pop the current tab/pane out into its own new window. WezTerm has no native
+  -- mouse drag-to-detach; this is the supported equivalent (pane:move_to_new_window).
+  { key = 'o', mods = 'LEADER', action = wezterm.action_callback(function(window, pane)
+      pane:move_to_new_window()
+  end) },
   { key = 'v', mods = 'CTRL', action = act.PasteFrom 'Clipboard' },
 }
 
