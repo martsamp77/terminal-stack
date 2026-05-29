@@ -56,7 +56,8 @@ $corePackages = @(
     'sharkdp.bat',                      # cat with syntax highlighting
     'dandavison.delta',                 # git diff pager
     'BurntSushi.ripgrep.MSVC',          # Fast grep
-    'ajeetdsouza.zoxide'                # Smarter cd
+    'ajeetdsouza.zoxide',               # Smarter cd
+    'charmbracelet.glow'                # Markdown reader (TUI)
 )
 
 foreach ($pkg in $corePackages) {
