@@ -143,6 +143,28 @@ Trade-off: `Ctrl+V` no longer enters visual-block mode in vim/nvim inside WezTer
 
 Commit: [`2a3f527`](../CHANGELOG.md). Related upstream issue: [anthropics/claude-code#38620](https://github.com/anthropics/claude-code/issues/38620).
 
+## GitKraken `gk ai hook` plugin: log flood + the 0-byte `gk.exe` red herring
+
+**Symptom.** Two things that look like the GitKraken/Claude Code integration is broken: (1) `gk.exe` in `%LOCALAPPDATA%\GitKrakenCLI\` reports `Length 0` and appears corrupt; (2) `gk_cli.log` balloons (16 MB+) with hundreds of `aihook: broadcast failed … Post "http://127.0.0.1:<port>/agents/session" … target machine actively refused it`.
+
+**Background.** GitKraken installs a Claude Code **plugin** (not an MCP server), `gitkraken-hooks@gitkraken`, enabled in `~/.claude/settings.json` (`enabledPlugins` + `extraKnownMarketplaces.gitkraken`). It registers a hook on ~24 lifecycle events; each runs `"…\GitKrakenCLI\gk.exe" ai hook run --host claude-code`, broadcasting the live session state to GitKraken Desktop / GitLens for their "AI session tracking" panel.
+
+**Cause / what's actually true.**
+
+- The `0 bytes` is a **red herring**. `gk.exe` is a **symlink** to `versions\gk_<ver>\gk_<ver>.exe` (the real ~40 MB binary); a symlink's reparse point legitimately reports length 0. `gk version` runs fine, exit 0. Do **not** "repair" it by copying the binary over it — that fails with *"Cannot overwrite the item … with itself"* because the copy resolves the link to the same file. Confirm with `(Get-Item gk.exe -Force).LinkTarget`.
+- The Claude Code hook **exits 0 with no output**, so Claude Code never surfaces an error from it. The integration is functionally fine; the noise is internal to gk's own log.
+- The `broadcast failed` lines are gk pushing updates to **stale localhost listener ports** from AI sessions that have since closed. That registry is **not** in `sessions\*.json` (session state) and **not** in the gk CLI `.cache\` BadgerDB — clearing both has zero effect. It is held by **GitKraken Desktop** (`%APPDATA%\GitKraken\`, the `DIPS` store), which persists dead ports and never prunes them. They are `warning` level and harmless.
+- On a network that firewalls `api.gitkraken.dev` (corporate proxy), gk's auto-update check times out (`context deadline exceeded`), adding latency and proxy-log noise.
+
+**Fix / mitigation (all machine state, not repo).**
+
+- `%LOCALAPPDATA%\GitKrakenCLI\gk.cfg`: set `AUTO_UPDATE=false` (back it up first) to stop the firewalled update-check stalls.
+- Truncate `gk_cli.log`; kill any orphaned long-running `gk` / `gk_<ver>` processes (a finished `ai hook run` should not linger for minutes — they leak).
+- Restarting GitKraken Desktop clears the **in-memory** portion of the stale registry (observed ~87 → ~31 dead ports) but does **not** fully drain it — the remainder is persisted in `DIPS` and only a GitKraken-side prune would clear it. Don't perform surgery on `DIPS` to chase benign warnings.
+- To silence the broadcasts entirely you would disable the `gitkraken-hooks` plugin — but that removes the feature.
+
+**Note.** Plugin enablement lives in `~/.claude/settings.json`, which this repo manages whole-file. The Windows template now tracks these plugin blocks so a `chezmoi apply` doesn't wipe them — see `decisions.md` § "Why the Windows settings template tracks the claude-obsidian + gitkraken plugins".
+
 ## Same-day backup file got clobbered
 
 **Symptom.** You overwrite a file via the run_after sync hook on the same day twice. The second overwrite destroys the first backup, leaving you with no rollback to the original.

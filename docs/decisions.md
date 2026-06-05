@@ -155,6 +155,14 @@ Aliases can't run code around the wrapped command. Setting and clearing the WezT
 
 The `cc • <leaf>` text and the per-prompt clearing behavior are covered separately under "Why per-tab `cc • <project>` instead of one big tab name?" and "Why `wezterm cli set-tab-title` and not OSC 0?" — this entry is just about *why functions, not aliases*.
 
+## Why the Windows settings template tracks the claude-obsidian + gitkraken plugins
+
+`~/.claude/settings.json` is managed whole-file (see "Why a whole-file `~/.zshrc` and a marker-block `$PROFILE`?"), and on the Windows side it's produced from `windows/.claude/settings.json.tmpl` by the sync hook. Claude Code enables a plugin by writing `enabledPlugins` + `extraKnownMarketplaces` keys into that same file — but those writes happen *live* (via the `/plugin` UI), so they drift out of the tracked template. The first `chezmoi apply` after enabling a plugin overwrites the live file with the template and silently **disables every plugin** — here, both `claude-obsidian` and GitKraken's `gitkraken-hooks`.
+
+So the template now carries both blocks. The gitkraken marketplace path uses `__WIN_USER__` and stays user-portable. The claude-obsidian marketplace is a `directory` source pointing at a local clone (`C:/DATA/Workspace_Public/claude-obsidian`) — a machine-specific path, and the one place besides `LICENSE` where a non-tokenizable local path appears in the tracked tree. That's a deliberate trade-off: there is no username to tokenize and no "local override" merge for a whole-file JSON config, so preserving the plugin across applies means committing the path. On a fork or another machine that one marketplace simply won't resolve — which is harmless, Claude Code skips a missing marketplace; update or drop the path there.
+
+Alternative considered: marker-block management of `settings.json` (like `$PROFILE`) so live plugin writes survive untouched. Rejected — `settings.json` is strict JSON with no comment syntax to anchor markers, and we own the rest of the file anyway. Whole-file plus tracked plugin blocks is simpler. The companion machine-state cleanup (the GitKraken AI-hook log flood, the 0-byte `gk.exe` symlink) is documented in `powershell-quirks.md` § "GitKraken `gk ai hook` plugin".
+
 ## Why a separate `dot_wezterm.lua` for macOS
 
 WezTerm reads `~/.wezterm.lua` from the home directory of whatever machine the GUI runs on. On Windows that's `C:\Users\<you>\.wezterm.lua`, deployed from `windows/.wezterm.lua` by the sync hook. On WSL the GUI is still the *Windows* WezTerm, so WSL's Linux home gets no WezTerm config at all — correct, because nothing there would read it. On macOS, WezTerm runs natively and reads the macOS home directory, so the Mac genuinely needs its own `~/.wezterm.lua`.

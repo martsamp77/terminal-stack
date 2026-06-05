@@ -2,10 +2,11 @@
 
 All notable changes captured here. Format loosely follows [Keep a Changelog](https://keepachangelog.com/). Dates are MM/DD/YYYY for display, `git log` is authoritative.
 
-## [Unreleased] — 05/21/2026
+## [Unreleased] — 06/05/2026
 
 ### Added
 
+- **GitKraken + claude-obsidian plugin enablement tracked in `windows/.claude/settings.json.tmpl`.** Claude Code writes plugin marketplaces and enable-flags directly into `~/.claude/settings.json`, which this repo manages whole-file — so the next `chezmoi apply` would have silently wiped both the `claude-obsidian` and `gitkraken-hooks` plugins. The template now carries `extraKnownMarketplaces` + `enabledPlugins` (the gitkraken marketplace path is tokenized with `__WIN_USER__`; the claude-obsidian `directory` source is a deliberately machine-specific local path). See `docs/decisions.md` § "Why the Windows settings template tracks the claude-obsidian + gitkraken plugins". The companion diagnosis of the GitKraken AI-hook log flood and the 0-byte `gk.exe` symlink red herring is written up in `docs/powershell-quirks.md` § "GitKraken `gk ai hook` plugin".
 - **`.gitattributes`** enforcing `* text=auto eol=lf` plus binary markers for image/archive types. Overrides Windows' `core.autocrlf=true` (which is on at the system level by default) so fresh clones get LF in the working tree on every platform. Without this, every chezmoi-source file was being silently rewritten as CRLF on Windows checkout, then propagated through chezmoi to WSL — symptoms: `~/.zshrc:3: command not found: ^M`, `run_after_90-sync-windows.sh` failing with `env: $'bash\r': No such file or directory`, and spurious `.bak` files on every apply. See `docs/decisions.md` § "Why `.gitattributes` with `eol=lf`".
 - **Cross-platform Nerd Font glyphs in `starship.toml`**: folder ( U+F07B), octocat ( U+F408) + git-branch ( U+E725), clock ( U+F017), per-distro OS logos (Ubuntu , Debian , Arch , Alpine , Fedora , macOS , Windows , and ~15 others). Both `dot_config/starship.toml` and `windows/.config/starship.toml` are now byte-identical and produce the rounded-frame two-line prompt from `context/bestprompt.jpg` on both sides — only the OS glyph differs by platform.
 - **eza-backed `ls/ll/la/lt` functions** in the pwsh `cli-tools` marker block, matching the Linux `dot_zshrc` alias (`eza --icons=always --git --group-directories-first`). The built-in `ls` alias is removed first since pwsh pre-aliases it to `Get-ChildItem`. `ll` adds long-form (`-l`), `la` adds hidden+long (`-la`), `lt` switches to tree view (`--tree`).
