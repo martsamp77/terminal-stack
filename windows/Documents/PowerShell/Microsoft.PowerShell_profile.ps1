@@ -106,3 +106,13 @@ function Update-TerminalStack {
 }
 Set-Alias -Name ts-update -Value Update-TerminalStack
 # ---- terminal-stack-update-end ----
+
+# ---- chocolatey-start ----
+# Chocolatey tab-completion, when installed. The choco installer normally appends this block
+# to $PROFILE itself; we carry it here so the whole-file sync (sync-windows.ps1 / ts-update)
+# doesn't clobber it on hosts that use the Chocolatey package path. No-ops where choco is absent.
+$ChocolateyProfile = "$env:ChocolateyInstall\helpers\chocolateyProfile.psm1"
+if (Test-Path($ChocolateyProfile)) {
+    Import-Module "$ChocolateyProfile"
+}
+# ---- chocolatey-end ----

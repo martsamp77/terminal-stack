@@ -24,7 +24,16 @@ config.color_scheme = 'Catppuccin Mocha'
 config.window_background_opacity = 1.0
 config.use_fancy_tab_bar = true
 config.hide_tab_bar_if_only_one_tab = false
-config.window_decorations = 'INTEGRATED_BUTTONS|RESIZE'
+-- INTEGRATED_BUTTONS (min/max/close in the fancy tab bar) requires a build newer than the
+-- last `wezterm` stable (20240203 — what choco and other winget-less hosts get). On that
+-- build the value is invalid and the *whole* config errors out, so detect the build date and
+-- fall back to a plain resize border. Nightly keeps the integrated buttons.
+local build_date = tonumber((wezterm.version or ''):match('^(%d+)')) or 0
+if build_date > 20240203 then
+  config.window_decorations = 'INTEGRATED_BUTTONS|RESIZE'
+else
+  config.window_decorations = 'RESIZE'
+end
 config.initial_cols = 120
 config.initial_rows = 30
 config.tab_max_width = 120
@@ -33,7 +42,9 @@ config.window_frame = {
 }
 
 -- OpenGL avoids the WebGpu output-buffer stall where child-process output (e.g. Claude Code starting up) only renders after the next input event.
-config.front_end = 'OpenGL'
+-- Over RDP / on a headless server there's no usable GPU context and the GUI won't start at
+-- all; set the WEZTERM_FRONT_END env var to 'Software' (machine-wide) on such hosts to override.
+config.front_end = os.getenv('WEZTERM_FRONT_END') or 'OpenGL'
 config.scrollback_lines = 50000
 
 config.leader = { key = 'a', mods = 'CTRL', timeout_milliseconds = 1500 }
@@ -59,7 +70,8 @@ config.keys = {
   -- Pop the current tab/pane out into its own new window. WezTerm has no native
   -- mouse drag-to-detach; this is the supported equivalent (pane:move_to_new_window).
   { key = 'o', mods = 'LEADER', action = wezterm.action_callback(function(window, pane)
-      pane:move_to_new_window()
+      -- pane:move_to_new_window() exists only on builds newer than the 20240203 stable; no-op there.
+      if build_date > 20240203 then pane:move_to_new_window() end
   end) },
   { key = 'v', mods = 'CTRL', action = act.PasteFrom 'Clipboard' },
 }
