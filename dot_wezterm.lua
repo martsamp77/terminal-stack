@@ -44,8 +44,10 @@ config.window_frame = {
 }
 
 -- OpenGL avoids the WebGpu output-buffer stall where child-process output (e.g. Claude Code starting up) only renders after the next input event.
--- Over RDP / on a headless server there's no usable GPU context and the GUI won't start at
--- all; set the WEZTERM_FRONT_END env var to 'Software' (machine-wide) on such hosts to override.
+-- Headless / remote hosts often have no usable GPU: OpenGL then fails with "OpenGL too old
+-- for glium" and the GUI never starts. Override per-machine via the WEZTERM_FRONT_END env var.
+-- On Windows over RDP use 'WebGpu' — it falls back to the WARP software D3D adapter and works;
+-- 'Software' does NOT help on Windows (the old stable routes it through OpenGL too).
 config.front_end = os.getenv('WEZTERM_FRONT_END') or 'OpenGL'
 config.scrollback_lines = 50000
 
