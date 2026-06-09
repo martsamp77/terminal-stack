@@ -36,6 +36,8 @@ chezmoi natively only manages `$HOME` on the machine where it runs. We need Wind
 
 **Bootstrap split.** `bootstrap/wsl-bootstrap.sh` (WSL) and `bootstrap/linux-bootstrap.sh` (native Debian/Ubuntu) both source the shared `bootstrap/_common-debian.sh` helper for the install steps (apt, oh-my-zsh, chezmoi, Starship, Nerd Font). The wrappers diverge only on Windows-username handling and the default `SOURCE_DIR`.
 
+**Windows package manager.** `bootstrap/windows-bootstrap.ps1` defaults to winget but takes `-PackageManager choco` (and `install.ps1` reads `$env:TERMINAL_STACK_PKGMGR=choco`) for hosts without winget — notably **Windows Server 2019**, which has no Microsoft Store and no supported winget. Keep winget the default; the choco path is a parallel, additive list (`$corePackagesChoco`) and must stay in sync with the winget `$corePackages`. See `docs/decisions.md` § "Why a Chocolatey option for the Windows bootstrap (winget kept as the default)".
+
 **Per-machine overrides.** `dot_zshrc` sources `~/.zshrc.local` at the end if it exists. That file is **not** tracked by chezmoi — use it for peer-sync helpers, server-role aliases, anything that shouldn't propagate. See `dot_zshrc.local.example` for the documented pattern.
 
 Source → destination mapping for the `windows/` subtree is **relative-path-preserving**: `windows/.wezterm.lua` → `/mnt/c/Users/<you>/.wezterm.lua`. To add a new Windows-side file, drop it at the mirror path under `windows/` — no script changes needed. Full mechanism in `docs/cross-side-chezmoi.md`.

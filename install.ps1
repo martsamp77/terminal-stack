@@ -5,9 +5,13 @@
 # Optional: override the clone location before invoking.
 #   $env:TERMINAL_STACK_DIR = 'D:\dotfiles\terminal-stack'; irm ... | iex
 #
+# Optional: choose the package manager (default winget). On a host without winget
+# (e.g. Windows Server 2019, which has no Microsoft Store), use Chocolatey instead:
+#   $env:TERMINAL_STACK_PKGMGR = 'choco'; irm ... | iex
+#
 # What it does:
-#   1. Verifies winget is available (App Installer).
-#   2. Ensures Git is installed (winget Git.Git if missing).
+#   1. Selects a package manager (winget default; choco via $env:TERMINAL_STACK_PKGMGR).
+#   2. Ensures Git is installed (via the selected package manager if missing).
 #   3. Clones github.com/martsamp77/terminal-stack to $TERMINAL_STACK_DIR
 #      (default: $env:USERPROFILE\terminal-stack). git pull if already cloned.
 #   4. Runs bootstrap\windows-bootstrap.ps1 from the clone.
@@ -21,16 +25,44 @@ if ($PSVersionTable.PSVersion.Major -lt 7) {
     Write-Warning "Running under PowerShell $($PSVersionTable.PSVersion). PowerShell 7+ is recommended; the stack's `$PROFILE` targets pwsh 7. Continuing."
 }
 
-# 1. winget preflight
-try { & winget --version | Out-Null } catch {
-    throw "winget not found. Install 'App Installer' from the Microsoft Store, then re-run."
+# 1. Package-manager selection + preflight.
+#    Default winget (Windows 11). $env:TERMINAL_STACK_PKGMGR='choco' forces Chocolatey
+#    (the path for Windows Server 2019 and other hosts without winget).
+$pkgMgr = $env:TERMINAL_STACK_PKGMGR
+if ($pkgMgr) {
+    $pkgMgr = $pkgMgr.ToLower()
+    if ($pkgMgr -notin @('winget', 'choco')) {
+        throw "TERMINAL_STACK_PKGMGR must be 'winget' or 'choco' (got '$pkgMgr')."
+    }
+} elseif (Get-Command winget -ErrorAction SilentlyContinue) {
+    $pkgMgr = 'winget'
+} elseif (Get-Command choco -ErrorAction SilentlyContinue) {
+    $pkgMgr = 'choco'
+} else {
+    $pkgMgr = 'winget'   # nothing detected; fall through to the winget guidance below
 }
+Write-Host "==> Package manager: $pkgMgr"
 
-# 2. Git
+if ($pkgMgr -eq 'winget') {
+    try { & winget --version | Out-Null } catch {
+        throw "winget not found. Install 'App Installer' from the Microsoft Store, then re-run — or on a host without winget (e.g. Windows Server 2019), re-run with `$env:TERMINAL_STACK_PKGMGR='choco' to use Chocolatey instead."
+    }
+}
+# choco preflight (install Chocolatey if missing) is handled by windows-bootstrap.ps1 -PackageManager choco.
+
+# 2. Git (needed to clone) — via the selected package manager.
 if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
-    Write-Host '==> Installing Git (winget Git.Git)'
-    & winget install --id Git.Git --exact --silent --accept-source-agreements --accept-package-agreements 2>&1 |
-        Select-Object -Last 3
+    if ($pkgMgr -eq 'winget') {
+        Write-Host '==> Installing Git (winget Git.Git)'
+        & winget install --id Git.Git --exact --silent --accept-source-agreements --accept-package-agreements 2>&1 |
+            Select-Object -Last 3
+    } elseif (Get-Command choco -ErrorAction SilentlyContinue) {
+        Write-Host '==> Installing Git (choco git)'
+        & choco install git -y --no-progress 2>&1 | Select-Object -Last 3
+    } else {
+        # choco mode but Chocolatey isn't installed yet (the repo's installer runs later).
+        throw "git is required to clone the repo, but neither git nor Chocolatey is installed. Install git (or install Chocolatey then 'choco install git'), then re-run."
+    }
     # Add Git to current session PATH so the clone below works without a new shell.
     $gitDir = Join-Path $env:ProgramFiles 'Git\cmd'
     if (Test-Path (Join-Path $gitDir 'git.exe')) {
@@ -59,13 +91,13 @@ if (Test-Path (Join-Path $targetDir '.git')) {
     & git clone $repoUrl $targetDir
 }
 
-# 4. Bootstrap (winget packages + binaries)
+# 4. Bootstrap (package-manager installs + binaries)
 $bootstrap = Join-Path $targetDir 'bootstrap\windows-bootstrap.ps1'
 if (-not (Test-Path $bootstrap)) {
     throw "Expected bootstrap script not found at $bootstrap"
 }
-Write-Host "==> Running $bootstrap"
-& $bootstrap
+Write-Host "==> Running $bootstrap -PackageManager $pkgMgr"
+& $bootstrap -PackageManager $pkgMgr
 
 # 5. Sync windows/** to %USERPROFILE% (PowerShell-native equivalent of the WSL
 #    run_after hook). Lands $PROFILE, .wezterm.lua, .claude\settings.json, etc.

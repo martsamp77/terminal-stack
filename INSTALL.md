@@ -50,6 +50,25 @@ This installs:
 
 Pass `-WhatIf` to preview without installing. UAC prompts on machine-scope installs; approve each.
 
+#### Chocolatey alternative (Windows Server / no winget)
+
+winget is **not supported on Windows Server 2019** (no Microsoft Store), and some locked-down hosts don't have it. On those, use Chocolatey instead — same toolchain, one flag. Run from an **elevated** PowerShell (Chocolatey installs itself machine-wide on first use):
+
+```powershell
+# Bootstrap directly from a clone
+.\bootstrap\windows-bootstrap.ps1 -PackageManager choco
+```
+
+```powershell
+# …or via the one-liner — set the package manager before piping to iex
+$env:TERMINAL_STACK_PKGMGR = 'choco'
+irm https://raw.githubusercontent.com/martsamp77/terminal-stack/main/install.ps1 | iex
+```
+
+The choco path installs WezTerm **stable** (Chocolatey has no nightly channel); every other package matches the winget list. winget stays the default whenever `-PackageManager` / `$env:TERMINAL_STACK_PKGMGR` is unset, so the Windows 11 path is unaffected. On a headless server the WezTerm GUI config deploys but is unused — the Starship prompt, CLI tools, pwsh `$PROFILE`, and Claude Code hooks all work without it.
+
+> **Shared/production server note:** `scripts/sync-windows.ps1` deploys the pwsh `$PROFILE` whole-file (backing the old one up to `.bak.<date>`), not via a marker-block merge. If the account already has a `$PROFILE`, copy it aside first and merge your personal content back from the backup after applying.
+
 ### 2. WSL side
 
 Open WSL Ubuntu (substitute your Windows username for `<you>`):
