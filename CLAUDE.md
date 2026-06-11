@@ -59,9 +59,12 @@ Source → destination mapping for the `windows/` subtree is **relative-path-pre
 | `~/.claude/settings.json` (both sides) | whole-file | We own it |
 | `~/.tmux.conf`, `~/.config/starship.toml` | whole-file | We own it |
 | `~/command-reference.md` (both sides) | whole-file | We own it; machine content goes in `command-reference.local.md` (untracked) |
+| `~/command-reference.txt` / `.html` (both sides) | whole-file, **generated** | Derived from the `.md` by `scripts/render-command-reference.sh` and committed; never hand-edit (see below) |
 | `~/.config/git/terminal-stack.gitconfig` (both sides) | whole-file | We own it; hooked via `include.path`, user's `~/.gitconfig` stays untouched and wins |
 | `$PROFILE` (Windows pwsh) | whole-file sync, **marker-block edited** | The sync copies the repo file over `$PROFILE` whole (with `.bak`); the `# ---- name-start ----` / `# ---- name-end ----` blocks organize the stack's regions. Personal content belongs in `profile.local.ps1`, never in `$PROFILE` itself |
 | `~/.zshrc.local`, `profile.local.ps1`, `command-reference.local.md` | **never managed** | Per-machine; only `.example` twins ship |
+
+**Command-reference derived formats.** Each command-reference markdown source ships `.txt` (byte-identical copy) and `.html` (rendered, self-contained, embeds a `source-sha256:` head comment) twins so the same content opens in a console, a browser, or Obsidian. They are *generated, committed* files: after **any** edit to `command-reference.md.tmpl` or `windows/command-reference.md`, run `bash scripts/render-command-reference.sh` and commit all four outputs. The WSL-side twins are `.tmpl`s — the converter passes `{{ ... }}` lines through verbatim so per-OS sections still resolve at apply time. Staleness is caught (warn-only, never auto-fixed) by `run_after_10-check-command-reference.sh` on every POSIX apply and by `scripts/sync-windows.ps1` on every Windows-native sync.
 
 When modifying `$PROFILE`, edit the repo source (`windows/Documents/PowerShell/Microsoft.PowerShell_profile.ps1`) **inside an existing marker block** (`starship-stack-*`, `cli-tools-*`, `git-shortcuts-*`, …) or add a new marker block; keep `local-overrides` last. Anything a user hand-adds to the live `$PROFILE` outside the repo is replaced on the next sync (backed up, but gone from the live file) — per-machine content goes in `profile.local.ps1`. History in `docs/decisions.md` § "Why a whole-file `~/.zshrc` and a marker-block `$PROFILE`?".
 
