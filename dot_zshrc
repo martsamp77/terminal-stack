@@ -189,11 +189,26 @@ _ts_chezmoi() {
   else return 1
   fi
 }
-# Clone resolution: $TERMINAL_STACK_DIR → `chezmoi source-path`.
+# Clone resolution: $TERMINAL_STACK_DIR → `chezmoi source-path`. $2 is the
+# caller name for error prefixes. Each failure mode gets its own message —
+# a chezmoi error (e.g. state lock held by another running instance) is not
+# a missing clone, so chezmoi's stderr passes through unredirected.
 _ts_src() {
-  local cz="$1" src="${TERMINAL_STACK_DIR:-}"
-  [[ -z "$src" ]] && src="$("$cz" source-path 2>/dev/null)"
-  [[ -n "$src" && -d "$src/.git" ]] || return 1
+  local cz="$1" name="${2:-ts}" src="${TERMINAL_STACK_DIR:-}"
+  if [[ -z "$src" ]]; then
+    src="$("$cz" source-path)" || {
+      echo "$name: 'chezmoi source-path' failed (error above) — can't locate the clone." >&2
+      return 1
+    }
+  fi
+  if [[ ! -d "$src/.git" ]]; then
+    if [[ -n "${TERMINAL_STACK_DIR:-}" ]]; then
+      echo "$name: \$TERMINAL_STACK_DIR='$TERMINAL_STACK_DIR' is not a git clone." >&2
+    else
+      echo "$name: no terminal-stack clone at '$src'. Re-run the install one-liner." >&2
+    fi
+    return 1
+  fi
   echo "$src"
 }
 _TS_STATE="${XDG_STATE_HOME:-$HOME/.local/state}/terminal-stack"
@@ -204,7 +219,7 @@ _TS_STATE="${XDG_STATE_HOME:-$HOME/.local/state}/terminal-stack"
 ts-update() {
   local cz src
   cz="$(_ts_chezmoi)" || { echo "ts-update: chezmoi not found on PATH." >&2; return 1 }
-  src="$(_ts_src "$cz")" || { echo "ts-update: terminal-stack clone not found. Re-run the install one-liner." >&2; return 1 }
+  src="$(_ts_src "$cz" ts-update)" || return 1
   git -C "$src" fetch --quiet || return $?
   local incoming
   incoming="$(git -C "$src" log --oneline 'HEAD..@{u}' 2>/dev/null)"
@@ -232,7 +247,7 @@ ts-update() {
 ts-rollback() {
   local cz src
   cz="$(_ts_chezmoi)" || { echo "ts-rollback: chezmoi not found on PATH." >&2; return 1 }
-  src="$(_ts_src "$cz")" || { echo "ts-rollback: terminal-stack clone not found." >&2; return 1 }
+  src="$(_ts_src "$cz" ts-rollback)" || return 1
   local sha_file="$_TS_STATE/rollback-sha"
   if [[ ! -f "$sha_file" ]]; then
     echo "ts-rollback: no recorded rollback point ($sha_file)." >&2
