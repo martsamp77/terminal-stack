@@ -102,6 +102,65 @@ else
     echo "$INFO $TOML already exists; not overwriting sourceDir."
 fi
 
+# 8. Git include — stack aliases + delta config (file lands via chezmoi apply;
+# git silently skips missing include files, so ordering is safe).
+GIT_INC="$HOME/.config/git/terminal-stack.gitconfig"
+if git config --global --get-all include.path 2>/dev/null | grep -qF "terminal-stack.gitconfig"; then
+    echo "$INFO git include.path already set"
+else
+    echo "$INFO Adding git include.path -> $GIT_INC"
+    git config --global --add include.path "$GIT_INC"
+fi
+
+# 9. Workspace directory for ws/wsp/wspu. Same contract as the Debian-family
+# bootstraps: $WORKSPACE_DIR env skips the prompt; the /dev/tty read survives
+# curl|bash; the answer persists to ~/.zshrc.local only when it differs from
+# the autodetect (the shell-side _ts_workspace() covers the detected case).
+WS_DETECTED=""
+for d in "$HOME/Documents/Workspace" "$HOME/workspace" "$HOME/Workspace"; do
+    [ -d "$d" ] && { WS_DETECTED="$d"; break; }
+done
+WS_CHOICE="${WORKSPACE_DIR:-}"
+if [ -n "$WS_CHOICE" ]; then
+    echo "$INFO WORKSPACE_DIR=$WS_CHOICE (from env; skipping prompt)"
+else
+    if { printf 'Workspace directory [%s]: ' "${WS_DETECTED:-none}" > /dev/tty \
+         && read -r WS_CHOICE < /dev/tty; } 2>/dev/null; then :; else WS_CHOICE=""; fi
+    WS_CHOICE="${WS_CHOICE:-$WS_DETECTED}"
+fi
+if [ -z "$WS_CHOICE" ]; then
+    echo "$WARN No workspace directory found or chosen."
+    echo "    Set one later: export WORKSPACE_DIR=... in ~/.zshrc.local"
+elif [ "$WS_CHOICE" = "$WS_DETECTED" ]; then
+    echo "$INFO Workspace: $WS_CHOICE (autodetected; no override needed)"
+else
+    [ -d "$WS_CHOICE" ] || echo "$WARN $WS_CHOICE does not exist (yet) — ws will warn until it does."
+    RC="$HOME/.zshrc.local"
+    if [ -f "$RC" ] && grep -q '^export WORKSPACE_DIR=' "$RC"; then
+        # BSD sed needs the empty '' backup arg.
+        sed -i '' "s|^export WORKSPACE_DIR=.*|export WORKSPACE_DIR=\"$WS_CHOICE\"|" "$RC"
+        echo "$INFO Updated WORKSPACE_DIR in $RC"
+    else
+        printf 'export WORKSPACE_DIR="%s"\n' "$WS_CHOICE" >> "$RC"
+        echo "$INFO Wrote WORKSPACE_DIR=$WS_CHOICE to $RC"
+    fi
+fi
+
+# 10. Optional extras (opt-in): tldr + lazydocker via brew. TS_EXTRA_TOOLS=1
+# or answer y at the prompt.
+EXTRA_ANSWER="${TS_EXTRA_TOOLS:-}"
+if [ -z "$EXTRA_ANSWER" ]; then
+    if { printf 'Install extra tools (tldr, lazydocker)? [y/N]: ' > /dev/tty \
+         && read -r EXTRA_ANSWER < /dev/tty; } 2>/dev/null; then :; else EXTRA_ANSWER=""; fi
+fi
+case "$EXTRA_ANSWER" in
+    1|y|Y|yes|YES)
+        echo "$INFO Installing extra tools (tldr, lazydocker)"
+        brew install tldr lazydocker
+        ;;
+    *) echo "$INFO Skipping extra tools (TS_EXTRA_TOOLS=1 to enable)" ;;
+esac
+
 echo ""
 echo "$INFO macOS bootstrap done."
 echo "    Next: chezmoi apply -v"
