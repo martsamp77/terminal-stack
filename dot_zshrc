@@ -99,6 +99,13 @@ zshaddhistory() {
 
 export EDITOR='nano'
 
+# Git muscle-memory overrides. The OMZ git plugin defines gp='git push' and
+# gl='git pull' — on this stack gp means PULL and gl means LOG, everywhere.
+# Defined after oh-my-zsh sources so these win. gst/gco/gf/gd/ga/gb keep
+# their OMZ meanings.
+alias gp='git pull'
+alias gl='git log --oneline --graph --decorate -10'
+
 # Claude Code shorthands (PowerShell equivalents live in windows/Documents/PowerShell/Microsoft.PowerShell_profile.ps1).
 # Each cc* sets the WezTerm tab title to "cc • <leaf>" while claude runs and
 # clears it on exit, so multiple concurrent Claude panes are visually distinct.
@@ -173,25 +180,46 @@ ssht() {
   ssh -t -- "$host" "tmux new-session -A -s $(printf '%q' "$sess")"
 }
 
+# Shared resolvers for ts-update / ts-rollback.
+# TERMINAL_STACK_CHEZMOI overrides the chezmoi binary (testing / odd installs).
+_ts_chezmoi() {
+  if [[ -n "${TERMINAL_STACK_CHEZMOI:-}" ]]; then echo "$TERMINAL_STACK_CHEZMOI"
+  elif [[ -x "$HOME/.local/bin/chezmoi" ]]; then echo "$HOME/.local/bin/chezmoi"
+  elif command -v chezmoi >/dev/null 2>&1; then command -v chezmoi
+  else return 1
+  fi
+}
+# Clone resolution: $TERMINAL_STACK_DIR → `chezmoi source-path`.
+_ts_src() {
+  local cz="$1" src="${TERMINAL_STACK_DIR:-}"
+  [[ -z "$src" ]] && src="$("$cz" source-path 2>/dev/null)"
+  [[ -n "$src" && -d "$src/.git" ]] || return 1
+  echo "$src"
+}
+_TS_STATE="${XDG_STATE_HOME:-$HOME/.local/state}/terminal-stack"
+
 # Pull the latest terminal-stack from GitHub and re-apply via chezmoi.
-# Resolves the clone via $TERMINAL_STACK_DIR → `chezmoi source-path` → default.
+# Shows incoming commits and records the pre-update SHA so ts-rollback can undo.
 # Same name as the PowerShell alias for cross-shell muscle memory.
 ts-update() {
-  local src="${TERMINAL_STACK_DIR:-}"
-  local cz
-  if [[ -x "$HOME/.local/bin/chezmoi" ]]; then
-    cz="$HOME/.local/bin/chezmoi"
-  elif command -v chezmoi >/dev/null 2>&1; then
-    cz="$(command -v chezmoi)"
+  local cz src
+  cz="$(_ts_chezmoi)" || { echo "ts-update: chezmoi not found on PATH." >&2; return 1 }
+  src="$(_ts_src "$cz")" || { echo "ts-update: terminal-stack clone not found. Re-run the install one-liner." >&2; return 1 }
+  git -C "$src" fetch --quiet || return $?
+  local incoming
+  incoming="$(git -C "$src" log --oneline 'HEAD..@{u}' 2>/dev/null)"
+  if [[ -n "$incoming" ]]; then
+    echo "==> incoming changes:"
+    print -r -- "$incoming" | sed 's/^/  /'
+    # Record the rollback point only when something is actually incoming —
+    # a no-op re-run must not clobber the last real rollback point.
+    mkdir -p "$_TS_STATE"
+    git -C "$src" rev-parse HEAD > "$_TS_STATE/rollback-sha"
+    echo "==> recorded rollback point: $(git -C "$src" rev-parse --short HEAD) (ts-rollback to undo)"
+    git -C "$src" pull --ff-only || return $?
   else
-    echo "ts-update: chezmoi not found on PATH." >&2; return 1
+    echo "==> already up to date"
   fi
-  [[ -z "$src" ]] && src="$("$cz" source-path 2>/dev/null)"
-  if [[ -z "$src" || ! -d "$src/.git" ]]; then
-    echo "ts-update: terminal-stack clone not found ($src). Re-run the install one-liner." >&2
-    return 1
-  fi
-  git -C "$src" pull --ff-only || return $?
   # `apply` without -v: -v prints the full content of every run_after_*
   # script (incl. our 114-line sync hook) as a git-style diff on every run,
   # which looks like a pager opening on long-output. Use `chezmoi diff` if
@@ -199,19 +227,61 @@ ts-update() {
   "$cz" apply
 }
 
-# Workspace navigation (mirrors the ws* PowerShell functions). Each branch is
-# guarded on the specific directory's existence, so the same dot_zshrc stays
-# correct on WSL, native Linux (no-op), and macOS.
-if [[ -d /mnt/c/DATA/Workspace ]]; then
-  ws()         { cd /mnt/c/DATA/Workspace }
-  wsp()        { cd /mnt/c/DATA/Workspace_Personal }
-  wspu()       { cd /mnt/c/DATA/Workspace_Public }
-  wscalibra()  { cd /mnt/c/DATA/Workspace/md-validator }
-  wsnetsuite() { cd /mnt/c/DATA/Workspace/netsuite-customizations }
-elif [[ -d "$HOME/Documents/Workspace" ]]; then
-  ws()   { cd "$HOME/Documents/Workspace" }
-  wspu() { cd "$HOME/Documents/Workspace-Public" }
-fi
+# Undo the last ts-update: reset the clone to the recorded pre-update SHA and
+# re-apply. Manual fallback (state file missing): README § Updating & rollback.
+ts-rollback() {
+  local cz src
+  cz="$(_ts_chezmoi)" || { echo "ts-rollback: chezmoi not found on PATH." >&2; return 1 }
+  src="$(_ts_src "$cz")" || { echo "ts-rollback: terminal-stack clone not found." >&2; return 1 }
+  local sha_file="$_TS_STATE/rollback-sha"
+  if [[ ! -f "$sha_file" ]]; then
+    echo "ts-rollback: no recorded rollback point ($sha_file)." >&2
+    echo "  Manual procedure: git -C $src reset --hard <sha> && chezmoi apply" >&2
+    return 1
+  fi
+  local sha; sha="$(<"$sha_file")"
+  if ! git -C "$src" rev-parse --verify --quiet "$sha^{commit}" >/dev/null; then
+    echo "ts-rollback: recorded SHA $sha not found in $src." >&2; return 1
+  fi
+  # The clone may double as a dev checkout — never reset --hard over real work.
+  if [[ -n "$(git -C "$src" status --porcelain)" ]]; then
+    echo "ts-rollback: $src has uncommitted changes; refusing to reset --hard. Commit or stash first." >&2
+    return 1
+  fi
+  echo "==> resetting $src to $sha (recorded before last ts-update)"
+  git -C "$src" reset --hard "$sha" || return $?
+  "$cz" apply
+  echo "==> done. run ts-update to return to latest."
+}
+
+# Workspace navigation (mirrors the ws* PowerShell functions).
+# $WORKSPACE_DIR (set in ~/.zshrc.local) wins; otherwise the first existing
+# autodetect candidate. Resolved at CALL time, not shell startup, because
+# ~/.zshrc.local is sourced after this block.
+_ts_workspace() {
+  [[ -n "${WORKSPACE_DIR:-}" ]] && { echo "$WORKSPACE_DIR"; return 0 }
+  local d
+  for d in /mnt/c/DATA/Workspace "$HOME/Documents/Workspace" \
+           "$HOME/workspace" "$HOME/Workspace"; do
+    [[ -d "$d" ]] && { echo "$d"; return 0 }
+  done
+  return 1
+}
+# Sibling resolver: handles both Workspace_Personal (Windows/WSL) and
+# Workspace-Personal (macOS) naming.
+_ts_workspace_sibling() {
+  local suffix="$1" root d
+  root="$(_ts_workspace)" || return 1
+  for d in "${root}_${suffix}" "${root}-${suffix}"; do
+    [[ -d "$d" ]] && { echo "$d"; return 0 }
+  done
+  return 1
+}
+ws()   { cd "$(_ts_workspace)" 2>/dev/null || echo "ws: no workspace found — export WORKSPACE_DIR in ~/.zshrc.local" >&2 }
+wsp()  { cd "$(_ts_workspace_sibling Personal)" 2>/dev/null || echo "wsp: no *_Personal sibling of $(_ts_workspace 2>/dev/null)" >&2 }
+wspu() { cd "$(_ts_workspace_sibling Public)" 2>/dev/null || echo "wspu: no *_Public sibling of $(_ts_workspace 2>/dev/null)" >&2 }
+# Project-specific shortcuts (wscalibra, wsnetsuite, …) belong in
+# ~/.zshrc.local — see dot_zshrc.local.example.
 # ---- terminal-stack-helpers-end ----
 
 # ---- cli-tools-start ----
@@ -223,6 +293,18 @@ command -v zoxide >/dev/null && eval "$(zoxide init zsh)"
 command -v fzf    >/dev/null && source <(fzf --zsh 2>/dev/null)
 command -v eza    >/dev/null && alias ls='eza --icons=always --git --group-directories-first'
 command -v bat    >/dev/null && alias cat='bat --paging=never'
+
+# Open the command reference (~/command-reference.md, chezmoi-managed) plus the
+# machine-local supplement (~/command-reference.local.md, untracked) if present.
+ref() {
+  local -a files=("$HOME/command-reference.md")
+  [[ -f "$HOME/command-reference.local.md" ]] && files+=("$HOME/command-reference.local.md")
+  if command -v bat >/dev/null; then
+    bat --paging=always "${files[@]}"
+  else
+    less "${files[@]}"
+  fi
+}
 # ---- cli-tools-end ----
 
 # Per-machine overrides (not tracked by chezmoi). See dot_zshrc.local.example.

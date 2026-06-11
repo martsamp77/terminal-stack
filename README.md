@@ -32,21 +32,32 @@ curl -fsSL https://raw.githubusercontent.com/martsamp77/terminal-stack/main/inst
 
 Defaults: the Windows installer clones to `%USERPROFILE%\terminal-stack` (visible from WSL as `/mnt/c/Users/<you>/terminal-stack`); Linux and macOS clone to `~/code/terminal-stack`. Override with `$env:TERMINAL_STACK_DIR` (PowerShell) or `TERMINAL_STACK_DIR=…` (bash). Expects a clean home directory — if you already have a hand-edited `~/.zshrc` or `$PROFILE`, see `INSTALL.md` for the per-step path that preserves user content.
 
-## Updating
+## Updating & rollback
 
-After install, `ts-update` is available in both pwsh and zsh. It pulls the latest from GitHub and re-applies:
+After install, `ts-update` is available in both pwsh and zsh. It fetches, shows the incoming commits, records a rollback point, then pulls and re-applies:
 
-```powershell
-# PowerShell — pulls + runs scripts\sync-windows.ps1 (Windows-side only; no WSL needed)
-ts-update
+```text
+$ ts-update
+==> incoming changes:
+  a1b2c3d feat: workspace autodetect
+==> recorded rollback point: e452f67 (ts-rollback to undo)
 ```
 
-```sh
-# zsh on WSL / Linux / macOS — pulls + chezmoi apply -v
-ts-update
-```
+(PowerShell re-applies via `scripts\sync-windows.ps1` — Windows-side only, no WSL needed. zsh re-applies via `chezmoi apply`.)
 
 Re-running the original install one-liner from § Quick install does the same thing (the installers are idempotent and `git pull` if the clone exists).
+
+**`ts-rollback`** undoes the last `ts-update`: it resets the clone to the recorded SHA (refusing if the clone has uncommitted changes) and re-applies. Run `ts-update` again to return to latest. The rollback point lives at `~/.local/state/terminal-stack/rollback-sha` (zsh) / `%LOCALAPPDATA%\terminal-stack\rollback-sha` (pwsh).
+
+**Manual rollback** (state file missing, or rolling back further than one update):
+
+```sh
+git -C <clone> log --oneline -10          # pick the SHA or tag to return to
+git -C <clone> reset --hard <sha>         # e.g. v1.0.x tags, or any commit
+~/.local/bin/chezmoi apply                # Windows: <clone>\scripts\sync-windows.ps1
+```
+
+Two caveats: the clone may double as a dev checkout — commit or stash before any `reset --hard`. And rolling back the *source* doesn't delete files an update introduced (e.g. `~/command-reference.md` or the git include at `~/.config/git/terminal-stack.gitconfig`); chezmoi simply stops managing them. For a full undo, also `rm` the file and/or `git config --global --unset-all include.path <path>`.
 
 ## What you get
 
@@ -54,8 +65,10 @@ Re-running the original install one-liner from § Quick install does the same th
 - **PowerShell 7 `$PROFILE`** with Starship prompt, OSC 7 cwd hint, tilde-abbreviated tab title, UTF-8 console restore (heals Claude-Code `Γ¥»` mojibake), and `cc`/`ccc`/`ccd`/`ccdc`/`cca` wrappers that set per-tab project titles.
 - **WSL zsh** with oh-my-zsh, theme cleared so Starship owns the prompt, a `precmd` that sets tab titles, and `ccs` / `ssht` helpers for tmux-attached Claude Code and SSH sessions.
 - **Claude Code hooks** that flip the WezTerm tab title to `cc ⏳ <project>` while Claude is thinking and `cc ✓ <project>` when it's waiting for your input — symmetric across Windows pwsh and WSL bash.
-- **Modern CLI tools**: eza, zoxide, fzf, bat, git-delta, ripgrep — installed on both sides.
+- **Modern CLI tools**: eza, zoxide, fzf, bat, git-delta, ripgrep — installed on both sides, with delta wired into `git diff` and the stack's `git st/lg/lga/br/co/cm` aliases via a managed gitconfig include.
 - **tmux** configured for Claude Code passthrough, extended keys, and mouse mode.
+- **`ws`/`wsp`/`wspu` workspace navigation** that autodetects the workspace root per machine (`$WORKSPACE_DIR` in `~/.zshrc.local` / `profile.local.ps1` overrides it).
+- **`ref` command reference** — a cheat sheet of everything above at `~/command-reference.md`, plus an untracked `command-reference.local.md` for machine-specific commands.
 
 ## Architecture in 30 seconds
 

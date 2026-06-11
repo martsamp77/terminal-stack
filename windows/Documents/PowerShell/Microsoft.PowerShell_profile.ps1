@@ -5,11 +5,45 @@ function zoxide-prune {
   zoxide query -l | Where-Object { -not (Test-Path $_) } | ForEach-Object { zoxide remove $_ }
 }
 
-function ws { Set-Location C:\DATA\Workspace }
-function wsp { Set-Location C:\DATA\Workspace_Personal }
-function wspu { Set-Location C:\DATA\Workspace_Public }
-function wscalibra { Set-Location C:\DATA\Workspace\md-validator }
-function wsnetsuite { Set-Location C:\DATA\Workspace\netsuite-customizations }
+# ---- workspace-nav-start ----
+# Workspace navigation (mirrors the zsh ws* functions). $env:WORKSPACE_DIR
+# (set in profile.local.ps1) wins; otherwise the first existing autodetect
+# candidate. Resolved at call time so the local override always applies.
+function Get-TsWorkspace {
+    if ($env:WORKSPACE_DIR) { return $env:WORKSPACE_DIR }
+    foreach ($d in @(
+        'C:\DATA\Workspace',
+        (Join-Path $env:USERPROFILE 'workspace'),
+        (Join-Path $env:USERPROFILE 'Documents\Workspace')
+    )) {
+        if (Test-Path $d) { return $d }
+    }
+    return $null
+}
+# Sibling resolver: handles both Workspace_Personal and Workspace-Personal naming.
+function Get-TsWorkspaceSibling([string]$Suffix) {
+    $root = Get-TsWorkspace
+    if (-not $root) { return $null }
+    foreach ($d in @("${root}_${Suffix}", "${root}-${Suffix}")) {
+        if (Test-Path $d) { return $d }
+    }
+    return $null
+}
+function ws {
+    $r = Get-TsWorkspace
+    if ($r) { Set-Location $r } else { Write-Warning 'ws: no workspace found — set $env:WORKSPACE_DIR in profile.local.ps1' }
+}
+function wsp {
+    $r = Get-TsWorkspaceSibling 'Personal'
+    if ($r) { Set-Location $r } else { Write-Warning 'wsp: no *_Personal sibling' }
+}
+function wspu {
+    $r = Get-TsWorkspaceSibling 'Public'
+    if ($r) { Set-Location $r } else { Write-Warning 'wspu: no *_Public sibling' }
+}
+# Project-specific shortcuts (wscalibra, wsnetsuite, …) belong in
+# profile.local.ps1 — see profile.local.ps1.example.
+# ---- workspace-nav-end ----
 
 function Set-WezTabTitle([string]$title) {
     if ($env:WEZTERM_PANE) {
@@ -72,31 +106,53 @@ if (Get-Command eza -ErrorAction SilentlyContinue) {
     function la { eza -la --icons=always --git --group-directories-first @args }
     function lt { eza --tree --icons=always --git --group-directories-first @args }
 }
+
+# Open the command reference (synced to %USERPROFILE% by the stack) plus the
+# machine-local supplement (command-reference.local.md, untracked) if present.
+function ref {
+    $files = @((Join-Path $env:USERPROFILE 'command-reference.md'))
+    $local = Join-Path $env:USERPROFILE 'command-reference.local.md'
+    if (Test-Path $local) { $files += $local }
+    if (Get-Command bat -ErrorAction SilentlyContinue) {
+        & bat --paging=always @files
+    } elseif (Get-Command glow -ErrorAction SilentlyContinue) {
+        foreach ($f in $files) { & glow $f }
+    } else {
+        foreach ($f in $files) { Get-Content $f }
+    }
+}
 # ---- cli-tools-end ----
 
-# ---- terminal-stack-update-start ----
-function Update-TerminalStack {
-    [CmdletBinding()]
-    param([string]$SourceDir)
+# ---- git-shortcuts-start ----
+# Git muscle-memory, matching the zsh side (oh-my-zsh git plugin + stack
+# overrides). gp always means PULL and gl always means LOG on this stack.
+function gst { git status @args }
+function gp  { git pull @args }
+function gco { git checkout @args }
+function gf  { git fetch @args }
+function gl  { git log --oneline --graph --decorate -10 @args }
+function gd  { git diff @args }
+function ga  { git add @args }
+function gb  { git branch @args }
+# ---- git-shortcuts-end ----
 
-    # Resolution order: -SourceDir → $env:TERMINAL_STACK_DIR → install.ps1 default
-    # ($env:USERPROFILE\terminal-stack). We deliberately do NOT consult
-    # `chezmoi source-path` here: on Windows that returns chezmoi's default
-    # sourceDir (~/.local/share/chezmoi) regardless of where the actual clone
-    # lives, because Windows users don't configure chezmoi.toml (the WSL side does).
+# ---- terminal-stack-update-start ----
+# Resolution order: -SourceDir → $env:TERMINAL_STACK_DIR → install.ps1 default
+# ($env:USERPROFILE\terminal-stack). We deliberately do NOT consult
+# `chezmoi source-path` here: on Windows that returns chezmoi's default
+# sourceDir (~/.local/share/chezmoi) regardless of where the actual clone
+# lives, because Windows users don't configure chezmoi.toml (the WSL side does).
+function Resolve-TsSourceDir([string]$SourceDir) {
     if (-not $SourceDir) { $SourceDir = $env:TERMINAL_STACK_DIR }
     if (-not $SourceDir) { $SourceDir = Join-Path $env:USERPROFILE 'terminal-stack' }
-
     if (-not (Test-Path (Join-Path $SourceDir '.git'))) {
         Write-Warning "terminal-stack clone not found at $SourceDir. Pass -SourceDir <path> or re-run install.ps1."
-        return
+        return $null
     }
-    Write-Host "==> git -C $SourceDir pull --ff-only"
-    & git -C $SourceDir pull --ff-only
-    if ($LASTEXITCODE -ne 0) {
-        Write-Warning "git pull failed; not applying."
-        return
-    }
+    return $SourceDir
+}
+
+function Invoke-TsSync([string]$SourceDir) {
     $sync = Join-Path $SourceDir 'scripts\sync-windows.ps1'
     if (Test-Path $sync) {
         & $sync -SourceDir $SourceDir
@@ -104,5 +160,78 @@ function Update-TerminalStack {
         Write-Warning "$sync not found; Windows-side dotfiles not applied."
     }
 }
+
+function Get-TsStateFile {
+    Join-Path $env:LOCALAPPDATA 'terminal-stack\rollback-sha'
+}
+
+function Update-TerminalStack {
+    [CmdletBinding()]
+    param([string]$SourceDir)
+
+    $SourceDir = Resolve-TsSourceDir $SourceDir
+    if (-not $SourceDir) { return }
+
+    & git -C $SourceDir fetch --quiet
+    if ($LASTEXITCODE -ne 0) { Write-Warning 'git fetch failed; not applying.'; return }
+
+    # '@{u}' must be quoted — pwsh would otherwise parse it as a hashtable.
+    $incoming = & git -C $SourceDir log --oneline 'HEAD..@{u}' 2>$null
+    if ($incoming) {
+        Write-Host '==> incoming changes:'
+        $incoming | ForEach-Object { Write-Host "  $_" }
+        # Record the rollback point only when something is actually incoming —
+        # a no-op re-run must not clobber the last real rollback point.
+        $stateFile = Get-TsStateFile
+        New-Item -ItemType Directory -Force -Path (Split-Path $stateFile) | Out-Null
+        (& git -C $SourceDir rev-parse HEAD) | Set-Content $stateFile
+        Write-Host "==> recorded rollback point: $(& git -C $SourceDir rev-parse --short HEAD) (ts-rollback to undo)"
+        & git -C $SourceDir pull --ff-only
+        if ($LASTEXITCODE -ne 0) { Write-Warning 'git pull failed; not applying.'; return }
+    } else {
+        Write-Host '==> already up to date'
+    }
+    Invoke-TsSync $SourceDir
+}
 Set-Alias -Name ts-update -Value Update-TerminalStack
+
+# Undo the last ts-update: reset the clone to the recorded pre-update SHA and
+# re-apply. Manual fallback (state file missing): README § Updating & rollback.
+function Restore-TerminalStack {
+    [CmdletBinding()]
+    param([string]$SourceDir)
+
+    $SourceDir = Resolve-TsSourceDir $SourceDir
+    if (-not $SourceDir) { return }
+
+    $stateFile = Get-TsStateFile
+    if (-not (Test-Path $stateFile)) {
+        Write-Warning "no recorded rollback point ($stateFile)."
+        Write-Warning "Manual procedure: git -C $SourceDir reset --hard <sha>; scripts\sync-windows.ps1"
+        return
+    }
+    $sha = (Get-Content $stateFile -First 1).Trim()
+    & git -C $SourceDir rev-parse --verify --quiet "$sha^{commit}" *> $null
+    if ($LASTEXITCODE -ne 0) { Write-Warning "recorded SHA $sha not found in $SourceDir."; return }
+
+    # The clone may double as a dev checkout — never reset --hard over real work.
+    if (& git -C $SourceDir status --porcelain) {
+        Write-Warning "$SourceDir has uncommitted changes; refusing to reset --hard. Commit or stash first."
+        return
+    }
+    Write-Host "==> resetting $SourceDir to $sha (recorded before last ts-update)"
+    & git -C $SourceDir reset --hard $sha
+    if ($LASTEXITCODE -ne 0) { return }
+    Invoke-TsSync $SourceDir
+    Write-Host '==> done. run ts-update to return to latest.'
+}
+Set-Alias -Name ts-rollback -Value Restore-TerminalStack
 # ---- terminal-stack-update-end ----
+
+# ---- local-overrides-start ----
+# Per-machine overrides (not synced by the stack). The Windows counterpart of
+# ~/.zshrc.local — see profile.local.ps1.example. Keep this block last so
+# local definitions win.
+$tsLocalProfile = Join-Path (Split-Path $PROFILE) 'profile.local.ps1'
+if (Test-Path $tsLocalProfile) { . $tsLocalProfile }
+# ---- local-overrides-end ----

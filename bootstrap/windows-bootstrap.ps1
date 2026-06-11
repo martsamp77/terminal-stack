@@ -74,6 +74,62 @@ if ($IncludeOptional) {
     }
 }
 
+# Git include — stack aliases + delta config. The included file lands at
+# %USERPROFILE%\.config\git\terminal-stack.gitconfig via sync-windows.ps1
+# (which runs after this bootstrap); git silently skips missing includes,
+# so ordering is safe. Forward slashes: git accepts them on Windows and they
+# survive .gitconfig escaping.
+$gitInclude = ($env:USERPROFILE -replace '\\', '/') + '/.config/git/terminal-stack.gitconfig'
+$existingIncludes = & git config --global --get-all include.path 2>$null
+if ($existingIncludes -match 'terminal-stack\.gitconfig') {
+    Write-Host '==> git include.path already set'
+} elseif ($PSCmdlet.ShouldProcess($gitInclude, 'git config --global --add include.path')) {
+    Write-Host "==> Adding git include.path -> $gitInclude"
+    & git config --global --add include.path $gitInclude
+}
+
+# Workspace directory for the ws/wsp/wspu profile functions. Same contract as
+# the WSL/Linux/Mac bootstraps: $env:WORKSPACE_DIR skips the prompt; the
+# answer persists to profile.local.ps1 ONLY when it differs from the
+# autodetect (Get-TsWorkspace in $PROFILE covers the detected case).
+$wsDetected = $null
+foreach ($d in @(
+    'C:\DATA\Workspace',
+    (Join-Path $env:USERPROFILE 'workspace'),
+    (Join-Path $env:USERPROFILE 'Documents\Workspace')
+)) {
+    if (Test-Path $d) { $wsDetected = $d; break }
+}
+$wsChoice = $env:WORKSPACE_DIR
+if ($wsChoice) {
+    Write-Host "==> WORKSPACE_DIR=$wsChoice (from env; skipping prompt)"
+} else {
+    $promptDefault = if ($wsDetected) { $wsDetected } else { 'none' }
+    $answer = Read-Host "Workspace directory [$promptDefault]"
+    $wsChoice = if ($answer) { $answer } else { $wsDetected }
+}
+if (-not $wsChoice) {
+    Write-Warning 'No workspace directory found or chosen. Set one later: $env:WORKSPACE_DIR in profile.local.ps1'
+} elseif ($wsChoice -eq $wsDetected) {
+    Write-Host "==> Workspace: $wsChoice (autodetected; no override needed)"
+} else {
+    if (-not (Test-Path $wsChoice)) { Write-Warning "$wsChoice does not exist (yet) — ws will warn until it does." }
+    # pwsh 7's $PROFILE is Documents\PowerShell\...; resolve via MyDocuments so
+    # this works even when the bootstrap itself runs under Windows PowerShell 5.
+    $localProfile = Join-Path ([Environment]::GetFolderPath('MyDocuments')) 'PowerShell\profile.local.ps1'
+    if ($PSCmdlet.ShouldProcess($localProfile, "persist WORKSPACE_DIR=$wsChoice")) {
+        New-Item -ItemType Directory -Force -Path (Split-Path $localProfile) | Out-Null
+        $line = "`$env:WORKSPACE_DIR = '$wsChoice'"
+        if ((Test-Path $localProfile) -and (Get-Content $localProfile | Where-Object { $_ -match '^\s*\$env:WORKSPACE_DIR\s*=' })) {
+            (Get-Content $localProfile) -replace '^\s*\$env:WORKSPACE_DIR\s*=.*', $line | Set-Content $localProfile
+            Write-Host "==> Updated WORKSPACE_DIR in $localProfile"
+        } else {
+            Add-Content -Path $localProfile -Value $line
+            Write-Host "==> Wrote WORKSPACE_DIR=$wsChoice to $localProfile"
+        }
+    }
+}
+
 Write-Host ''
 Write-Host '==> Windows bootstrap done.'
 Write-Host '    Next: run bootstrap\wsl-bootstrap.sh inside WSL Ubuntu, then chezmoi apply.'

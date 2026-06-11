@@ -149,6 +149,23 @@ We use (3). It's the loosest filter on platform identity but the tightest on *wh
 
 The cost is one stat at shell startup. On WSL with `/mnt/c` cached it's microseconds; on native Linux it's a quick negative result. Cheap enough that the same pattern should be the default for any future Windows-path shortcut we port to zsh — guard on the specific path, not on platform.
 
+**Superseded in v1.1.0:** the `ws*` functions are now always defined and resolve the workspace at *call* time via `_ts_workspace()` (env override → candidate probe). The guard-on-path philosophy survives inside the resolver — it still only `cd`s into directories that exist — but the functions themselves no longer disappear on machines where the startup-time probe failed. See "Why `$WORKSPACE_DIR` + call-time resolution instead of chezmoi templating?" below.
+
+## Why `$WORKSPACE_DIR` + call-time resolution instead of chezmoi templating?
+
+Workspace location varies per machine (`C:\DATA\Workspace` on the PC, `~/Documents/Workspace` on the Mac, `~/workspace` on Linux servers). Two ways to make `ws` work everywhere:
+
+1. chezmoi `[data].workspaceDir` + `dot_zshrc.tmpl` — bake the path in at apply time.
+2. `$WORKSPACE_DIR` env var checked at call time, autodetect candidate list as fallback.
+
+We use (2). Templating fails three ways that the env var doesn't: it requires `chezmoi apply` to change the path (the env var is live on the next prompt); it does nothing for machines that get the `.zshrc` *without* chezmoi (the lambda-dual ↔ internal `dot-push` rsync flow ships the rendered file); and `~/.zshrc.local` — where the override belongs, per the existing per-machine-overrides convention — is sourced at the *end* of `.zshrc`, so any startup-time resolution would run before the override exists. Call-time resolution costs a few stats per `ws` invocation, which is noise for an interactive cd.
+
+The installer only persists `WORKSPACE_DIR` to `~/.zshrc.local` when the user's answer differs from what autodetect would find — a machine whose workspace is in a standard location carries zero local config.
+
+## Why does `ts-rollback` use a recorded SHA file instead of `git reflog`?
+
+`ts-update` writes the pre-pull HEAD to `~/.local/state/terminal-stack/rollback-sha` before pulling, and `ts-rollback` resets to exactly that. The alternative — `git reset --hard HEAD@{1}` — is shorter but wrong in practice: the reflog entry one back is whatever git did last, which after a few manual operations in the clone (branch switches, amends on a dev machine where the clone doubles as a checkout) is not "the state before the last ts-update". An explicit file is unambiguous, human-inspectable (`cat` it to see where rollback would land), and survives `git gc`. The file is only written when an update actually has incoming commits, so a no-op `ts-update` can't clobber a real rollback point. Both commands refuse to run over a dirty working tree for the same dev-checkout reason.
+
 ## Why convert zsh `cc*` from aliases to functions just for the tab title?
 
 Aliases can't run code around the wrapped command. Setting and clearing the WezTerm tab title requires a pre-step and a post-step around the `claude` invocation. Either we (a) leave zsh as plain aliases and accept that only the PowerShell side gets the `cc • <leaf>` tab title, or (b) promote zsh to functions matching the PowerShell try/finally pattern. We chose (b) for the same reason the PowerShell side does it: when you have four or five Claude panes open in WezTerm under WSL, the tab title is what tells you which project each pane is for. Without it the tabs are all just `pwsh` / `zsh` and you have to click each one to remember. The cost is a one-line helper (`_wez_tab_title`) and a small amount of bookkeeping (`local rc=$?; ... return $rc`) since zsh has no `try/finally` — that bookkeeping matters because without it the function would always exit 0 and mask Claude's exit code from scripts that wrap it.

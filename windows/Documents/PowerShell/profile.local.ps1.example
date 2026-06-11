@@ -1,0 +1,23 @@
+# profile.local.ps1 — per-machine overrides, dot-sourced at the end of $PROFILE.
+# The Windows counterpart of ~/.zshrc.local: NOT synced by the stack (only this
+# .example is). Copy it, drop the .example suffix, and edit for this machine:
+#
+#   Copy-Item "$(Split-Path $PROFILE)\profile.local.ps1.example" "$(Split-Path $PROFILE)\profile.local.ps1"
+#
+# Things that belong here: machine-specific paths, project shortcuts,
+# credentials locations — anything that shouldn't propagate to other machines.
+
+# ── Workspace location override ───────────────────────────────────────────────
+# ws/wsp/wspu autodetect the workspace (C:\DATA\Workspace, ~\workspace,
+# ~\Documents\Workspace — see Get-TsWorkspace in $PROFILE). Only set this when
+# the autodetect is wrong for this machine. The installer writes this line for
+# you when your answer differs from the autodetect.
+#
+# $env:WORKSPACE_DIR = 'D:\src'
+
+# ── Project-specific navigation ───────────────────────────────────────────────
+# Shortcuts into specific repos under the workspace. Get-TsWorkspace resolves
+# the root, so the same line works wherever the project is checked out.
+#
+# function wscalibra  { Set-Location (Join-Path (Get-TsWorkspace) 'md-validator') }
+# function wsnetsuite { Set-Location (Join-Path (Get-TsWorkspace) 'netsuite-customizations') }

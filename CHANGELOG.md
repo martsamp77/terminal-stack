@@ -2,7 +2,26 @@
 
 All notable changes captured here. Format loosely follows [Keep a Changelog](https://keepachangelog.com/). Dates are MM/DD/YYYY for display, `git log` is authoritative.
 
-## [Unreleased] — 06/05/2026
+## [1.1.0] — 06/10/2026
+
+First tagged release (`v1.1.0`). Includes everything that had accumulated since 1.0.0 (the "[Unreleased → 1.1.0]" section below) plus the following.
+
+### Added
+
+- **Workspace navigation is location-independent.** `ws`/`wsp`/`wspu` (both shells) resolve the workspace at *call* time: `$WORKSPACE_DIR` — set in `~/.zshrc.local` / `profile.local.ps1` — wins, else the first existing autodetect candidate (`/mnt/c/DATA/Workspace`, `~/Documents/Workspace`, `~/workspace`, `~/Workspace`; pwsh: `C:\DATA\Workspace`, `~\workspace`, `~\Documents\Workspace`). The sibling resolver handles both `Workspace_Personal` (Windows) and `Workspace-Personal` (macOS) naming. `wscalibra`/`wsnetsuite` moved out of the shared configs into the local-file examples — they only exist on one machine. See `docs/decisions.md` § "Why `$WORKSPACE_DIR` + call-time resolution instead of chezmoi templating?".
+- **`profile.local.ps1`** — the Windows counterpart of `~/.zshrc.local`, dot-sourced at the end of `$PROFILE`. Untracked; `windows/Documents/PowerShell/profile.local.ps1.example` ships as the documented template.
+- **Install-time workspace question.** All bootstraps autodetect the workspace and prompt with the detection pre-filled (reading `/dev/tty`, so the prompt survives `curl | bash`; `WORKSPACE_DIR` env skips it). The answer persists to the local override file *only* when it differs from autodetect.
+- **`ts-rollback`** (zsh + pwsh). `ts-update` now fetches first, prints the incoming commits, and records the pre-pull HEAD to `~/.local/state/terminal-stack/rollback-sha` / `%LOCALAPPDATA%\terminal-stack\rollback-sha` before pulling; `ts-rollback` resets the clone to that SHA and re-applies. Both refuse on a dirty clone (it may double as a dev checkout). Manual fallback documented in README § Updating & rollback.
+- **`ref` + shipped command reference.** `command-reference.md.tmpl` applies to `~/command-reference.md` (systemd/docker sections gated off on macOS via `.chezmoi.os`); `windows/command-reference.md` mirrors a PowerShell/WezTerm-flavored version to `%USERPROFILE%`. `ref` (both shells) renders it with bat, appending the untracked `command-reference.local.md` when present.
+- **Git include** — `~/.config/git/terminal-stack.gitconfig` (chezmoi-managed; byte-identical `windows/.config/git/` mirror) carries the `git st/lg/lga/br/co/cm` aliases and delta pager wiring (`core.pager`, `interactive.diffFilter`, `delta.navigate`). Bootstraps add `include.path` to the global gitconfig once, idempotently; the user's own `~/.gitconfig` still wins on conflicts.
+- **Opt-in extra tools** in the bootstraps (`TS_EXTRA_TOOLS=1` or prompt): `tldr` always, `nvtop` only on GPU hosts (`nvidia-smi` present), `lazydocker` only where docker exists. macOS via brew; Windows skipped.
+
+### Changed
+
+- **`gp` and `gl` now mean *pull* and *log* on every machine.** The OMZ git plugin defines `gp='git push'` and `gl='git pull'` — a cross-machine footgun once muscle memory expects pull/log. `dot_zshrc` overrides both after oh-my-zsh sources; pwsh gains matching `gst`/`gp`/`gco`/`gf`/`gl`/`gd`/`ga`/`gb` functions in a new `git-shortcuts` marker block.
+- **`dot_zshrc.local.example`**: `dot-pull` example no longer flattens `~/.ssh/config` into `~/config` (each file now pulled with its own rsync); new `WORKSPACE_DIR` and project-nav examples.
+
+## [Unreleased → 1.1.0] — entries logged 06/05/2026, released in v1.1.0
 
 ### Added
 
