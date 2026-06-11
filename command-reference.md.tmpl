@@ -32,7 +32,23 @@ Machine-specific commands (peer servers, GPU tools, service stacks) go in
 | `Ctrl-b c` | new window |
 | `Ctrl-b n` / `Ctrl-b p` | next / previous window |
 | `Ctrl-b 0-9` | jump to window by number |
+{{ if eq .chezmoi.os "darwin" }}
+---
 
+## WezTerm (leader = `Ctrl+A`, 1.5s window)
+
+| Key | What it does |
+|---|---|
+| `Ctrl+A \` | split pane side by side |
+| `Ctrl+A -` | split pane top/bottom |
+| `Ctrl+A h/j/k/l` | move between panes (vim directions) |
+| `Ctrl+A w` | workspace picker (fuzzy) |
+| `Ctrl+A n` | new named workspace |
+| `Ctrl+A o` | pop the current tab out into a new window |
+| `Ctrl+A Ctrl+A` | send a literal Ctrl+A through |
+| `Alt+L` | launcher menu |
+| `Ctrl+V` | paste |
+{{ end }}
 ---
 
 ## git
@@ -136,6 +152,34 @@ by the same include at `~/.config/git/terminal-stack.gitconfig`.
 |---|---|
 | `ssht host [session]` | SSH + remote tmux attach/create in one shot (defaults to session `main`) |
 | `rsync -av file host:~/` | copy a file to a remote home |
+{{ if eq .chezmoi.os "darwin" }}
+---
+
+## Homebrew (macOS)
+
+| Command | What it does |
+|---|---|
+| `brew update` | refresh the package index |
+| `brew upgrade` | upgrade everything installed |
+| `brew upgrade --cask wezterm@nightly` | upgrade WezTerm (pinned to the nightly cask — plain `wezterm` is stale) |
+| `brew cleanup` | remove old versions and stale downloads |
+| `brew doctor` | diagnose a broken brew setup |
+| `brew list` | what's installed (`--cask` for GUI apps) |
+| `brew info formula` | version, deps, install status |
+
+---
+
+## macOS utilities
+
+| Command | What it does |
+|---|---|
+| `cmd \| pbcopy` | pipe command output to the clipboard |
+| `pbpaste` | clipboard to stdout — `pbpaste \| jq .` etc. |
+| `open .` | current directory in Finder |
+| `open -a "App" file` | open a file with a specific app |
+| `mdfind query` | Spotlight search from the CLI (`-name file.txt` for filenames) |
+| `caffeinate -i cmd` | keep the Mac awake while a command runs |
+{{ end }}
 {{ if ne .chezmoi.os "darwin" }}
 ---
 
