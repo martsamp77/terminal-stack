@@ -26,6 +26,11 @@ curl -fsSL https://raw.githubusercontent.com/martsamp77/terminal-stack/main/inst
 
 Defaults: Windows clones to `%USERPROFILE%\terminal-stack` (WSL sees it as `/mnt/c/Users/<you>/terminal-stack`); Linux/macOS clone to `~/code/terminal-stack`. Override with `$env:TERMINAL_STACK_DIR` (PowerShell) or `TERMINAL_STACK_DIR=…` (bash). The WSL installer auto-detects your Windows username via `cmd.exe` interop, so it runs without prompts under `curl | bash`.
 
+**Install-time questions.** The bootstraps ask two questions, each skippable via env var (so scripted installs stay non-interactive — the prompts read `/dev/tty` directly and degrade to their defaults when no terminal is attached):
+
+- **Workspace directory** — pre-filled with the autodetected candidate (`C:\DATA\Workspace` / `~/Documents/Workspace` / `~/workspace` / `~/Workspace`). Press Enter to accept. The answer is persisted to `~/.zshrc.local` (zsh) or `Documents\PowerShell\profile.local.ps1` (pwsh) *only* when it differs from the autodetect — the shells re-detect standard locations on their own. Skip with `WORKSPACE_DIR=/path` / `$env:WORKSPACE_DIR`.
+- **Extra tools** (`tldr` always; `nvtop` on GPU hosts; `lazydocker` where docker exists) — default No. Skip with `TS_EXTRA_TOOLS=1` to force-install. Not offered on Windows.
+
 If you want to walk through each step instead (recommended for first-time inspection, or when chezmoi would clobber an existing hand-edited dotfile), keep reading.
 
 ### Step-by-step (same end result, with intermediate stops)

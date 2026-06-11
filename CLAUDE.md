@@ -36,7 +36,11 @@ chezmoi natively only manages `$HOME` on the machine where it runs. We need Wind
 
 **Bootstrap split.** `bootstrap/wsl-bootstrap.sh` (WSL) and `bootstrap/linux-bootstrap.sh` (native Debian/Ubuntu) both source the shared `bootstrap/_common-debian.sh` helper for the install steps (apt, oh-my-zsh, chezmoi, Starship, Nerd Font). The wrappers diverge only on Windows-username handling and the default `SOURCE_DIR`.
 
-**Per-machine overrides.** `dot_zshrc` sources `~/.zshrc.local` at the end if it exists. That file is **not** tracked by chezmoi — use it for peer-sync helpers, server-role aliases, anything that shouldn't propagate. See `dot_zshrc.local.example` for the documented pattern.
+**Per-machine overrides.** `dot_zshrc` sources `~/.zshrc.local` at the end if it exists; `$PROFILE` dot-sources `Documents\PowerShell\profile.local.ps1` the same way. Neither is tracked by chezmoi — use them for peer-sync helpers, server-role aliases, `WORKSPACE_DIR` overrides, anything that shouldn't propagate. See `dot_zshrc.local.example` / `windows/Documents/PowerShell/profile.local.ps1.example` for the documented patterns.
+
+**Workspace navigation** (`ws`/`wsp`/`wspu`, both shells) resolves at call time: `$WORKSPACE_DIR` if set, else the first existing autodetect candidate (`/mnt/c/DATA/Workspace`, `~/Documents/Workspace`, `~/workspace`, `~/Workspace`; pwsh probes `C:\DATA\Workspace`, `~\workspace`, `~\Documents\Workspace`). Don't convert this to chezmoi templating — `docs/decisions.md` § "Why `$WORKSPACE_DIR` + call-time resolution" explains why it must stay an env var.
+
+**Update/rollback.** `ts-update` records the pre-pull HEAD to a state file (`~/.local/state/terminal-stack/rollback-sha` / `%LOCALAPPDATA%\terminal-stack\rollback-sha`) before pulling; `ts-rollback` resets the clone to it and re-applies. Both refuse on a dirty clone. The state file is only written when commits are actually incoming.
 
 Source → destination mapping for the `windows/` subtree is **relative-path-preserving**: `windows/.wezterm.lua` → `/mnt/c/Users/<you>/.wezterm.lua`. To add a new Windows-side file, drop it at the mirror path under `windows/` — no script changes needed. Full mechanism in `docs/cross-side-chezmoi.md`.
 
@@ -54,7 +58,10 @@ Source → destination mapping for the `windows/` subtree is **relative-path-pre
 | `~/.zshrc` | whole-file | We own every line (oh-my-zsh template + our additions) |
 | `~/.claude/settings.json` (both sides) | whole-file | We own it |
 | `~/.tmux.conf`, `~/.config/starship.toml` | whole-file | We own it |
+| `~/command-reference.md` (both sides) | whole-file | We own it; machine content goes in `command-reference.local.md` (untracked) |
+| `~/.config/git/terminal-stack.gitconfig` (both sides) | whole-file | We own it; hooked via `include.path`, user's `~/.gitconfig` stays untouched and wins |
 | `$PROFILE` (Windows pwsh) | **marker-block** | User has pre-existing personal content; only the `# ---- name-start ----` / `# ---- name-end ----` regions are ours |
+| `~/.zshrc.local`, `profile.local.ps1`, `command-reference.local.md` | **never managed** | Per-machine; only `.example` twins ship |
 
 If you need to modify `$PROFILE`, edit **only inside an existing marker block** (`starship-stack-*`, `cli-tools-*`) or add a new marker block. Never rewrite the whole file — you'll destroy user personal content. See `docs/decisions.md` § "Why a whole-file `~/.zshrc` and a marker-block `$PROFILE`?".
 
