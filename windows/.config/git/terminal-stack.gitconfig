@@ -25,3 +25,11 @@
 
 [delta]
 	navigate = true
+
+# Typo recovery: `git pulll` offers the corrected command and waits for a
+# y/n instead of erroring. `prompt` needs git ≥ 2.40 (all bootstrap targets
+# ship newer); pre-2.40 git fatals on the non-numeric value when a typo'd
+# command triggers the lookup — drop to an integer (deciseconds) if you must
+# support one.
+[help]
+	autocorrect = prompt
