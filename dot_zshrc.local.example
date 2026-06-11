@@ -8,11 +8,28 @@
 # GPU/server-role helpers, credentials paths — anything that shouldn't
 # propagate to other machines via the shared repo.
 
+# ── Workspace location override ───────────────────────────────────────────────
+# ws/wsp/wspu autodetect the workspace from a candidate list (/mnt/c/DATA/Workspace,
+# ~/Documents/Workspace, ~/workspace, ~/Workspace — see _ts_workspace in ~/.zshrc).
+# Only set this when the autodetect is wrong for this machine. The installer
+# writes this line for you when your answer differs from the autodetect.
+#
+# export WORKSPACE_DIR="$HOME/src"
+
+# ── Project-specific navigation ───────────────────────────────────────────────
+# Shortcuts into specific repos under the workspace. These are per-machine
+# because the projects only exist on some hosts. _ts_workspace resolves the
+# root, so the same line works wherever the project is checked out.
+#
+# wscalibra()  { cd "$(_ts_workspace)/md-validator" }
+# wsnetsuite() { cd "$(_ts_workspace)/netsuite-customizations" }
+
 # ── Example: dotfiles sync between two specific peers ─────────────────────────
 # Used on lambda-dual <-> internal (10.30.1.14). Hostname check makes the same
 # file work on either side without edits — peer is always "the other one".
+# Note: pull each file with its own rsync — a single rsync with two remote
+# sources flattens into the destination dir (.ssh/config would land at ~/config).
 #
-# _DOTFILES=(~/.zshrc ~/.ssh/config)
 # _DOTPEER=$( [[ $(hostname -s) == "lambda-dual" ]] && echo "internal" || echo "lambda-dual" )
-# dot-push() { rsync -av "${_DOTFILES[@]}" "msampson@${_DOTPEER}:~/"; }
-# dot-pull() { rsync -av "msampson@${_DOTPEER}:~/.zshrc" "msampson@${_DOTPEER}:~/.ssh/config" ~/; }
+# dot-push() { rsync -av ~/.zshrc "msampson@${_DOTPEER}:~/" && rsync -av ~/.ssh/config "msampson@${_DOTPEER}:~/.ssh/"; }
+# dot-pull() { rsync -av "msampson@${_DOTPEER}:~/.zshrc" ~/ && rsync -av "msampson@${_DOTPEER}:~/.ssh/config" ~/.ssh/; }
