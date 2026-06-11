@@ -8,6 +8,20 @@
 #   windows/command-reference.md → windows/command-reference.txt
 #                                → windows/command-reference.html
 #
+# It also regenerates the committed per-OS previews under
+# docs/command-reference/ — the *final* post-template content each platform
+# receives, browsable in-repo (see docs/command-reference/README.md):
+#
+#   linux/command-reference.{md,txt,html}    .chezmoi.os = "linux" (≡ WSL)
+#   macos/command-reference.{md,txt,html}    .chezmoi.os = "darwin"
+#   windows/command-reference.{md,txt,html}  byte-copies of windows/*
+#
+# The previews resolve the chezmoi conditionals with the embedded
+# resolve_template awk filter — a deliberate, minimal shadow of chezmoi that
+# supports exactly the {{ if eq/ne .chezmoi.os "..." }} / {{ end }} forms the
+# file uses and FAILS LOUDLY on anything else, so a new template construct
+# can never produce silently-wrong previews.
+#
 # The .txt twin is a byte-identical copy of the markdown (markdown is already
 # readable plain text, and a copy cannot drift in content). The .html twin is
 # rendered by the embedded awk converter, which handles exactly the markdown
@@ -175,8 +189,69 @@ function flush_all() { flush_para(); flush_bq(); flush_table() }
 END { flush_all() }
 '
 
-emit_html() {  # $1 = markdown source; full HTML document on stdout
-  local src="$1" title hash
+# Minimal chezmoi-template resolver for the per-OS previews. Supports exactly
+# the directive forms command-reference.md.tmpl uses, each on its own line:
+#   {{ if eq .chezmoi.os "<os>" }} / {{ if ne .chezmoi.os "<os>" }} / {{ end }}
+# Output matches Go text/template line behavior: a true block keeps its body
+# and turns each directive line into a blank line; a false block collapses
+# entirely (if-line through end-line) to a single blank line. Any other
+# {{ ... }} construct is a hard error — extend this resolver before extending
+# the template. Single-quoted on purpose: no apostrophes inside.
+RESOLVE_OS='
+function fail(msg, l) {
+  printf "resolve_template: %s: %s\n", msg, l > "/dev/stderr"
+  bad = 1
+  exit 1
+}
+{
+  line = $0
+  sub(/\r$/, "", line)
+  if (line !~ /[{][{]/) {
+    if (!in_block || keep) out[++on] = line
+    next
+  }
+  if (line ~ /^[ \t]*[{][{] end [}][}][ \t]*$/) {
+    if (!in_block) fail("unexpected {{ end }}", line)
+    out[++on] = ""
+    in_block = 0
+    keep = 0
+    next
+  }
+  if (line ~ /^[ \t]*[{][{] if (eq|ne) \.chezmoi\.os "[a-z]+" [}][}][ \t]*$/) {
+    if (in_block) fail("nested {{ if }} not supported", line)
+    split(line, q, "\"")
+    if (line ~ / if eq /) keep = (os == q[2]); else keep = (os != q[2])
+    in_block = 1
+    if (keep) out[++on] = ""
+    next
+  }
+  fail("unsupported template construct", line)
+}
+END {
+  if (bad) exit 1
+  if (in_block) {
+    printf "resolve_template: unterminated {{ if }} block\n" > "/dev/stderr"
+    exit 1
+  }
+  # Buffered so the last record can match the source byte-for-byte: a source
+  # with no final newline (a directive emits nothing there in Go templates)
+  # must not gain one from awk print.
+  for (i = 1; i < on; i++) print out[i]
+  if (on > 0) {
+    if (nofinalnl) printf "%s", out[on]
+    else print out[on]
+  }
+}
+'
+
+resolve_template() {  # $1 = template file, $2 = os value; resolved markdown on stdout
+  local nofinal=0
+  [ -n "$(tail -c 1 "$1")" ] && nofinal=1
+  awk -v os="$2" -v nofinalnl="$nofinal" "$RESOLVE_OS" "$1"
+}
+
+emit_html() {  # $1 = markdown source, $2 = display name for the head comment
+  local src="$1" display="$2" title hash
   title="$(awk '/^# / { sub(/^# /, ""); print; exit }' "$src")"
   title="$(printf '%s' "$title" | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g')"
   hash="$(hash_file "$src")"
@@ -187,7 +262,7 @@ emit_html() {  # $1 = markdown source; full HTML document on stdout
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>$title</title>
-<!-- Generated from $(basename "$src") by scripts/render-command-reference.sh - do not edit by hand. -->
+<!-- Generated from $display by scripts/render-command-reference.sh - do not edit by hand. -->
 <!-- source-sha256: $hash -->
 <style>
 :root { color-scheme: light dark; }
@@ -256,12 +331,12 @@ install_or_check() {  # $1 = tmp file holding fresh content, $2 = destination
 }
 
 tmp="$(mktemp)"
-trap 'rm -f "$tmp"' EXIT
+resolved="$(mktemp)"
+trap 'rm -f "$tmp" "$resolved"' EXIT
 
 render_set() {  # $1 = markdown source, $2 = txt twin, $3 = html twin
-  cp -- "$1" "$tmp"
-  install_or_check "$tmp" "$2"
-  emit_html "$1" > "$tmp"
+  install_or_check "$1" "$2"
+  emit_html "$1" "$(basename "$1")" > "$tmp"
   install_or_check "$tmp" "$3"
 }
 
@@ -271,6 +346,31 @@ render_set "$repo_root/command-reference.md.tmpl" \
 render_set "$repo_root/windows/command-reference.md" \
            "$repo_root/windows/command-reference.txt" \
            "$repo_root/windows/command-reference.html"
+
+# Per-OS previews: the final post-template content, committed for in-repo
+# browsing. docs/command-reference/README.md documents the folder.
+preview_dir="$repo_root/docs/command-reference"
+
+render_preview() {  # $1 = .chezmoi.os value, $2 = preview subfolder
+  local dir="$preview_dir/$2"
+  [ "$mode" = "--check" ] || mkdir -p -- "$dir"
+  resolve_template "$repo_root/command-reference.md.tmpl" "$1" > "$resolved"
+  install_or_check "$resolved" "$dir/command-reference.md"
+  install_or_check "$resolved" "$dir/command-reference.txt"
+  emit_html "$resolved" "command-reference.md.tmpl (resolved for $1)" > "$tmp"
+  install_or_check "$tmp" "$dir/command-reference.html"
+}
+
+render_preview linux  linux   # byte-identical for WSL and native Linux
+render_preview darwin macos
+
+# Windows needs no resolution — previews are byte-copies of the source and
+# its committed twins (regenerated just above, so always current here).
+[ "$mode" = "--check" ] || mkdir -p -- "$preview_dir/windows"
+for ext in md txt html; do
+  install_or_check "$repo_root/windows/command-reference.$ext" \
+                   "$preview_dir/windows/command-reference.$ext"
+done
 
 if [ "$mode" = "--check" ] && [ "$stale" -ne 0 ]; then
   echo "regenerate with: bash scripts/render-command-reference.sh (then commit)" >&2

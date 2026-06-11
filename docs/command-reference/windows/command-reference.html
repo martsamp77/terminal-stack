@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Command Reference — terminal-stack (Windows / PowerShell)</title>
+<!-- Generated from command-reference.md by scripts/render-command-reference.sh - do not edit by hand. -->
+<!-- source-sha256: cd7c3cc5ee7e6b0c9463800465753bf20460d0cc93436db24b40fd7527e6b1b3 -->
+<style>
+:root { color-scheme: light dark; }
+body {
+  margin: 0;
+  font: 16px/1.55 system-ui, "Segoe UI", sans-serif;
+  background: #ffffff;
+  color: #1f2328;
+}
+main { max-width: 60rem; margin: 0 auto; padding: 2rem 1.25rem 4rem; }
+h1 { font-size: 1.65rem; margin: 0 0 1rem; padding-bottom: .4rem; border-bottom: 2px solid #d0d7de; }
+h2 { font-size: 1.25rem; margin: 2rem 0 .6rem; padding-bottom: .25rem; border-bottom: 1px solid #d0d7de; }
+h3 { font-size: 1.05rem; margin: 1.4rem 0 .5rem; }
+p { margin: .6rem 0; }
+code {
+  font-family: ui-monospace, "Cascadia Mono", Consolas, "JetBrains Mono", monospace;
+  font-size: .92em;
+  background: #eff1f3;
+  padding: .1em .35em;
+  border-radius: 4px;
+}
+table { border-collapse: collapse; width: 100%; margin: .8rem 0 1.2rem; }
+th, td { border: 1px solid #d0d7de; padding: .35rem .6rem; text-align: left; vertical-align: top; }
+th { background: #f6f8fa; }
+tbody tr:nth-child(even) { background: #fafbfc; }
+blockquote { margin: .8rem 0; padding: .05rem 1rem; border-left: 4px solid #d0d7de; color: #59636e; }
+hr { border: 0; border-top: 1px solid #d0d7de; margin: 2rem 0; }
+@media (prefers-color-scheme: dark) {
+  body { background: #0d1117; color: #e6edf3; }
+  h1, h2, hr { border-color: #30363d; }
+  code { background: #21262d; }
+  th, td { border-color: #30363d; }
+  th { background: #161b22; }
+  tbody tr:nth-child(even) { background: #131920; }
+  blockquote { border-color: #30363d; color: #9198a1; }
+}
+</style>
+</head>
+<body>
+<main>
+<h1>Command Reference — terminal-stack (Windows / PowerShell)</h1>
+<p>Everything this stack puts at your fingertips on the Windows side. Type <code>ref</code>
+to open this file. Machine-specific commands go in
+<code>%USERPROFILE%\command-reference.local.md</code> — untracked, appended by <code>ref</code>
+automatically. The same content also ships as
+<code>%USERPROFILE%\command-reference.html</code> (open in a browser) and
+<code>%USERPROFILE%\command-reference.txt</code> (plain text) — regenerated whenever this
+file changes.</p>
+<hr>
+<h2>WezTerm (leader = <code>Ctrl+A</code>, 1.5s window)</h2>
+<table>
+ <thead>
+  <tr><th>Key</th><th>What it does</th></tr>
+ </thead>
+ <tbody>
+  <tr><td><code>Ctrl+A \</code></td><td>split pane side by side</td></tr>
+  <tr><td><code>Ctrl+A -</code></td><td>split pane top/bottom</td></tr>
+  <tr><td><code>Ctrl+A h/j/k/l</code></td><td>move between panes (vim directions)</td></tr>
+  <tr><td><code>Ctrl+A w</code></td><td>workspace picker (fuzzy)</td></tr>
+  <tr><td><code>Ctrl+A n</code></td><td>new named workspace</td></tr>
+  <tr><td><code>Ctrl+A o</code></td><td>pop the current tab out into a new window</td></tr>
+  <tr><td><code>Ctrl+A Ctrl+A</code></td><td>send a literal Ctrl+A through</td></tr>
+  <tr><td><code>Alt+L</code></td><td>launcher menu</td></tr>
+  <tr><td><code>Ctrl+V</code></td><td>paste</td></tr>
+ </tbody>
+</table>
+<hr>
+<h2>git</h2>
+<h3>Shell functions (typed bare)</h3>
+<table>
+ <thead>
+  <tr><th>Function</th><th>Full command</th><th>Note</th></tr>
+ </thead>
+ <tbody>
+  <tr><td><code>gst</code></td><td><code>git status</code></td><td>it's <code>gst</code>, not <code>gs</code></td></tr>
+  <tr><td><code>gp</code></td><td><code>git pull</code></td><td>stack convention — gp always means PULL</td></tr>
+  <tr><td><code>gl</code></td><td><code>git log --oneline --graph --decorate -10</code></td><td>gl always means LOG</td></tr>
+  <tr><td><code>gco</code></td><td><code>git checkout</code></td><td></td></tr>
+  <tr><td><code>gf</code></td><td><code>git fetch</code></td><td></td></tr>
+  <tr><td><code>gd</code></td><td><code>git diff</code></td><td></td></tr>
+  <tr><td><code>ga</code></td><td><code>git add</code></td><td></td></tr>
+  <tr><td><code>gb</code></td><td><code>git branch</code></td><td></td></tr>
+ </tbody>
+</table>
+<h3>git-config aliases (work as <code>git &lt;alias&gt;</code>, from the stack's git include)</h3>
+<table>
+ <thead>
+  <tr><th>Alias</th><th>Full command</th></tr>
+ </thead>
+ <tbody>
+  <tr><td><code>git st</code></td><td><code>git status</code></td></tr>
+  <tr><td><code>git lg</code></td><td><code>git log --oneline --graph --decorate -10</code></td></tr>
+  <tr><td><code>git lga</code></td><td><code>git log --oneline --graph --decorate --all</code></td></tr>
+  <tr><td><code>git br</code></td><td><code>git branch</code></td></tr>
+  <tr><td><code>git co</code></td><td><code>git checkout</code></td></tr>
+  <tr><td><code>git cm</code></td><td><code>git commit</code></td></tr>
+ </tbody>
+</table>
+<p><code>git diff</code> pages through <strong>delta</strong> — wired by the include at
+<code>%USERPROFILE%\.config\git\terminal-stack.gitconfig</code>.</p>
+<hr>
+<h2>Claude Code helpers</h2>
+<table>
+ <thead>
+  <tr><th>Function</th><th>Full command</th><th>What it does</th></tr>
+ </thead>
+ <tbody>
+  <tr><td><code>cc</code></td><td><code>claude</code></td><td>launch Claude Code (sets WezTerm tab title)</td></tr>
+  <tr><td><code>ccc</code></td><td><code>claude --continue</code></td><td>continue last conversation</td></tr>
+  <tr><td><code>ccd</code></td><td><code>claude --dangerously-skip-permissions</code></td><td>no permission prompts</td></tr>
+  <tr><td><code>ccdc</code></td><td><code>claude --dangerously-skip-permissions --continue</code></td><td>both</td></tr>
+  <tr><td><code>ccr</code></td><td><code>claude --resume</code></td><td>pick a past session to resume</td></tr>
+  <tr><td><code>ccdr</code></td><td><code>claude --dangerously-skip-permissions --resume</code></td><td>both</td></tr>
+  <tr><td><code>cca</code></td><td><code>claude agents</code></td><td>agents view</td></tr>
+ </tbody>
+</table>
+<hr>
+<h2>Stack management</h2>
+<table>
+ <thead>
+  <tr><th>Command</th><th>What it does</th></tr>
+ </thead>
+ <tbody>
+  <tr><td><code>ts-update</code></td><td>fetch + show incoming commits, record rollback point, pull, re-apply</td></tr>
+  <tr><td><code>ts-rollback</code></td><td>undo the last ts-update: reset the clone to the recorded SHA, re-apply</td></tr>
+  <tr><td><code>ref</code></td><td>this file (+ <code>command-reference.local.md</code> if present)</td></tr>
+  <tr><td><code>plain</code></td><td>vanilla pwsh, no profile (no starship/zoxide/aliases) — <code>exit</code> to return</td></tr>
+ </tbody>
+</table>
+<hr>
+<h2>Workspace navigation</h2>
+<table>
+ <thead>
+  <tr><th>Command</th><th>What it does</th></tr>
+ </thead>
+ <tbody>
+  <tr><td><code>ws</code></td><td>cd to the workspace — <code>$env:WORKSPACE_DIR</code> if set in <code>profile.local.ps1</code>, else autodetected</td></tr>
+  <tr><td><code>wsp</code></td><td>cd to the <code>*_Personal</code> / <code>*-Personal</code> sibling</td></tr>
+  <tr><td><code>wspu</code></td><td>cd to the <code>*_Public</code> / <code>*-Public</code> sibling</td></tr>
+  <tr><td><code>z dirname</code></td><td>zoxide — jump to any directory you've visited</td></tr>
+  <tr><td><code>zi</code></td><td>zoxide interactive picker</td></tr>
+  <tr><td><code>zoxide-prune</code></td><td>drop dead paths from zoxide's database</td></tr>
+ </tbody>
+</table>
+<hr>
+<h2>Files &amp; search</h2>
+<table>
+ <thead>
+  <tr><th>Command</th><th>What it does</th></tr>
+ </thead>
+ <tbody>
+  <tr><td><code>ls</code> / <code>ll</code> / <code>la</code></td><td>eza — icons, git status, dirs first (long / hidden+long)</td></tr>
+  <tr><td><code>lt</code></td><td>eza tree view</td></tr>
+  <tr><td><code>bat file</code></td><td>cat with syntax highlighting</td></tr>
+  <tr><td><code>glow file.md</code></td><td>render markdown in the terminal (<code>glow .</code> for a browser)</td></tr>
+  <tr><td><code>Ctrl+R</code></td><td>fzf fuzzy-search command history</td></tr>
+  <tr><td><code>Ctrl+T</code></td><td>fzf fuzzy-find a file, insert its path</td></tr>
+  <tr><td><code>rg pattern</code></td><td>ripgrep — recursive grep, fast</td></tr>
+ </tbody>
+</table>
+</main>
+</body>
+</html>
