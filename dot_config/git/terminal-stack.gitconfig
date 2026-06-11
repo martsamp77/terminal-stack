@@ -1,0 +1,27 @@
+# terminal-stack git config — pulled in via `include.path` from ~/.gitconfig
+# (the bootstrap adds the include once; user-specific settings like user.email
+# stay in ~/.gitconfig itself and always win, since includes resolve first).
+#
+# Canonical copy: dot_config/git/terminal-stack.gitconfig.
+# windows/.config/git/terminal-stack.gitconfig is a byte-identical mirror —
+# edit the canonical file, then copy it over (same convention as starship.toml).
+
+[alias]
+	st = status
+	lg = log --oneline --graph --decorate -10
+	lga = log --oneline --graph --decorate --all
+	br = branch
+	co = checkout
+	cm = commit
+
+# delta: side-by-side syntax-highlighted diffs. Installed by every bootstrap;
+# on a machine without delta, remove the include or install delta, or git's
+# pager errors on `git diff`.
+[core]
+	pager = delta
+
+[interactive]
+	diffFilter = delta --color-only
+
+[delta]
+	navigate = true
