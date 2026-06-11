@@ -68,7 +68,7 @@ Two caveats: the clone may double as a dev checkout — commit or stash before a
 - **Modern CLI tools**: eza, zoxide, fzf, bat, git-delta, ripgrep — installed on both sides, with delta wired into `git diff` and the stack's `git st/lg/lga/br/co/cm` aliases via a managed gitconfig include.
 - **tmux** configured for Claude Code passthrough, extended keys, and mouse mode.
 - **`ws`/`wsp`/`wspu` workspace navigation** that autodetects the workspace root per machine (`$WORKSPACE_DIR` in `~/.zshrc.local` / `profile.local.ps1` overrides it).
-- **`ref` command reference** — a cheat sheet of everything above at `~/command-reference.md`, plus an untracked `command-reference.local.md` for machine-specific commands.
+- **`ref` command reference** — a cheat sheet of everything above at `~/command-reference.md`, tailored per platform at apply time (systemd/docker sections on Linux/WSL; WezTerm keys, Homebrew, and macOS utilities on Macs), plus an untracked `command-reference.local.md` for machine-specific commands.
 
 ## Architecture in 30 seconds
 

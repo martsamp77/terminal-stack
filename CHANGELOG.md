@@ -2,6 +2,16 @@
 
 All notable changes captured here. Format loosely follows [Keep a Changelog](https://keepachangelog.com/). Dates are MM/DD/YYYY for display, `git log` is authoritative.
 
+## [1.1.1] — 06/10/2026
+
+### Added
+
+- **macOS sections in the shared command reference.** `command-reference.md.tmpl` gains three darwin-gated sections (`{{ if eq .chezmoi.os "darwin" }}`, the mirror of the existing `ne` gate that hides systemd/docker on Macs): **WezTerm leader keys** (the macOS counterpart of the section `windows/command-reference.md` already had — same `Ctrl+A` bindings, verified against `dot_wezterm.lua`), **Homebrew maintenance** (`update`/`upgrade`/`cleanup`/`doctor`, including the `brew upgrade --cask wezterm@nightly` reminder since the plain `wezterm` cask is stale), and **macOS utilities** (`pbcopy`/`pbpaste`, `open`, `mdfind`, `caffeinate`). Linux/WSL renderings are unchanged.
+
+### Changed
+
+- **Default Claude Code model unified to `claude-fable-5[1m]`** in both settings templates. The POSIX side (`dot_claude/settings.json.tmpl`) was pinned to `sonnet[1m]` and the Windows side (`windows/.claude/settings.json.tmpl`) to `opus[1m]`; a `/model` choice made on one machine was silently reverted by the next `chezmoi apply`. Both now carry Fable 5 with the 1M context window.
+
 ## [1.1.0] — 06/10/2026
 
 First tagged release (`v1.1.0`). Includes everything that had accumulated since 1.0.0 (the "[Unreleased → 1.1.0]" section below) plus the following.
