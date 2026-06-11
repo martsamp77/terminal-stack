@@ -75,6 +75,7 @@ automatically.
 | `ts-update` | fetch + show incoming commits, record rollback point, pull, re-apply |
 | `ts-rollback` | undo the last ts-update: reset the clone to the recorded SHA, re-apply |
 | `ref` | this file (+ `command-reference.local.md` if present) |
+| `plain` | vanilla pwsh, no profile (no starship/zoxide/aliases) — `exit` to return |
 
 ---
 

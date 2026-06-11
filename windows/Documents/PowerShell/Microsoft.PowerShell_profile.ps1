@@ -59,6 +59,10 @@ function ccr   { Set-WezTabTitle "cc • $(Split-Path -Leaf $PWD)"; try { claude
 function ccdr  { Set-WezTabTitle "cc • $(Split-Path -Leaf $PWD)"; try { claude --dangerously-skip-permissions --resume @args } finally { Set-WezTabTitle "" } }
 function cca   { Set-WezTabTitle "cc • agents"; try { claude agents } finally { Set-WezTabTitle "" } }
 
+# Escape hatch: vanilla pwsh, no profile (no starship/zoxide/aliases).
+# Nested — `exit` drops back to the customized shell.
+function plain { Set-WezTabTitle "plain • $(Split-Path -Leaf $PWD)"; try { pwsh -NoLogo -NoProfile @args } finally { Set-WezTabTitle "" } }
+
 # ---- starship-stack-start ----
 
 # Native console children (Claude Code, etc.) can SetConsoleOutputCP back to 437 on exit; [Console]::OutputEncoding caches and won't catch it, so probe the OS codepage directly.

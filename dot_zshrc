@@ -120,6 +120,10 @@ ccr()   { _wez_tab_title "cc • ${PWD:t}"; claude --resume "$@";               
 ccdr()  { _wez_tab_title "cc • ${PWD:t}"; claude --dangerously-skip-permissions --resume "$@";   local rc=$?; _wez_tab_title ""; return $rc }
 cca()   { _wez_tab_title "cc • agents";   claude agents;                                         local rc=$?; _wez_tab_title ""; return $rc }
 
+# Escape hatch: vanilla zsh, no rc files (no oh-my-zsh/starship/aliases).
+# Nested — `exit` drops back to the customized shell.
+plain() { _wez_tab_title "plain • ${PWD:t}"; zsh -df "$@"; local rc=$?; _wez_tab_title ""; return $rc }
+
 # Fix Home/End keys in PuTTY / some terminals.
 bindkey "\e[1~" beginning-of-line
 bindkey "\e[4~" end-of-line

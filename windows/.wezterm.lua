@@ -5,8 +5,11 @@ local config = wezterm.config_builder()
 config.default_prog = { 'pwsh.exe', '-NoLogo' }
 
 config.launch_menu = {
-  { label = 'PowerShell 7', args = { 'pwsh.exe', '-NoLogo' } },
-  { label = 'WSL zsh',      args = { 'wsl.exe', '--cd', '~', '-e', 'zsh', '-l' } },
+  { label = 'PowerShell 7',         args = { 'pwsh.exe', '-NoLogo' } },
+  { label = 'WSL zsh',              args = { 'wsl.exe', '--cd', '~', '-e', 'zsh', '-l' } },
+  -- Plain variants: no profile / no rc files — escape hatch when the stack misbehaves.
+  { label = 'PowerShell 7 (plain)', args = { 'pwsh.exe', '-NoLogo', '-NoProfile' } },
+  { label = 'WSL zsh (plain)',      args = { 'wsl.exe', '--cd', '~', '-e', 'zsh', '-df' } },
 }
 
 config.ssh_domains = wezterm.default_ssh_domains()
