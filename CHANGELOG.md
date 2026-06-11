@@ -2,6 +2,17 @@
 
 All notable changes captured here. Format loosely follows [Keep a Changelog](https://keepachangelog.com/). Dates are MM/DD/YYYY for display, `git log` is authoritative.
 
+## [Unreleased]
+
+### Added
+
+- **`plain` — escape hatch to a vanilla shell** (both shells, same cross-shell name convention as `ts-update`). pwsh: nested `pwsh -NoLogo -NoProfile`; zsh: nested `zsh -df` (no rc files). Tab title shows `plain • <dir>` while inside; `exit` drops back to the customized shell. The Windows `launch_menu` (`Alt+L`) gains matching "PowerShell 7 (plain)" and "WSL zsh (plain)" entries for new-tab use. Documented in both command references.
+- **`help.autocorrect = prompt`** in the stack git include (canonical + Windows mirror): a typo'd subcommand (`git pulll`) offers the correction and waits for y/n instead of erroring. Needs git ≥ 2.40 — all bootstrap targets ship newer.
+
+### Fixed
+
+- **CLAUDE.md / decisions.md described `$PROFILE` as marker-block *merged*, but the sync has always been whole-file** (both `run_after_90-sync-windows.sh` and `scripts/sync-windows.ps1` copy the rendered source over the target, with `.bak`). Docs now state the real contract: whole-file sync + marker-block editing discipline, personal content in `profile.local.ps1`. Without this fix an agent following CLAUDE.md would wrongly assume hand-edits to the live `$PROFILE` survive an apply.
+
 ## [1.1.1] — 06/10/2026
 
 ### Added

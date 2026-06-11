@@ -25,19 +25,14 @@ The cost is one extra concept (`source` vs `target`) but the benefits more than 
 
 ## Why a whole-file `~/.zshrc` and a marker-block `$PROFILE`?
 
-Both files have user content. `~/.zshrc` is created from scratch by oh-my-zsh during our deployment — we own every line. `$PROFILE` predates the terminal stack with user-personal content (workspace navigation funcs, zoxide init, `cc` aliases that have evolved over time).
+Both files started with user content. `~/.zshrc` is created from scratch by oh-my-zsh during our deployment — we own every line, so whole-file management was always correct: we have the canonical template, re-running loses nothing, `chezmoi diff` shows the full intended state.
 
-We use whole-file management for `~/.zshrc` because:
-- We have the canonical template content.
-- Re-running deployment doesn't lose anything (we're the only writer).
-- `chezmoi diff` shows the full intended state.
+`$PROFILE` predated the terminal stack with user-personal content (workspace navigation funcs, zoxide init, `cc` aliases that evolved over time). It was originally managed by marker-block injection so re-running deployment touched only the bracketed regions. That content has since been absorbed into the repo copy (`windows/Documents/PowerShell/Microsoft.PowerShell_profile.ps1`), and **the sync mechanism is whole-file**: both sync scripts copy the rendered source over `$PROFILE`, with a `.bak.YYYYMMDD[.N]` backup on every overwrite. Two things keep that safe:
 
-We use marker-block injection for `$PROFILE` because:
-- The user has custom code that should not be touched.
-- Re-running the deployment should *only* affect the bracketed block.
-- The user can always inspect `git diff` of the file and see what we added vs what was theirs.
+- **Per-machine content lives in `profile.local.ps1`** (dot-sourced at the end of `$PROFILE`, never synced — the Windows counterpart of `~/.zshrc.local`, since v1.1.0). Anything personal that goes into `$PROFILE` itself *will* be replaced on the next `ts-update`/apply — recoverable from the `.bak`, but gone from the live file.
+- **The marker blocks remain as editing discipline**, not merge mechanics: they delimit the stack's functional regions (`starship-stack-*`, `cli-tools-*`, `git-shortcuts-*`, …) so an agent or human editing the source knows where each concern lives and adds new ones as new blocks.
 
-If you ever take whole-file management of `$PROFILE`, you'd lose the safety of "I can rerun without nuking my custom stuff". Don't.
+If a fresh machine has a pre-existing `$PROFILE`, the first sync backs it up and replaces it — migrate anything worth keeping into `profile.local.ps1`.
 
 ## Why per-tab `cc • <project>` instead of one big tab name?
 

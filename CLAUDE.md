@@ -60,10 +60,10 @@ Source → destination mapping for the `windows/` subtree is **relative-path-pre
 | `~/.tmux.conf`, `~/.config/starship.toml` | whole-file | We own it |
 | `~/command-reference.md` (both sides) | whole-file | We own it; machine content goes in `command-reference.local.md` (untracked) |
 | `~/.config/git/terminal-stack.gitconfig` (both sides) | whole-file | We own it; hooked via `include.path`, user's `~/.gitconfig` stays untouched and wins |
-| `$PROFILE` (Windows pwsh) | **marker-block** | User has pre-existing personal content; only the `# ---- name-start ----` / `# ---- name-end ----` regions are ours |
+| `$PROFILE` (Windows pwsh) | whole-file sync, **marker-block edited** | The sync copies the repo file over `$PROFILE` whole (with `.bak`); the `# ---- name-start ----` / `# ---- name-end ----` blocks organize the stack's regions. Personal content belongs in `profile.local.ps1`, never in `$PROFILE` itself |
 | `~/.zshrc.local`, `profile.local.ps1`, `command-reference.local.md` | **never managed** | Per-machine; only `.example` twins ship |
 
-If you need to modify `$PROFILE`, edit **only inside an existing marker block** (`starship-stack-*`, `cli-tools-*`) or add a new marker block. Never rewrite the whole file — you'll destroy user personal content. See `docs/decisions.md` § "Why a whole-file `~/.zshrc` and a marker-block `$PROFILE`?".
+When modifying `$PROFILE`, edit the repo source (`windows/Documents/PowerShell/Microsoft.PowerShell_profile.ps1`) **inside an existing marker block** (`starship-stack-*`, `cli-tools-*`, `git-shortcuts-*`, …) or add a new marker block; keep `local-overrides` last. Anything a user hand-adds to the live `$PROFILE` outside the repo is replaced on the next sync (backed up, but gone from the live file) — per-machine content goes in `profile.local.ps1`. History in `docs/decisions.md` § "Why a whole-file `~/.zshrc` and a marker-block `$PROFILE`?".
 
 ## Gotchas worth remembering
 
