@@ -11,6 +11,7 @@ All notable changes captured here. Format loosely follows [Keep a Changelog](htt
 
 ### Fixed
 
+- **Bare `chezmoi init` no longer breaks the setup.** `.chezmoi.toml.tmpl` now re-emits `sourceDir` (and `windowsUsername` when present) from the existing config. Previously, answering the apply-time warning "config file template has changed, run chezmoi init to regenerate" with a bare `chezmoi init` silently dropped `sourceDir` — chezmoi would fall back to `~/.local/share/chezmoi` and stop seeing the clone.
 - **CLAUDE.md / decisions.md described `$PROFILE` as marker-block *merged*, but the sync has always been whole-file** (both `run_after_90-sync-windows.sh` and `scripts/sync-windows.ps1` copy the rendered source over the target, with `.bak`). Docs now state the real contract: whole-file sync + marker-block editing discipline, personal content in `profile.local.ps1`. Without this fix an agent following CLAUDE.md would wrongly assume hand-edits to the live `$PROFILE` survive an apply.
 
 ## [1.1.1] — 06/10/2026

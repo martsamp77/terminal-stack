@@ -5,7 +5,15 @@
   Note: the bootstrap scripts (bootstrap/{wsl,linux}-bootstrap.sh) are the
   documented setup path. They write chezmoi.toml directly (including sourceDir
   and, on WSL, windowsUsername). This template only matters if you skip the
-  bootstrap and run `chezmoi init <repo>` instead.
+  bootstrap and run `chezmoi init <repo>` instead — or when a template change
+  makes apply warn "run chezmoi init to regenerate".
+
+  sourceDir and windowsUsername are re-emitted here so a bare `chezmoi init`
+  (no repo arg) keeps pointing at the existing clone and keeps the bootstrap's
+  answer. Without that, regenerating would silently drop sourceDir (chezmoi
+  falls back to ~/.local/share/chezmoi) and windowsUsername (sync hook falls
+  back to cmd.exe interop). Existing [data] values are in scope when chezmoi
+  executes this template. TOML: top-level keys must precede the [data] section.
 */ -}}
 {{- $os := .chezmoi.os -}}
 {{- if eq .chezmoi.os "linux" -}}
@@ -13,5 +21,10 @@
 {{-     $os = "wsl" -}}
 {{-   end -}}
 {{- end }}
+sourceDir = {{ .chezmoi.sourceDir | quote }}
+
 [data]
 os = "{{ $os }}"
+{{- if hasKey . "windowsUsername" }}
+windowsUsername = {{ .windowsUsername | quote }}
+{{- end }}
