@@ -76,13 +76,25 @@ config.keys = {
   { key = 'v', mods = 'CTRL', action = act.PasteFrom 'Clipboard' },
 }
 
--- CC state glyphs set by the wez-tab-status hook → tab background colours.
--- Non-CC tabs blend into the window background (black when focused, grey when not).
+-- Two-tier colour table: hi = active tab (vivid), lo = inactive tab (dim but identifiable).
+-- Active tab also gets a Single underline as a "you are here" bottom border.
 local CC_STATE_COLORS = {
-  ['\xe2\x8f\xb3'] = { bg = '#5c1515', fg = '#ffaaaa' },  -- ⏳ thinking  (red)
-  ['\xe2\x9a\x99'] = { bg = '#5c3500', fg = '#ffcc88' },  -- ⚙  working   (orange)
-  ['\xe2\x9c\x93'] = { bg = '#0f4a0f', fg = '#aaffaa' },  -- ✓  done      (green)
-  ['\xe2\x9c\x97'] = { bg = '#4a1540', fg = '#ffaaee' },  -- ✗  error     (magenta)
+  ['\xe2\x8f\xb3'] = {  -- ⏳ thinking/waiting  (red)
+    hi = { bg = '#8b0000', fg = '#ffbbbb' },
+    lo = { bg = '#350000', fg = '#7a3333' },
+  },
+  ['\xe2\x9a\x99'] = {  -- ⚙  working           (orange)
+    hi = { bg = '#8b4500', fg = '#ffd488' },
+    lo = { bg = '#351b00', fg = '#7a4a1a' },
+  },
+  ['\xe2\x9c\x93'] = {  -- ✓  done              (green)
+    hi = { bg = '#1a7a1a', fg = '#aaffaa' },
+    lo = { bg = '#0a3a0a', fg = '#3d8a3d' },
+  },
+  ['\xe2\x9c\x97'] = {  -- ✗  error             (magenta)
+    hi = { bg = '#6b1a5a', fg = '#ffaade' },
+    lo = { bg = '#2a0a22', fg = '#5a3050' },
+  },
 }
 
 wezterm.on('format-tab-title', function(tab, tabs, panes, cfg, hover, max_width)
@@ -92,16 +104,21 @@ wezterm.on('format-tab-title', function(tab, tabs, panes, cfg, hover, max_width)
 
   local focused = win_focused[tab.window_id] ~= false
 
-  -- CC state check FIRST — these colours survive even when the window is unfocused.
-  -- The pane background (#2a2a2a vs #000000) already signals focus; tabs show STATUS.
+  -- CC state check FIRST — status colours always show regardless of window focus.
   for glyph, col in pairs(CC_STATE_COLORS) do
     if title:find(glyph, 1, true) then
-      return {
-        { Background = { Color = col.bg } },
-        { Foreground = { Color = col.fg } },
+      local c = tab.is_active and col.hi or col.lo
+      local result = {
+        { Background = { Color = c.bg } },
+        { Foreground = { Color = c.fg } },
         { Attribute = { Intensity = 'Bold' } },
-        { Text = ' ' .. title .. ' ' },
       }
+      -- Underline the active tab — thin bottom border that says "you are here".
+      if tab.is_active then
+        table.insert(result, { Attribute = { Underline = 'Single' } })
+      end
+      table.insert(result, { Text = ' ' .. title .. ' ' })
+      return result
     end
   end
 
@@ -109,29 +126,23 @@ wezterm.on('format-tab-title', function(tab, tabs, panes, cfg, hover, max_width)
   if not focused then
     return {
       { Background = { Color = '#2a2a2a' } },
-      { Foreground = { Color = tab.is_active and '#555555' or '#333333' } },
+      { Foreground = { Color = '#444444' } },
       { Text = ' ' .. title .. ' ' },
     }
   end
 
-  -- Focused, no CC state: blend into the black window background.
+  -- Focused, no CC state: active tab gets a subtle underline; inactive is near-invisible.
   if tab.is_active then
     return {
-      { Background = { Color = '#000000' } },
+      { Background = { Color = '#111111' } },
       { Foreground = { Color = '#888888' } },
-      { Text = ' ' .. title .. ' ' },
-    }
-  end
-  if hover then
-    return {
-      { Background = { Color = '#000000' } },
-      { Foreground = { Color = '#555555' } },
+      { Attribute = { Underline = 'Single' } },
       { Text = ' ' .. title .. ' ' },
     }
   end
   return {
     { Background = { Color = '#000000' } },
-    { Foreground = { Color = '#333333' } },
+    { Foreground = { Color = '#2d2d2d' } },
     { Text = ' ' .. title .. ' ' },
   }
 end)
