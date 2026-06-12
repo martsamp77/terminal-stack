@@ -92,16 +92,8 @@ wezterm.on('format-tab-title', function(tab, tabs, panes, cfg, hover, max_width)
 
   local focused = win_focused[tab.window_id] ~= false
 
-  -- Unfocused window: collapse everything to the same grey block.
-  if not focused then
-    return {
-      { Background = { Color = '#2a2a2a' } },
-      { Foreground = { Color = tab.is_active and '#cccccc' or '#888888' } },
-      { Text = ' ' .. title .. ' ' },
-    }
-  end
-
-  -- Focused: check for CC state glyph in the title.
+  -- CC state check FIRST — these colours survive even when the window is unfocused.
+  -- The pane background (#2a2a2a vs #000000) already signals focus; tabs show STATUS.
   for glyph, col in pairs(CC_STATE_COLORS) do
     if title:find(glyph, 1, true) then
       return {
@@ -113,7 +105,16 @@ wezterm.on('format-tab-title', function(tab, tabs, panes, cfg, hover, max_width)
     end
   end
 
-  -- No CC state: blend into the black window background.
+  -- No CC state: idle tabs collapse to grey when the window is unfocused.
+  if not focused then
+    return {
+      { Background = { Color = '#2a2a2a' } },
+      { Foreground = { Color = tab.is_active and '#555555' or '#333333' } },
+      { Text = ' ' .. title .. ' ' },
+    }
+  end
+
+  -- Focused, no CC state: blend into the black window background.
   if tab.is_active then
     return {
       { Background = { Color = '#000000' } },
@@ -135,8 +136,12 @@ wezterm.on('format-tab-title', function(tab, tabs, panes, cfg, hover, max_width)
   }
 end)
 
--- Show workspace name only when it's not the default; hide path (CWD is in the Claude Code statusline).
+-- Show workspace name when not default; badge the OS window title when a tab needs attention.
+local DONE_GLYPH  = '\xe2\x9c\x93'  -- ✓
+local ERROR_GLYPH = '\xe2\x9c\x97'  -- ✗
+
 wezterm.on('update-right-status', function(window, pane)
+  -- Right-status: workspace name
   local workspace = window:active_workspace()
   if workspace ~= 'default' then
     window:set_right_status(wezterm.format {
@@ -145,6 +150,24 @@ wezterm.on('update-right-status', function(window, pane)
     })
   else
     window:set_right_status('')
+  end
+
+  -- Window title badge: scan all tabs for attention states (✓ done or ✗ error).
+  -- Visible in Windows taskbar and alt-tab without looking at WezTerm directly.
+  local has_done  = false
+  local has_error = false
+  for _, t in ipairs(window:tabs()) do
+    local ttl = t:get_title()
+    if ttl:find(ERROR_GLYPH, 1, true) then has_error = true
+    elseif ttl:find(DONE_GLYPH,  1, true) then has_done  = true
+    end
+  end
+  if has_error then
+    window:set_title('✗ WezTerm')
+  elseif has_done then
+    window:set_title('✓ WezTerm')
+  else
+    window:set_title('WezTerm')
   end
 end)
 
