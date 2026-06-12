@@ -76,16 +76,23 @@ config.keys = {
   { key = 'v', mods = 'CTRL', action = act.PasteFrom 'Clipboard' },
 }
 
--- When focused: active tab = surface0 highlight, inactive tabs = dim.
--- When unfocused: all tabs collapse to the same grey as the pane background so
--- the whole window reads as a single unified grey block.
+-- CC state glyphs set by the wez-tab-status hook → tab background colours.
+-- Non-CC tabs blend into the window background (black when focused, grey when not).
+local CC_STATE_COLORS = {
+  ['\xe2\x8f\xb3'] = { bg = '#5c1515', fg = '#ffaaaa' },  -- ⏳ thinking  (red)
+  ['\xe2\x9a\x99'] = { bg = '#5c3500', fg = '#ffcc88' },  -- ⚙  working   (orange)
+  ['\xe2\x9c\x93'] = { bg = '#0f4a0f', fg = '#aaffaa' },  -- ✓  done      (green)
+  ['\xe2\x9c\x97'] = { bg = '#4a1540', fg = '#ffaaee' },  -- ✗  error     (magenta)
+}
+
 wezterm.on('format-tab-title', function(tab, tabs, panes, cfg, hover, max_width)
   local title = tab.tab_title
   if not title or #title == 0 then title = tab.active_pane.title end
   title = wezterm.truncate_right(title, max_width - 2)
 
-  local focused = win_focused[tab.window_id] ~= false  -- true when unknown (first render)
+  local focused = win_focused[tab.window_id] ~= false
 
+  -- Unfocused window: collapse everything to the same grey block.
   if not focused then
     return {
       { Background = { Color = '#2a2a2a' } },
@@ -94,24 +101,36 @@ wezterm.on('format-tab-title', function(tab, tabs, panes, cfg, hover, max_width)
     }
   end
 
+  -- Focused: check for CC state glyph in the title.
+  for glyph, col in pairs(CC_STATE_COLORS) do
+    if title:find(glyph, 1, true) then
+      return {
+        { Background = { Color = col.bg } },
+        { Foreground = { Color = col.fg } },
+        { Attribute = { Intensity = 'Bold' } },
+        { Text = ' ' .. title .. ' ' },
+      }
+    end
+  end
+
+  -- No CC state: blend into the black window background.
   if tab.is_active then
     return {
-      { Background = { Color = '#313244' } },
-      { Foreground = { Color = '#cdd6f4' } },
-      { Attribute = { Intensity = 'Bold' } },
+      { Background = { Color = '#000000' } },
+      { Foreground = { Color = '#888888' } },
       { Text = ' ' .. title .. ' ' },
     }
   end
   if hover then
     return {
-      { Background = { Color = '#1e1e2e' } },
-      { Foreground = { Color = '#a6adc8' } },
+      { Background = { Color = '#000000' } },
+      { Foreground = { Color = '#555555' } },
       { Text = ' ' .. title .. ' ' },
     }
   end
   return {
-    { Background = { Color = '#1e1e2e' } },
-    { Foreground = { Color = '#585b70' } },
+    { Background = { Color = '#000000' } },
+    { Foreground = { Color = '#333333' } },
     { Text = ' ' .. title .. ' ' },
   }
 end)

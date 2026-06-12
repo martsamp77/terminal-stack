@@ -3,8 +3,9 @@ state="${1:-}"
 [ -z "$WEZTERM_PANE" ] && exit 0
 case "$state" in
     thinking) glyph='⏳' ;;
-    waiting)  glyph='✓' ;;
-    error)    glyph='✗' ;;
+    working)  glyph='⚙'  ;;
+    waiting)  glyph='✓'  ;;
+    error)    glyph='✗'  ;;
     *) exit 0 ;;
 esac
 project_dir="${CLAUDE_PROJECT_DIR:-$PWD}"

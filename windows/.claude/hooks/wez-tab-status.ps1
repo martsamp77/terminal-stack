@@ -1,6 +1,6 @@
-param([Parameter(Mandatory)][ValidateSet('thinking','waiting','error')][string]$State)
+param([Parameter(Mandatory)][ValidateSet('thinking','working','waiting','error')][string]$State)
 if (-not $env:WEZTERM_PANE) { return }
-$glyph = @{ thinking = '⏳'; waiting = '✓'; error = '✗' }[$State]
+$glyph = @{ thinking = '⏳'; working = '⚙'; waiting = '✓'; error = '✗' }[$State]
 $project = if ($env:CLAUDE_PROJECT_DIR) {
     Split-Path -Leaf $env:CLAUDE_PROJECT_DIR
 } else {

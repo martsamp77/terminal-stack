@@ -28,6 +28,17 @@
         ]
       }
     ],
+    "PreToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "{{ .chezmoi.homeDir }}/.claude/hooks/wez-tab-status.sh working"
+          }
+        ]
+      }
+    ],
     "Stop": [
       {
         "matcher": "*",

@@ -25,6 +25,17 @@
         ]
       }
     ],
+    "PreToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "pwsh -NoLogo -NonInteractive -ExecutionPolicy Bypass -File C:/Users/__WIN_USER__/.claude/hooks/wez-tab-status.ps1 -State working"
+          }
+        ]
+      }
+    ],
     "Stop": [
       {
         "matcher": "*",
