@@ -14,7 +14,7 @@
   "voiceEnabled": false,
   "statusLine": {
     "type": "command",
-    "command": "hostname -s"
+    "command": "bash {{ .chezmoi.homeDir }}/.claude/statusline-command.sh"
   },
   "hooks": {
     "UserPromptSubmit": [

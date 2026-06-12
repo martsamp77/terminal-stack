@@ -2,6 +2,10 @@ local wezterm = require 'wezterm'
 local act = wezterm.action
 local config = wezterm.config_builder()
 
+-- Per-window focus state, shared between window-focus-changed and format-tab-title.
+-- Keyed by window:window_id() (integer). Defaults to true so first render looks focused.
+local win_focused = {}
+
 config.default_prog = { 'pwsh.exe', '-NoLogo' }
 
 config.launch_menu = {
@@ -33,7 +37,7 @@ config.tab_max_width = 120
 config.window_frame = {
   font_size            = 11.0,
   active_titlebar_bg   = '#000000',
-  inactive_titlebar_bg = '#141414',
+  inactive_titlebar_bg = '#3c3c3c',
   active_titlebar_fg   = '#cdd6f4',
   inactive_titlebar_fg = '#585b70',
 }
@@ -72,10 +76,24 @@ config.keys = {
   { key = 'v', mods = 'CTRL', action = act.PasteFrom 'Clipboard' },
 }
 
+-- When focused: active tab = surface0 highlight, inactive tabs = dim.
+-- When unfocused: all tabs collapse to the same grey as the pane background so
+-- the whole window reads as a single unified grey block.
 wezterm.on('format-tab-title', function(tab, tabs, panes, cfg, hover, max_width)
   local title = tab.tab_title
   if not title or #title == 0 then title = tab.active_pane.title end
   title = wezterm.truncate_right(title, max_width - 2)
+
+  local focused = win_focused[tab.window_id] ~= false  -- true when unknown (first render)
+
+  if not focused then
+    return {
+      { Background = { Color = '#3c3c3c' } },
+      { Foreground = { Color = tab.is_active and '#cccccc' or '#888888' } },
+      { Text = ' ' .. title .. ' ' },
+    }
+  end
+
   if tab.is_active then
     return {
       { Background = { Color = '#313244' } },
@@ -111,14 +129,15 @@ wezterm.on('update-right-status', function(window, pane)
   end
 end)
 
--- Switch background between pure black (focused) and very dark grey (unfocused)
--- so you can immediately see which WezTerm window has OS focus.
+-- Entire window goes grey when it loses OS focus; pure black when active.
+-- Also records focus state so format-tab-title can match the tab colours.
 wezterm.on('window-focus-changed', function(window, pane)
+  win_focused[window:window_id()] = window:is_focused()
   local overrides = window:get_config_overrides() or {}
   if window:is_focused() then
     overrides.colors = { background = '#000000' }
   else
-    overrides.colors = { background = '#141414' }
+    overrides.colors = { background = '#3c3c3c' }
   end
   window:set_config_overrides(overrides)
 end)
