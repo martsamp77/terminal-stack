@@ -232,6 +232,21 @@ function Restore-TerminalStack {
 Set-Alias -Name ts-rollback -Value Restore-TerminalStack
 # ---- terminal-stack-update-end ----
 
+# ---- claude-code-start ----
+function ccnotify {
+    param([string]$Action)
+    $f = "$HOME\.claude\.toast-notify"
+    switch ($Action) {
+        'on'  { New-Item $f -ItemType File -Force | Out-Null; Write-Host 'CC toast: ON' }
+        'off' { Remove-Item $f -ErrorAction SilentlyContinue; Write-Host 'CC toast: OFF' }
+        default {
+            if (Test-Path $f) { Write-Host 'CC toast: ON  (ccnotify off to disable)' }
+            else              { Write-Host 'CC toast: OFF (ccnotify on  to enable)'  }
+        }
+    }
+}
+# ---- claude-code-end ----
+
 # ---- local-overrides-start ----
 # Per-machine overrides (not synced by the stack). The Windows counterpart of
 # ~/.zshrc.local — see profile.local.ps1.example. Keep this block last so

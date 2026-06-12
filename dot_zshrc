@@ -326,5 +326,17 @@ ref() {
 }
 # ---- cli-tools-end ----
 
+# ---- claude-code-start ----
+ccnotify() {
+    local f="$HOME/.claude/.toast-notify"
+    case "${1:-}" in
+        on)  touch "$f" && echo 'CC toast: ON' ;;
+        off) rm -f "$f" && echo 'CC toast: OFF' ;;
+        *)   [[ -f "$f" ]] && echo 'CC toast: ON  (ccnotify off to disable)' \
+                           || echo 'CC toast: OFF (ccnotify on  to enable)' ;;
+    esac
+}
+# ---- claude-code-end ----
+
 # Per-machine overrides (not tracked by chezmoi). See dot_zshrc.local.example.
 [[ -r "$HOME/.zshrc.local" ]] && source "$HOME/.zshrc.local"
