@@ -122,11 +122,11 @@ wezterm.on('format-tab-title', function(tab, tabs, panes, cfg, hover, max_width)
     end
   end
 
-  -- No CC state: idle tabs collapse to grey when the window is unfocused.
+  -- No CC state: idle tabs go grey when unfocused; active tab gets a hint of brightness.
   if not focused then
     return {
-      { Background = { Color = '#2a2a2a' } },
-      { Foreground = { Color = '#444444' } },
+      { Background = { Color = tab.is_active and '#333333' or '#2a2a2a' } },
+      { Foreground = { Color = tab.is_active and '#aaaaaa' or '#666666' } },
       { Text = ' ' .. title .. ' ' },
     }
   end
@@ -142,7 +142,7 @@ wezterm.on('format-tab-title', function(tab, tabs, panes, cfg, hover, max_width)
   end
   return {
     { Background = { Color = '#000000' } },
-    { Foreground = { Color = '#2d2d2d' } },
+    { Foreground = { Color = '#888888' } },
     { Text = ' ' .. title .. ' ' },
   }
 end)
