@@ -37,7 +37,7 @@ config.tab_max_width = 120
 config.window_frame = {
   font_size            = 11.0,
   active_titlebar_bg   = '#000000',
-  inactive_titlebar_bg = '#3c3c3c',
+  inactive_titlebar_bg = '#2a2a2a',
   active_titlebar_fg   = '#cdd6f4',
   inactive_titlebar_fg = '#585b70',
 }
@@ -88,7 +88,7 @@ wezterm.on('format-tab-title', function(tab, tabs, panes, cfg, hover, max_width)
 
   if not focused then
     return {
-      { Background = { Color = '#3c3c3c' } },
+      { Background = { Color = '#2a2a2a' } },
       { Foreground = { Color = tab.is_active and '#cccccc' or '#888888' } },
       { Text = ' ' .. title .. ' ' },
     }
@@ -137,7 +137,7 @@ wezterm.on('window-focus-changed', function(window, pane)
   if window:is_focused() then
     overrides.colors = { background = '#000000' }
   else
-    overrides.colors = { background = '#3c3c3c' }
+    overrides.colors = { background = '#2a2a2a' }
   end
   window:set_config_overrides(overrides)
 end)
