@@ -24,7 +24,6 @@ config.font = wezterm.font_with_fallback {
 }
 config.font_size = 11.5
 config.color_scheme = 'Catppuccin Mocha'
-config.window_background_opacity = 1.0
 config.use_fancy_tab_bar = true
 config.hide_tab_bar_if_only_one_tab = false
 config.window_decorations = 'INTEGRATED_BUTTONS|RESIZE'
@@ -32,12 +31,19 @@ config.initial_cols = 120
 config.initial_rows = 30
 config.tab_max_width = 120
 config.window_frame = {
-  font_size = 11.0,
+  font_size            = 11.0,
+  active_titlebar_bg   = '#000000',
+  inactive_titlebar_bg = '#141414',
+  active_titlebar_fg   = '#cdd6f4',
+  inactive_titlebar_fg = '#585b70',
 }
 
 -- OpenGL avoids the WebGpu output-buffer stall where child-process output (e.g. Claude Code starting up) only renders after the next input event.
 config.front_end = 'OpenGL'
 config.scrollback_lines = 50000
+config.audible_bell = 'Disabled'
+config.adjust_window_size_when_changing_font_size = false
+config.inactive_pane_hsb = { brightness = 0.6, saturation = 0.9, hue = 1.0 }
 
 config.leader = { key = 'a', mods = 'CTRL', timeout_milliseconds = 1500 }
 
@@ -59,29 +65,62 @@ config.keys = {
   { key = 'k', mods = 'LEADER', action = act.ActivatePaneDirection 'Up' },
   { key = 'j', mods = 'LEADER', action = act.ActivatePaneDirection 'Down' },
   { key = 'a', mods = 'LEADER|CTRL', action = act.SendKey { key = 'a', mods = 'CTRL' } },
-  -- Pop the current tab/pane out into its own new window. WezTerm has no native
-  -- mouse drag-to-detach; this is the supported equivalent (pane:move_to_new_window).
-  { key = 'o', mods = 'LEADER', action = wezterm.action_callback(function(window, pane)
-      pane:move_to_new_window()
-  end) },
+  -- Pop the current pane out into its own new window.
+  -- LEADER+o for muscle memory; CTRL+SHIFT+O for quick access without the leader.
+  { key = 'o', mods = 'LEADER',      action = wezterm.action_callback(function(window, pane) pane:move_to_new_window() end) },
+  { key = 'o', mods = 'CTRL|SHIFT',  action = wezterm.action_callback(function(window, pane) pane:move_to_new_window() end) },
   { key = 'v', mods = 'CTRL', action = act.PasteFrom 'Clipboard' },
 }
 
-wezterm.on('format-tab-title', function(tab, tabs, panes, config, hover, max_width)
+wezterm.on('format-tab-title', function(tab, tabs, panes, cfg, hover, max_width)
   local title = tab.tab_title
   if not title or #title == 0 then title = tab.active_pane.title end
   title = wezterm.truncate_right(title, max_width - 2)
-  return ' ' .. title .. ' '
+  if tab.is_active then
+    return {
+      { Background = { Color = '#313244' } },
+      { Foreground = { Color = '#cdd6f4' } },
+      { Attribute = { Intensity = 'Bold' } },
+      { Text = ' ' .. title .. ' ' },
+    }
+  end
+  if hover then
+    return {
+      { Background = { Color = '#1e1e2e' } },
+      { Foreground = { Color = '#a6adc8' } },
+      { Text = ' ' .. title .. ' ' },
+    }
+  end
+  return {
+    { Background = { Color = '#1e1e2e' } },
+    { Foreground = { Color = '#585b70' } },
+    { Text = ' ' .. title .. ' ' },
+  }
 end)
 
+-- Show workspace name only when it's not the default; hide path (CWD is in the Claude Code statusline).
 wezterm.on('update-right-status', function(window, pane)
   local workspace = window:active_workspace()
-  local cwd = pane:get_current_working_dir()
-  local cwd_str = cwd and (cwd.file_path or '') or ''
-  window:set_right_status(wezterm.format {
-    { Foreground = { AnsiColor = 'Green' } }, { Text = '  ' .. workspace .. '  ' },
-    { Foreground = { AnsiColor = 'Blue' } },  { Text = '│  ' .. cwd_str .. ' ' },
-  })
+  if workspace ~= 'default' then
+    window:set_right_status(wezterm.format {
+      { Foreground = { Color = '#a6e3a1' } },
+      { Text = '  ⬡ ' .. workspace .. '  ' },
+    })
+  else
+    window:set_right_status('')
+  end
+end)
+
+-- Switch background between pure black (focused) and very dark grey (unfocused)
+-- so you can immediately see which WezTerm window has OS focus.
+wezterm.on('window-focus-changed', function(window, pane)
+  local overrides = window:get_config_overrides() or {}
+  if window:is_focused() then
+    overrides.colors = { background = '#000000' }
+  else
+    overrides.colors = { background = '#141414' }
+  end
+  window:set_config_overrides(overrides)
 end)
 
 return config
