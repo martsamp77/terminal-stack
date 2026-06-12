@@ -80,19 +80,19 @@ config.keys = {
 -- Active tab also gets a Single underline as a "you are here" bottom border.
 local CC_STATE_COLORS = {
   ['\xe2\x8f\xb3'] = {  -- ⏳ thinking/waiting  (red)
-    hi = { bg = '#8b0000', fg = '#ffbbbb' },
+    hi = { bg = '#8b0000', fg = '#ffffff' },
     lo = { bg = '#350000', fg = '#7a3333' },
   },
   ['\xe2\x9a\x99'] = {  -- ⚙  working           (orange)
-    hi = { bg = '#8b4500', fg = '#ffd488' },
+    hi = { bg = '#8b4500', fg = '#ffffff' },
     lo = { bg = '#351b00', fg = '#7a4a1a' },
   },
   ['\xe2\x9c\x93'] = {  -- ✓  done              (green)
-    hi = { bg = '#1a7a1a', fg = '#aaffaa' },
+    hi = { bg = '#1a7a1a', fg = '#ffffff' },
     lo = { bg = '#0a3a0a', fg = '#3d8a3d' },
   },
   ['\xe2\x9c\x97'] = {  -- ✗  error             (magenta)
-    hi = { bg = '#6b1a5a', fg = '#ffaade' },
+    hi = { bg = '#6b1a5a', fg = '#ffffff' },
     lo = { bg = '#2a0a22', fg = '#5a3050' },
   },
 }
@@ -135,7 +135,7 @@ wezterm.on('format-tab-title', function(tab, tabs, panes, cfg, hover, max_width)
   if tab.is_active then
     return {
       { Background = { Color = '#111111' } },
-      { Foreground = { Color = '#888888' } },
+      { Foreground = { Color = '#ffffff' } },
       { Attribute = { Underline = 'Single' } },
       { Text = ' ' .. title .. ' ' },
     }
