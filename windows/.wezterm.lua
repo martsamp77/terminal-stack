@@ -1,10 +1,15 @@
+-- ~/.wezterm.lua (Windows) — minimal baseline.
+-- Near-stock WezTerm + a small set of pane/tab keybindings. One lightweight
+-- event handler (format-tab-title) renders flat "<index>: <dir>" tab labels and
+-- tints them green (done) / red (error) from the Claude Code state glyph the
+-- hooks write into the tab title. A second handler (update-right-status) shows
+-- the workspace + cwd top-right. No window-focus callbacks.
+-- Keep visual settings + keys in sync with dot_wezterm.lua (macOS).
+
 local wezterm = require 'wezterm'
 local act = wezterm.action
+local pane_grid = require 'pane_grid'
 local config = wezterm.config_builder()
-
--- Per-window focus state, shared between window-focus-changed and format-tab-title.
--- Keyed by window:window_id() (integer). Defaults to true so first render looks focused.
-local win_focused = {}
 
 config.default_prog = { 'pwsh.exe', '-NoLogo' }
 
@@ -28,28 +33,53 @@ config.font = wezterm.font_with_fallback {
 }
 config.font_size = 11.5
 config.color_scheme = 'Catppuccin Mocha'
-config.use_fancy_tab_bar = true
+config.use_fancy_tab_bar = false   -- flat retro tab bar (see format-tab-title below)
 config.hide_tab_bar_if_only_one_tab = false
 config.window_decorations = 'INTEGRATED_BUTTONS|RESIZE'
 config.initial_cols = 120
 config.initial_rows = 30
 config.tab_max_width = 120
-config.window_frame = {
-  font_size            = 11.0,
-  active_titlebar_bg   = '#000000',
-  inactive_titlebar_bg = '#2a2a2a',
-  active_titlebar_fg   = '#cdd6f4',
-  inactive_titlebar_fg = '#585b70',
-}
+config.window_frame = { font_size = 11.0 }
 
--- OpenGL avoids the WebGpu output-buffer stall where child-process output (e.g. Claude Code starting up) only renders after the next input event.
-config.front_end = 'OpenGL'
-config.scrollback_lines = 50000
+-- WebGpu is WezTerm's modern, fastest backend (set explicitly). If a render
+-- stall on child-process startup reappears, fall back to 'OpenGL'.
+config.front_end = 'WebGpu'
+config.scrollback_lines = 10000
 config.audible_bell = 'Disabled'
 config.adjust_window_size_when_changing_font_size = false
-config.inactive_pane_hsb = { brightness = 0.6, saturation = 0.9, hue = 1.0 }
+-- Strong active-pane signal: heavily dim inactive panes + a bright split line.
+config.inactive_pane_hsb = { brightness = 0.25, saturation = 0.6, hue = 1.0 }
+config.colors = { split = '#b4befe' }  -- lavender divider between panes
 
-config.leader = { key = 'a', mods = 'CTRL', timeout_milliseconds = 1500 }
+-- Ctrl+Space leader: left pinky + thumb, frees the right hand for j/k/i/m.
+-- phys:Space matches the physical key — Ctrl+Space emits NUL on Windows, which a
+-- logical ' ' match would miss (same reason pane_grid.lua uses phys:F*).
+config.leader = { key = 'phys:Space', mods = 'CTRL', timeout_milliseconds = 1500 }
+
+-- Fuzzy-pick a domain (Alt+L style) and split it into the current pane.
+-- direction is a wezterm SplitPane direction ('Right' or 'Down').
+local function pick_domain_split(window, pane, direction)
+  local choices = {}
+  for _, d in ipairs(wezterm.mux.all_domains()) do
+    table.insert(choices, { id = d:name(), label = d:name() })
+  end
+  table.sort(choices, function(a, b) return a.label < b.label end)
+  window:perform_action(act.InputSelector {
+    title = 'Split ' .. direction:lower() .. ' into domain',
+    choices = choices,
+    fuzzy = true,
+    action = wezterm.action_callback(function(win, p, id)
+      if not id then return end
+      -- SplitPane has no `domain` field; SplitHorizontal/SplitVertical take a
+      -- SpawnCommand whose `domain` selects the target domain.
+      if direction == 'Right' then
+        win:perform_action(act.SplitHorizontal { domain = { DomainName = id } }, p)
+      else
+        win:perform_action(act.SplitVertical { domain = { DomainName = id } }, p)
+      end
+    end),
+  }, pane)
+end
 
 config.keys = {
   { key = 'l', mods = 'ALT', action = act.ShowLauncherArgs {
@@ -62,137 +92,84 @@ config.keys = {
           window:perform_action(act.SwitchToWorkspace { name = line }, pane)
         end
       end) } },
-  { key = '\\', mods = 'LEADER', action = act.SplitHorizontal { domain = 'CurrentPaneDomain' } },
-  { key = '-',  mods = 'LEADER', action = act.SplitVertical   { domain = 'CurrentPaneDomain' } },
-  { key = 'h', mods = 'LEADER', action = act.ActivatePaneDirection 'Left' },
-  { key = 'l', mods = 'LEADER', action = act.ActivatePaneDirection 'Right' },
-  { key = 'k', mods = 'LEADER', action = act.ActivatePaneDirection 'Up' },
-  { key = 'j', mods = 'LEADER', action = act.ActivatePaneDirection 'Down' },
-  { key = 'a', mods = 'LEADER|CTRL', action = act.SendKey { key = 'a', mods = 'CTRL' } },
+  -- Local splits: h = SplitHorizontal (side-by-side), v = SplitVertical (stacked).
+  { key = 'h', mods = 'LEADER', action = act.SplitHorizontal { domain = 'CurrentPaneDomain' } },
+  { key = 'v', mods = 'LEADER', action = act.SplitVertical   { domain = 'CurrentPaneDomain' } },
+  -- Domain splits (Shift = "remote"): H = pick domain → right, V = pick domain → down.
+  { key = 'H', mods = 'LEADER', action = wezterm.action_callback(function(w, p) pick_domain_split(w, p, 'Right') end) },
+  { key = 'V', mods = 'LEADER', action = wezterm.action_callback(function(w, p) pick_domain_split(w, p, 'Down') end) },
+  { key = 'j', mods = 'LEADER', action = act.ActivatePaneDirection 'Left' },
+  { key = 'k', mods = 'LEADER', action = act.ActivatePaneDirection 'Right' },
+  { key = 'i', mods = 'LEADER', action = act.ActivatePaneDirection 'Up' },
+  { key = 'm', mods = 'LEADER', action = act.ActivatePaneDirection 'Down' },
+  { key = 'J', mods = 'LEADER', action = act.AdjustPaneSize { 'Left',  5 } },
+  { key = 'K', mods = 'LEADER', action = act.AdjustPaneSize { 'Right', 5 } },
+  { key = 'I', mods = 'LEADER', action = act.AdjustPaneSize { 'Up',    5 } },
+  { key = 'M', mods = 'LEADER', action = act.AdjustPaneSize { 'Down',  5 } },
+  { key = 'z', mods = 'LEADER', action = act.TogglePaneZoomState },
+  { key = 'phys:Space', mods = 'LEADER|CTRL', action = act.SendKey { key = ' ', mods = 'CTRL' } },
+  { key = 'r', mods = 'LEADER', action = act.ReloadConfiguration },
+  -- Tab selection: Alt+1..9 (number matches tab); Ctrl+Tab / Ctrl+Shift+Tab cycle.
+  -- (Leader+1..4 stay bound to the pane quadrant grid in pane_grid.lua.)
+  { key = 'Tab', mods = 'CTRL',       action = act.ActivateTabRelative(1) },
+  { key = 'Tab', mods = 'CTRL|SHIFT', action = act.ActivateTabRelative(-1) },
   -- Pop the current pane out into its own new window.
-  -- LEADER+o for muscle memory; CTRL+SHIFT+O for quick access without the leader.
-  { key = 'o', mods = 'LEADER',      action = wezterm.action_callback(function(window, pane) pane:move_to_new_window() end) },
-  { key = 'o', mods = 'CTRL|SHIFT',  action = wezterm.action_callback(function(window, pane) pane:move_to_new_window() end) },
+  { key = 'o', mods = 'LEADER',     action = wezterm.action_callback(function(window, pane) pane:move_to_new_window() end) },
+  { key = 'o', mods = 'CTRL|SHIFT', action = wezterm.action_callback(function(window, pane) pane:move_to_new_window() end) },
   { key = 'v', mods = 'CTRL', action = act.PasteFrom 'Clipboard' },
 }
 
--- Two-tier colour table: hi = active tab (vivid), lo = inactive tab (dim but identifiable).
--- Active tab also gets a Single underline as a "you are here" bottom border.
-local CC_STATE_COLORS = {
-  ['\xe2\x8f\xb3'] = {  -- ⏳ thinking/waiting  (red)
-    hi = { bg = '#8b0000', fg = '#ffffff' },
-    lo = { bg = '#350000', fg = '#7a3333' },
-  },
-  ['\xe2\x9a\x99'] = {  -- ⚙  working           (orange)
-    hi = { bg = '#8b4500', fg = '#ffffff' },
-    lo = { bg = '#351b00', fg = '#7a4a1a' },
-  },
-  ['\xe2\x9c\x93'] = {  -- ✓  done              (green)
-    hi = { bg = '#1a7a1a', fg = '#ffffff' },
-    lo = { bg = '#0a3a0a', fg = '#3d8a3d' },
-  },
-  ['\xe2\x9c\x97'] = {  -- ✗  error             (magenta)
-    hi = { bg = '#6b1a5a', fg = '#ffffff' },
-    lo = { bg = '#2a0a22', fg = '#5a3050' },
-  },
-}
+-- ── Flat tab labels: "<index>: <dir-leaf>", with a light Claude Code hint ─────
+-- The CC hooks set the tab title to "cc <glyph> <project>" (✓ on Stop, ✗ on
+-- error). We read only the glyph for colour and always render our own label, so
+-- thinking/working tabs stay plain and the colour shows on inactive tabs too.
+local CC_DONE  = '\xe2\x9c\x93'  -- ✓  Stop        → green
+local CC_ERROR = '\xe2\x9c\x97'  -- ✗  StopFailure → red
+
+local function dir_leaf(pane)
+  local cwd = pane.current_working_dir
+  if not cwd then return nil end
+  local p = (type(cwd) == 'userdata' and cwd.file_path) or tostring(cwd)
+  p = p:gsub('^file://[^/]*', ''):gsub('[/\\]+$', '')
+  return p:match('[^/\\]+$')
+end
 
 wezterm.on('format-tab-title', function(tab, tabs, panes, cfg, hover, max_width)
-  local title = tab.tab_title
-  if not title or #title == 0 then title = tab.active_pane.title end
-  title = wezterm.truncate_right(title, max_width - 2)
-
-  local focused = win_focused[tab.window_id] ~= false
-
-  -- CC state check FIRST — status colours always show regardless of window focus.
-  for glyph, col in pairs(CC_STATE_COLORS) do
-    if title:find(glyph, 1, true) then
-      local c = tab.is_active and col.hi or col.lo
-      local result = {
-        { Background = { Color = c.bg } },
-        { Foreground = { Color = c.fg } },
-        { Attribute = { Intensity = 'Bold' } },
-      }
-      -- Underline the active tab — thin bottom border that says "you are here".
-      if tab.is_active then
-        table.insert(result, { Attribute = { Underline = 'Single' } })
-      end
-      table.insert(result, { Text = ' ' .. title .. ' ' })
-      return result
-    end
+  local leaf = dir_leaf(tab.active_pane) or tab.active_pane.title or ''
+  local label = wezterm.truncate_right(' ' .. (tab.tab_index + 1) .. ': ' .. leaf .. ' ', max_width)
+  local ttl = tab.tab_title or ''
+  if ttl:find(CC_ERROR, 1, true) then
+    return { { Foreground = { Color = '#f38ba8' } }, { Text = label } }  -- red
+  elseif ttl:find(CC_DONE, 1, true) then
+    return { { Foreground = { Color = '#a6e3a1' } }, { Text = label } }  -- green
   end
-
-  -- No CC state: idle tabs go grey when unfocused; active tab gets a hint of brightness.
-  if not focused then
-    return {
-      { Background = { Color = tab.is_active and '#333333' or '#2a2a2a' } },
-      { Foreground = { Color = tab.is_active and '#aaaaaa' or '#666666' } },
-      { Text = ' ' .. title .. ' ' },
-    }
-  end
-
-  -- Focused, no CC state: active tab gets a subtle underline; inactive is near-invisible.
-  if tab.is_active then
-    return {
-      { Background = { Color = '#111111' } },
-      { Foreground = { Color = '#ffffff' } },
-      { Attribute = { Underline = 'Single' } },
-      { Text = ' ' .. title .. ' ' },
-    }
-  end
-  return {
-    { Background = { Color = '#000000' } },
-    { Foreground = { Color = '#888888' } },
-    { Text = ' ' .. title .. ' ' },
-  }
+  return label
 end)
 
--- Show workspace name when not default; badge the OS window title when a tab needs attention.
-local DONE_GLYPH  = '\xe2\x9c\x93'  -- ✓
-local ERROR_GLYPH = '\xe2\x9c\x97'  -- ✗
+-- ── Top-right status: workspace + current path (both always shown) ────────────
+local function cwd_path(pane)
+  local cwd = pane:get_current_working_dir()
+  if not cwd then return '' end
+  if type(cwd) == 'userdata' then return cwd.file_path or tostring(cwd) end
+  return (tostring(cwd):gsub('^file://[^/]*', ''))
+end
 
 wezterm.on('update-right-status', function(window, pane)
-  -- Right-status: workspace name
-  local workspace = window:active_workspace()
-  if workspace ~= 'default' then
-    window:set_right_status(wezterm.format {
-      { Foreground = { Color = '#a6e3a1' } },
-      { Text = '  ⬡ ' .. workspace .. '  ' },
-    })
-  else
-    window:set_right_status('')
-  end
-
-  -- Window title badge: scan all tabs for attention states (✓ done or ✗ error).
-  -- Visible in Windows taskbar and alt-tab without looking at WezTerm directly.
-  local has_done  = false
-  local has_error = false
-  for _, t in ipairs(window:tabs()) do
-    local ttl = t:get_title()
-    if ttl:find(ERROR_GLYPH, 1, true) then has_error = true
-    elseif ttl:find(DONE_GLYPH,  1, true) then has_done  = true
-    end
-  end
-  if has_error then
-    window:set_title('✗ WezTerm')
-  elseif has_done then
-    window:set_title('✓ WezTerm')
-  else
-    window:set_title('WezTerm')
-  end
+  window:set_right_status(wezterm.format {
+    { Foreground = { Color = '#89b4fa' } },
+    { Text = '⬡ ' .. window:active_workspace() },
+    { Foreground = { Color = '#585b70' } },
+    { Text = '  │  ' },
+    { Foreground = { Color = '#a6adc8' } },
+    { Text = cwd_path(pane) .. '  ' },
+  })
 end)
 
--- Entire window goes grey when it loses OS focus; pure black when active.
--- Also records focus state so format-tab-title can match the tab colours.
-wezterm.on('window-focus-changed', function(window, pane)
-  win_focused[window:window_id()] = window:is_focused()
-  local overrides = window:get_config_overrides() or {}
-  if window:is_focused() then
-    overrides.colors = { background = '#000000' }
-  else
-    overrides.colors = { background = '#2a2a2a' }
-  end
-  window:set_config_overrides(overrides)
-end)
+-- Alt+1..9 → activate tab by number (appended to the literal config.keys above).
+for i = 1, 9 do
+  table.insert(config.keys, { key = tostring(i), mods = 'ALT', action = act.ActivateTab(i - 1) })
+end
+
+pane_grid.bind_keys(config.keys, wezterm)
 
 return config

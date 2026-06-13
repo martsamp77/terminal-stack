@@ -1,0 +1,16 @@
+WEZTERM — WORKSPACES & LAUNCHER
+══════════════════════════════════════════════════════════════════════════════
+
+  Leader: Ctrl+Space — tap it, release, then press the next key within 1.5s.
+
+LAUNCHER
+  Alt+L              open launcher      fuzzy list: tabs, domains, workspaces,
+                                        and commands — navigate with arrow keys
+
+WORKSPACES                              persistent named sessions; each has its
+                                        own set of windows and tabs
+  Ctrl+Space, w      switch             fuzzy picker of existing workspaces
+  Ctrl+Space, n      new / switch       type a name to create or jump to one
+
+──────────────────────────────────────────────────────────────────────────────
+wzr list  ·  wzr panes  ·  wzr tabs  ·  wzr workspace

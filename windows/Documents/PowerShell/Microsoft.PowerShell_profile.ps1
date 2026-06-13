@@ -98,6 +98,9 @@ function Invoke-Starship-PreCommand {
 # ---- starship-stack-end ----
 
 # ---- cli-tools-start ----
+# Default editor: micro (a nano alternative), when installed. git follows $EDITOR.
+if (Get-Command micro -ErrorAction SilentlyContinue) { $env:EDITOR = 'micro' }
+
 if (Get-Command zoxide -ErrorAction SilentlyContinue) {
     Invoke-Expression (& { (zoxide init powershell | Out-String) })
 }
@@ -246,6 +249,34 @@ function ccnotify {
     }
 }
 # ---- claude-code-end ----
+
+# ---- wzr-start ----
+function wzr {
+    param([string]$Topic = '')
+    $refDir = Join-Path $env:USERPROFILE '.wezterm-ref'
+
+    if ($Topic -eq '' -or $Topic -eq 'list' -or $Topic -eq '-h') {
+        if ($Topic -ne 'list') { Write-Host 'Usage: wzr <topic>  |  wzr list'; Write-Host '' }
+        Write-Host 'Topics:'
+        Get-ChildItem (Join-Path $refDir '*.txt') | ForEach-Object {
+            Write-Host "  wzr $($_.BaseName)"
+        }
+        return
+    }
+
+    $file = Join-Path $refDir "$Topic.txt"
+    if (-not (Test-Path $file)) {
+        Write-Warning "wzr: no topic '$Topic' — run 'wzr list'"
+        return
+    }
+
+    if (Get-Command bat -ErrorAction SilentlyContinue) {
+        & bat --style=plain --paging=always $file
+    } else {
+        Get-Content $file
+    }
+}
+# ---- wzr-end ----
 
 # ---- local-overrides-start ----
 # Per-machine overrides (not synced by the stack). The Windows counterpart of

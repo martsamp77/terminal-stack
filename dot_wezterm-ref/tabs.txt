@@ -1,0 +1,22 @@
+WEZTERM — TABS
+══════════════════════════════════════════════════════════════════════════════
+
+  Leader: Ctrl+Space — tap it, release, then press the next key within 1.5s.
+  Tab selection uses Alt — no leader needed.
+
+SELECT BY NUMBER                        the number matches the tab
+  Alt+1              tab 1
+  Alt+2              tab 2
+  …                  (and so on)
+  Alt+9              tab 9
+
+CYCLE
+  Ctrl+Tab           next tab
+  Ctrl+Shift+Tab     previous tab
+
+APPEARANCE
+  Each tab reads  "<number>: <dir>"  and tints green when Claude is done,
+  red on error.  The top-right shows the active workspace and current path.
+
+──────────────────────────────────────────────────────────────────────────────
+wzr list  ·  wzr panes  ·  wzr tabs  ·  wzr workspace

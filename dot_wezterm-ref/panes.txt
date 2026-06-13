@@ -1,0 +1,37 @@
+WEZTERM — PANE MANAGEMENT
+══════════════════════════════════════════════════════════════════════════════
+
+  Leader: Ctrl+Space — tap it, release, then press the next key within 1.5s.
+  Comma below means "then":  Ctrl+Space, h  =  leader, then h.
+
+SPLIT — LOCAL
+  Ctrl+Space, h      split right        new pane on the right (side-by-side)
+  Ctrl+Space, v      split down         new pane below (stacked)
+
+SPLIT — INTO A DOMAIN                   Shift = "remote": fuzzy-pick a domain
+  Ctrl+Space, H      → right            (local, WSL, SSH:* …) from a list, then
+  Ctrl+Space, V      → down             split that domain in (right / below)
+
+NAVIGATE
+  Ctrl+Space, j      left
+  Ctrl+Space, k      right
+  Ctrl+Space, i      up
+  Ctrl+Space, m      down
+
+RESIZE                                  uppercase — hold Shift with the key
+  Ctrl+Space, J      expand left        5-unit steps; repeat to taste
+  Ctrl+Space, K      expand right
+  Ctrl+Space, I      expand up
+  Ctrl+Space, M      expand down
+
+ZOOM & POP
+  Ctrl+Space, z      toggle zoom        fills the window; again to restore
+  Ctrl+Space, o      pop to window      moves pane into its own WezTerm window
+  Ctrl+Shift+O       pop to window      quick-access alias (no leader)
+
+QUADRANT GRID                           also Ctrl+Space, 1-4 (matches the layout)
+  F1  top-left              F2  top-right
+  F3  bottom-left           F4  bottom-right
+
+──────────────────────────────────────────────────────────────────────────────
+wzr list  ·  wzr panes  ·  wzr tabs  ·  wzr workspace

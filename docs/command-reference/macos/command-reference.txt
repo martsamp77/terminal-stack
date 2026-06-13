@@ -38,19 +38,31 @@ changes.
 
 ---
 
-## WezTerm (leader = `Ctrl+A`, 1.5s window)
+## WezTerm (leader = `Ctrl+Space`, 1.5s window)
 
 | Key | What it does |
 |---|---|
-| `Ctrl+A \` | split pane side by side |
-| `Ctrl+A -` | split pane top/bottom |
-| `Ctrl+A h/j/k/l` | move between panes (vim directions) |
-| `Ctrl+A w` | workspace picker (fuzzy) |
-| `Ctrl+A n` | new named workspace |
-| `Ctrl+A o` | pop the current tab out into a new window |
-| `Ctrl+A Ctrl+A` | send a literal Ctrl+A through |
-| `Alt+L` | launcher menu |
+| `Ctrl+Space h` | split pane side by side (new pane on the right) |
+| `Ctrl+Space v` | split pane top/bottom (new pane below) |
+| `Ctrl+Space H` | pick a domain (local / WSL / SSH…) and split it on the right |
+| `Ctrl+Space V` | pick a domain and split it below |
+| `Ctrl+Space j/k/i/m` | move between panes (left/right/up/down) |
+| `Ctrl+Space J/K/I/M` | resize active pane (5 cells) |
+| `Ctrl+Space z` | zoom/unzoom active pane (fullscreen within tab) |
+| `F1` / `F2` / `F3` / `F4` | jump to pane: top-left / top-right / bottom-left / bottom-right |
+| `Ctrl+Space 1/2/3/4` | same as F1–F4 (fallback if F-keys are captured by the OS) |
+| `Ctrl+Space w` | workspace picker (fuzzy) |
+| `Ctrl+Space n` | new named workspace |
+| `Ctrl+Space o` | pop the current pane out into a new window |
+| `Ctrl+Shift+O` | pop the current pane out (quick access, no leader) |
+| `Ctrl+Space r` | reload the WezTerm configuration (after editing .wezterm.lua or pane_grid.lua etc.) |
+| `Alt+1` … `Alt+9` | switch directly to tab 1–9 — no leader; the number matches the tab |
+| `Ctrl+Tab` / `Ctrl+Shift+Tab` | next / previous tab |
+| `Ctrl+Space Ctrl+Space` | send a literal Ctrl+Space through |
+| `Alt+L` | launcher menu (includes TABS and WORKSPACES) |
 | `Ctrl+V` | paste |
+
+Tab labels read `<number>: <dir>` and tint **green** when Claude is done / **red** on error; the top-right shows the active workspace and current path.
 
 ---
 

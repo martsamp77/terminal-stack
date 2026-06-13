@@ -1,11 +1,15 @@
--- ~/.wezterm.lua — macOS counterpart of windows/.wezterm.lua.
--- chezmoi applies this only on darwin (see .chezmoiignore); native Linux hosts in
--- this stack are headless (ssh/PuTTY), so they need no WezTerm GUI config.
--- Keep visual settings (font, theme, tab bar, keys, status) in sync with the
--- Windows file; the only intentional divergence is the launch shell.
+-- ~/.wezterm.lua — macOS counterpart of windows/.wezterm.lua. Minimal baseline.
+-- chezmoi applies this only on darwin; native Linux hosts in this stack are
+-- headless (ssh/PuTTY) and need no WezTerm GUI config.
+-- Near-stock WezTerm + a small set of pane/tab keybindings. One lightweight
+-- event handler (format-tab-title) renders flat "<index>: <dir>" tab labels and
+-- tints them green (done) / red (error) from the Claude Code state glyph the
+-- hooks write into the tab title. A second handler (update-right-status) shows
+-- the workspace + cwd top-right. Keep in sync with windows/.wezterm.lua.
 
 local wezterm = require 'wezterm'
 local act = wezterm.action
+local pane_grid = require 'pane_grid'
 local config = wezterm.config_builder()
 
 -- On macOS the default program is the login shell (zsh) — no default_prog needed.
@@ -24,21 +28,50 @@ config.font = wezterm.font_with_fallback {
 config.font_size = 11.5
 config.color_scheme = 'Catppuccin Mocha'
 config.window_background_opacity = 1.0
-config.use_fancy_tab_bar = true
+config.use_fancy_tab_bar = false   -- flat retro tab bar (see format-tab-title below)
 config.hide_tab_bar_if_only_one_tab = false
 config.window_decorations = 'INTEGRATED_BUTTONS|RESIZE'
 config.initial_cols = 120
 config.initial_rows = 40
 config.tab_max_width = 120
-config.window_frame = {
-  font_size = 11.0,
-}
+config.window_frame = { font_size = 11.0 }
+-- Strong active-pane signal: heavily dim inactive panes + a bright split line.
+config.inactive_pane_hsb = { brightness = 0.25, saturation = 0.6, hue = 1.0 }
+config.colors = { split = '#b4befe' }  -- lavender divider between panes
 
--- OpenGL avoids the WebGpu output-buffer stall where child-process output (e.g. Claude Code starting up) only renders after the next input event.
-config.front_end = 'OpenGL'
-config.scrollback_lines = 50000
+-- WebGpu is WezTerm's modern, fastest backend (set explicitly). If a render
+-- stall on child-process startup reappears, fall back to 'OpenGL'.
+config.front_end = 'WebGpu'
+config.scrollback_lines = 10000
 
-config.leader = { key = 'a', mods = 'CTRL', timeout_milliseconds = 1500 }
+-- Ctrl+Space leader: left pinky + thumb, frees the right hand for j/k/i/m.
+-- phys:Space matches the physical key (kept identical to the Windows side).
+config.leader = { key = 'phys:Space', mods = 'CTRL', timeout_milliseconds = 1500 }
+
+-- Fuzzy-pick a domain (Alt+L style) and split it into the current pane.
+-- direction is a wezterm SplitPane direction ('Right' or 'Down').
+local function pick_domain_split(window, pane, direction)
+  local choices = {}
+  for _, d in ipairs(wezterm.mux.all_domains()) do
+    table.insert(choices, { id = d:name(), label = d:name() })
+  end
+  table.sort(choices, function(a, b) return a.label < b.label end)
+  window:perform_action(act.InputSelector {
+    title = 'Split ' .. direction:lower() .. ' into domain',
+    choices = choices,
+    fuzzy = true,
+    action = wezterm.action_callback(function(win, p, id)
+      if not id then return end
+      -- SplitPane has no `domain` field; SplitHorizontal/SplitVertical take a
+      -- SpawnCommand whose `domain` selects the target domain.
+      if direction == 'Right' then
+        win:perform_action(act.SplitHorizontal { domain = { DomainName = id } }, p)
+      else
+        win:perform_action(act.SplitVertical { domain = { DomainName = id } }, p)
+      end
+    end),
+  }, pane)
+end
 
 config.keys = {
   { key = 'l', mods = 'ALT', action = act.ShowLauncherArgs {
@@ -51,36 +84,85 @@ config.keys = {
           window:perform_action(act.SwitchToWorkspace { name = line }, pane)
         end
       end) } },
-  { key = '\\', mods = 'LEADER', action = act.SplitHorizontal { domain = 'CurrentPaneDomain' } },
-  { key = '-',  mods = 'LEADER', action = act.SplitVertical   { domain = 'CurrentPaneDomain' } },
-  { key = 'h', mods = 'LEADER', action = act.ActivatePaneDirection 'Left' },
-  { key = 'l', mods = 'LEADER', action = act.ActivatePaneDirection 'Right' },
-  { key = 'k', mods = 'LEADER', action = act.ActivatePaneDirection 'Up' },
-  { key = 'j', mods = 'LEADER', action = act.ActivatePaneDirection 'Down' },
-  { key = 'a', mods = 'LEADER|CTRL', action = act.SendKey { key = 'a', mods = 'CTRL' } },
-  -- Pop the current tab/pane out into its own new window. WezTerm has no native
-  -- mouse drag-to-detach; this is the supported equivalent (pane:move_to_new_window).
-  { key = 'o', mods = 'LEADER', action = wezterm.action_callback(function(window, pane)
-      pane:move_to_new_window()
-  end) },
+  -- Local splits: h = SplitHorizontal (side-by-side), v = SplitVertical (stacked).
+  { key = 'h', mods = 'LEADER', action = act.SplitHorizontal { domain = 'CurrentPaneDomain' } },
+  { key = 'v', mods = 'LEADER', action = act.SplitVertical   { domain = 'CurrentPaneDomain' } },
+  -- Domain splits (Shift = "remote"): H = pick domain → right, V = pick domain → down.
+  { key = 'H', mods = 'LEADER', action = wezterm.action_callback(function(w, p) pick_domain_split(w, p, 'Right') end) },
+  { key = 'V', mods = 'LEADER', action = wezterm.action_callback(function(w, p) pick_domain_split(w, p, 'Down') end) },
+  { key = 'j', mods = 'LEADER', action = act.ActivatePaneDirection 'Left' },
+  { key = 'k', mods = 'LEADER', action = act.ActivatePaneDirection 'Right' },
+  { key = 'i', mods = 'LEADER', action = act.ActivatePaneDirection 'Up' },
+  { key = 'm', mods = 'LEADER', action = act.ActivatePaneDirection 'Down' },
+  { key = 'J', mods = 'LEADER', action = act.AdjustPaneSize { 'Left',  5 } },
+  { key = 'K', mods = 'LEADER', action = act.AdjustPaneSize { 'Right', 5 } },
+  { key = 'I', mods = 'LEADER', action = act.AdjustPaneSize { 'Up',    5 } },
+  { key = 'M', mods = 'LEADER', action = act.AdjustPaneSize { 'Down',  5 } },
+  { key = 'z', mods = 'LEADER', action = act.TogglePaneZoomState },
+  { key = 'phys:Space', mods = 'LEADER|CTRL', action = act.SendKey { key = ' ', mods = 'CTRL' } },
+  { key = 'r', mods = 'LEADER', action = act.ReloadConfiguration },
+  -- Tab selection: Alt+1..9 (number matches tab); Ctrl+Tab / Ctrl+Shift+Tab cycle.
+  -- (Leader+1..4 stay bound to the pane quadrant grid in pane_grid.lua.)
+  { key = 'Tab', mods = 'CTRL',       action = act.ActivateTabRelative(1) },
+  { key = 'Tab', mods = 'CTRL|SHIFT', action = act.ActivateTabRelative(-1) },
+  -- Pop the current pane out into its own new window.
+  -- Leader+o for muscle memory; Ctrl+Shift+O for quick access without the leader.
+  { key = 'o', mods = 'LEADER',     action = wezterm.action_callback(function(window, pane) pane:move_to_new_window() end) },
+  { key = 'o', mods = 'CTRL|SHIFT', action = wezterm.action_callback(function(window, pane) pane:move_to_new_window() end) },
   { key = 'v', mods = 'CTRL', action = act.PasteFrom 'Clipboard' },
 }
 
-wezterm.on('format-tab-title', function(tab, tabs, panes, config, hover, max_width)
-  local title = tab.tab_title
-  if not title or #title == 0 then title = tab.active_pane.title end
-  title = wezterm.truncate_right(title, max_width - 2)
-  return ' ' .. title .. ' '
+-- ── Flat tab labels: "<index>: <dir-leaf>", with a light Claude Code hint ─────
+-- The CC hooks set the tab title to "cc <glyph> <project>" (✓ on Stop, ✗ on
+-- error). We read only the glyph for colour and always render our own label, so
+-- thinking/working tabs stay plain and the colour shows on inactive tabs too.
+local CC_DONE  = '\xe2\x9c\x93'  -- ✓  Stop        → green
+local CC_ERROR = '\xe2\x9c\x97'  -- ✗  StopFailure → red
+
+local function dir_leaf(pane)
+  local cwd = pane.current_working_dir
+  if not cwd then return nil end
+  local p = (type(cwd) == 'userdata' and cwd.file_path) or tostring(cwd)
+  p = p:gsub('^file://[^/]*', ''):gsub('[/\\]+$', '')
+  return p:match('[^/\\]+$')
+end
+
+wezterm.on('format-tab-title', function(tab, tabs, panes, cfg, hover, max_width)
+  local leaf = dir_leaf(tab.active_pane) or tab.active_pane.title or ''
+  local label = wezterm.truncate_right(' ' .. (tab.tab_index + 1) .. ': ' .. leaf .. ' ', max_width)
+  local ttl = tab.tab_title or ''
+  if ttl:find(CC_ERROR, 1, true) then
+    return { { Foreground = { Color = '#f38ba8' } }, { Text = label } }  -- red
+  elseif ttl:find(CC_DONE, 1, true) then
+    return { { Foreground = { Color = '#a6e3a1' } }, { Text = label } }  -- green
+  end
+  return label
 end)
 
-wezterm.on('update-right-status', function(window, pane)
-  local workspace = window:active_workspace()
+-- ── Top-right status: workspace + current path (both always shown) ────────────
+local function cwd_path(pane)
   local cwd = pane:get_current_working_dir()
-  local cwd_str = cwd and (cwd.file_path or '') or ''
+  if not cwd then return '' end
+  if type(cwd) == 'userdata' then return cwd.file_path or tostring(cwd) end
+  return (tostring(cwd):gsub('^file://[^/]*', ''))
+end
+
+wezterm.on('update-right-status', function(window, pane)
   window:set_right_status(wezterm.format {
-    { Foreground = { AnsiColor = 'Green' } }, { Text = '  ' .. workspace .. '  ' },
-    { Foreground = { AnsiColor = 'Blue' } },  { Text = '│  ' .. cwd_str .. ' ' },
+    { Foreground = { Color = '#89b4fa' } },
+    { Text = '⬡ ' .. window:active_workspace() },
+    { Foreground = { Color = '#585b70' } },
+    { Text = '  │  ' },
+    { Foreground = { Color = '#a6adc8' } },
+    { Text = cwd_path(pane) .. '  ' },
   })
 end)
+
+-- Alt+1..9 → activate tab by number (appended to the literal config.keys above).
+for i = 1, 9 do
+  table.insert(config.keys, { key = tostring(i), mods = 'ALT', action = act.ActivateTab(i - 1) })
+end
+
+pane_grid.bind_keys(config.keys, wezterm)
 
 return config

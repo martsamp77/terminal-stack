@@ -12,6 +12,12 @@ All notable changes captured here. Format loosely follows [Keep a Changelog](htt
 
 - **`plain` — escape hatch to a vanilla shell** (both shells, same cross-shell name convention as `ts-update`). pwsh: nested `pwsh -NoLogo -NoProfile`; zsh: nested `zsh -df` (no rc files). Tab title shows `plain • <dir>` while inside; `exit` drops back to the customized shell. The Windows `launch_menu` (`Alt+L`) gains matching "PowerShell 7 (plain)" and "WSL zsh (plain)" entries for new-tab use. Documented in both command references.
 - **`help.autocorrect = prompt`** in the stack git include (canonical + Windows mirror): a typo'd subcommand (`git pulll`) offers the correction and waits for y/n instead of erroring. Needs git ≥ 2.40 — all bootstrap targets ship newer.
+- **`wzr` — WezTerm key reference at your fingertips.** `wzr <topic>` (`panes`, `tabs`, `workspace`) prints a focused cheat-sheet of the leader keys; `wzr list` shows the topics. Deployed as `~/.local/bin/wzr` (zsh/Linux/macOS) and a matching `wzr` function in `$PROFILE` (Windows), each reading aligned `.txt` topic files from `~/.wezterm-ref/`.
+- **`micro` editor on every target**, set as the default `$EDITOR`. Installed via apt (WSL/native Linux), `zyedidia.micro` through winget (Windows), and brew (macOS). The shells pick it up defensively: zsh exports `EDITOR=micro` only when the binary is present (falling back to `nano`, so bare ssh servers without micro still edit), and the pwsh `$PROFILE` sets `$env:EDITOR='micro'` when installed. git follows `$EDITOR`.
+
+### Changed
+
+- **WezTerm tab bar + keybindings reworked** (both `windows/.wezterm.lua` and `dot_wezterm.lua`). The fancy tab bar is now a flat retro bar; each tab is labelled `<number>: <dir>` and tinted **green** (Claude done) / **red** (error) from the state glyph the Claude-Code hooks write into the tab title — so an inactive tab that needs you still stands out. Inactive panes dim harder (`inactive_pane_hsb` brightness `0.25`) with a bright lavender split line, and the right-status shows the active workspace + cwd. Keys: local splits are now `Ctrl+Space h` (right) / `v` (below); `Ctrl+Space H` / `V` open a fuzzy domain picker and split the chosen domain (local / WSL / SSH) right / below; tab selection moved to `Alt+1…9` (the number matches the tab) with `Ctrl+Tab` / `Ctrl+Shift+Tab` to cycle — replacing the old `Ctrl+Space 6-9`, which clashed awkwardly with the `Ctrl+Space 1-4` quadrant grid. Command references and `wzr` updated to match.
 
 ### Fixed
 
