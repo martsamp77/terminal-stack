@@ -54,23 +54,32 @@ repo_owner=$(json_get workspace.repo.owner)
 repo_name=$(json_get workspace.repo.name)
 
 # ── Git: branch + dirty + ahead/behind ───────────────────────────────────────
-branch=""; git_sym=""; git_extra=""
+branch=""; git_status=""
 if command -v git &>/dev/null && [ -n "$cwd" ]; then
     branch=$(git -C "$cwd" rev-parse --abbrev-ref HEAD 2>/dev/null || true)
     if [ -n "$branch" ]; then
         porcelain=$(git -C "$cwd" status --porcelain=v2 --branch 2>/dev/null || true)
-        if printf '%s\n' "$porcelain" | grep -qE '^[12u?]'; then
-            git_sym="●"
-        else
-            git_sym="✓"
-        fi
+        # Porcelain v2: "1/2 XY …" (X=staged, Y=worktree), "u …" (unmerged), "? …" (untracked).
+        # Clean → "✓"; dirty → "+staged ~modified -deleted ?untracked !conflicts" (non-zero only).
+        staged=$(   printf '%s\n' "$porcelain" | grep -cE '^[12] [MTADRC]\.')
+        modified=$( printf '%s\n' "$porcelain" | grep -cE '^[12] [.MTADRC][MTADRC]')
+        deleted=$(  printf '%s\n' "$porcelain" | grep -cE '^[12] .D')
+        untracked=$(printf '%s\n' "$porcelain" | grep -cE '^\?')
+        conflicts=$(printf '%s\n' "$porcelain" | grep -cE '^u ')
+        parts=""
+        [ "$staged"    -gt 0 ] 2>/dev/null && parts="${parts} +${staged}"
+        [ "$modified"  -gt 0 ] 2>/dev/null && parts="${parts} ~${modified}"
+        [ "$deleted"   -gt 0 ] 2>/dev/null && parts="${parts} -${deleted}"
+        [ "$untracked" -gt 0 ] 2>/dev/null && parts="${parts} ?${untracked}"
+        [ "$conflicts" -gt 0 ] 2>/dev/null && parts="${parts} !${conflicts}"
+        if [ -n "$parts" ]; then git_status="${parts# }"; else git_status="✓"; fi
         # Parse "# branch.ab +N -M" — portable (no grep -P)
         ab=$(printf '%s\n' "$porcelain" | grep '^# branch.ab' | head -1)
         if [ -n "$ab" ]; then
             set -- $ab           # split on whitespace: $3=+N $4=-M
             ahead=${3#+}; behind=${4#-}
-            [ "${ahead:-0}" -gt 0 ] 2>/dev/null && git_extra="${git_extra} ↑${ahead}"
-            [ "${behind:-0}" -gt 0 ] 2>/dev/null && git_extra="${git_extra} ↓${behind}"
+            [ "${ahead:-0}"  -gt 0 ] 2>/dev/null && git_status="${git_status} ↑${ahead}"
+            [ "${behind:-0}" -gt 0 ] 2>/dev/null && git_status="${git_status} ↓${behind}"
         fi
     fi
 fi
@@ -163,7 +172,7 @@ SEP=" | "
 
 line1="$cwd"
 if [ -n "$branch" ]; then
-    line1="${line1}${SEP}${branch} ${git_sym}${git_extra}"
+    line1="${line1}${SEP}${branch} ${git_status}"
 fi
 [ -n "$repo_owner" ] && [ -n "$repo_name" ] && line1="${line1}${SEP}${repo_owner}/${repo_name}"
 
