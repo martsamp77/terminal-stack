@@ -278,6 +278,37 @@ function wzr {
 }
 # ---- wzr-end ----
 
+# ---- editor-launch-start ----
+# npp [files...] — open file(s) in Notepad++ (like `ws`, but launches an editor).
+# Resolve the exe lazily and invoke with the call operator `&` (the install path
+# has spaces, so it must be invoked, not run as a bare command). GUI app, so `&`
+# returns to the prompt immediately rather than blocking.
+function npp {
+    param([Parameter(ValueFromRemainingArguments = $true)][string[]]$Paths)
+    $exe = (Get-Command notepad++ -ErrorAction SilentlyContinue).Source
+    if (-not $exe) {
+        foreach ($c in @("$env:ProgramFiles\Notepad++\notepad++.exe",
+                         "${env:ProgramFiles(x86)}\Notepad++\notepad++.exe")) {
+            if (Test-Path $c) { $exe = $c; break }
+        }
+    }
+    if (-not $exe) {
+        Write-Warning 'npp: Notepad++ not found — install it or add notepad++.exe to PATH'
+        return
+    }
+    if (-not $Paths) { & $exe; return }
+    # Resolve each arg against the current dir so relative paths open correctly;
+    # a not-yet-existing path is passed through (Notepad++ opens a new buffer).
+    $resolved = foreach ($p in $Paths) {
+        $full = Resolve-Path -LiteralPath $p -ErrorAction SilentlyContinue
+        if     ($full)                                 { $full.Path }
+        elseif ([System.IO.Path]::IsPathRooted($p))    { $p }
+        else                                           { Join-Path (Get-Location).Path $p }
+    }
+    & $exe @resolved
+}
+# ---- editor-launch-end ----
+
 # ---- local-overrides-start ----
 # Per-machine overrides (not synced by the stack). The Windows counterpart of
 # ~/.zshrc.local — see profile.local.ps1.example. Keep this block last so
