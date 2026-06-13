@@ -42,16 +42,17 @@ changes.
 
 | Key | What it does |
 |---|---|
-| `Ctrl+Space h` | split pane side by side (new pane on the right) |
-| `Ctrl+Space v` | split pane top/bottom (new pane below) |
-| `Ctrl+Space H` | pick a domain (local / WSL / SSH…) and split it on the right |
-| `Ctrl+Space V` | pick a domain and split it below |
+| `Ctrl+Space h` | split pane top/bottom (new pane below) |
+| `Ctrl+Space v` | split pane side by side (new pane on the right) |
+| `Ctrl+Space H` | pick a domain (local / WSL / SSH…) and split it below |
+| `Ctrl+Space V` | pick a domain and split it on the right |
 | `Ctrl+Space j/k/i/m` | move between panes (left/right/up/down) |
 | `Ctrl+Space J/K/I/M` | resize active pane (5 cells) |
 | `Ctrl+Space z` | zoom/unzoom active pane (fullscreen within tab) |
 | `Ctrl+Space x` | close the active pane (asks to confirm) |
-| `F1` / `F2` / `F3` / `F4` | jump to pane: top-left / top-right / bottom-left / bottom-right |
-| `Ctrl+Space 1/2/3/4` | same as F1–F4 (fallback if F-keys are captured by the OS) |
+| `F1`…`F6` | build-or-focus a cell of a 3×2 grid — F1 F2 F3 top row, F4 F5 F6 bottom; creates the pane if missing, else focuses it |
+| `Shift+F1`…`Shift+F6` | build the cell with its new pane opened in a fuzzy-picked domain |
+| `Ctrl+Space 1`…`Ctrl+Space 6` | same as F1–F6 (fallback if F-keys are captured by the OS) |
 | `Ctrl+Space w` | workspace picker (fuzzy) |
 | `Ctrl+Space n` | new named workspace |
 | `Ctrl+Space R` | rename the current workspace |

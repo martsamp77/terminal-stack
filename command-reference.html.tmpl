@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Command Reference — terminal-stack</title>
 <!-- Generated from command-reference.md.tmpl by scripts/render-command-reference.sh - do not edit by hand. -->
-<!-- source-sha256: e65a5cc44441b4cd53b8d7fcb59f9130726b8d836ae2f5325307fd80d331a546 -->
+<!-- source-sha256: 2225b32486688ea67c2895fdadd1bf34fbf358631f635c4b00004432d4099242 -->
 <style>
 :root { color-scheme: light dark; }
 body {
@@ -95,16 +95,17 @@ changes.</p>
   <tr><th>Key</th><th>What it does</th></tr>
  </thead>
  <tbody>
-  <tr><td><code>Ctrl+Space h</code></td><td>split pane side by side (new pane on the right)</td></tr>
-  <tr><td><code>Ctrl+Space v</code></td><td>split pane top/bottom (new pane below)</td></tr>
-  <tr><td><code>Ctrl+Space H</code></td><td>pick a domain (local / WSL / SSH…) and split it on the right</td></tr>
-  <tr><td><code>Ctrl+Space V</code></td><td>pick a domain and split it below</td></tr>
+  <tr><td><code>Ctrl+Space h</code></td><td>split pane top/bottom (new pane below)</td></tr>
+  <tr><td><code>Ctrl+Space v</code></td><td>split pane side by side (new pane on the right)</td></tr>
+  <tr><td><code>Ctrl+Space H</code></td><td>pick a domain (local / WSL / SSH…) and split it below</td></tr>
+  <tr><td><code>Ctrl+Space V</code></td><td>pick a domain and split it on the right</td></tr>
   <tr><td><code>Ctrl+Space j/k/i/m</code></td><td>move between panes (left/right/up/down)</td></tr>
   <tr><td><code>Ctrl+Space J/K/I/M</code></td><td>resize active pane (5 cells)</td></tr>
   <tr><td><code>Ctrl+Space z</code></td><td>zoom/unzoom active pane (fullscreen within tab)</td></tr>
   <tr><td><code>Ctrl+Space x</code></td><td>close the active pane (asks to confirm)</td></tr>
-  <tr><td><code>F1</code> / <code>F2</code> / <code>F3</code> / <code>F4</code></td><td>jump to pane: top-left / top-right / bottom-left / bottom-right</td></tr>
-  <tr><td><code>Ctrl+Space 1/2/3/4</code></td><td>same as F1–F4 (fallback if F-keys are captured by the OS)</td></tr>
+  <tr><td><code>F1</code>…<code>F6</code></td><td>build-or-focus a cell of a 3×2 grid — F1 F2 F3 top row, F4 F5 F6 bottom; creates the pane if missing, else focuses it</td></tr>
+  <tr><td><code>Shift+F1</code>…<code>Shift+F6</code></td><td>build the cell with its new pane opened in a fuzzy-picked domain</td></tr>
+  <tr><td><code>Ctrl+Space 1</code>…<code>Ctrl+Space 6</code></td><td>same as F1–F6 (fallback if F-keys are captured by the OS)</td></tr>
   <tr><td><code>Ctrl+Space w</code></td><td>workspace picker (fuzzy)</td></tr>
   <tr><td><code>Ctrl+Space n</code></td><td>new named workspace</td></tr>
   <tr><td><code>Ctrl+Space R</code></td><td>rename the current workspace</td></tr>

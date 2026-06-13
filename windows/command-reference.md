@@ -14,16 +14,17 @@ file changes.
 
 | Key | What it does |
 |---|---|
-| `Ctrl+Space h` | split pane side by side (new pane on the right) |
-| `Ctrl+Space v` | split pane top/bottom (new pane below) |
-| `Ctrl+Space H` | pick a domain (local / WSL / SSH…) and split it on the right |
-| `Ctrl+Space V` | pick a domain and split it below |
+| `Ctrl+Space h` | split pane top/bottom (new pane below) |
+| `Ctrl+Space v` | split pane side by side (new pane on the right) |
+| `Ctrl+Space H` | pick a domain (local / WSL / SSH…) and split it below |
+| `Ctrl+Space V` | pick a domain and split it on the right |
 | `Ctrl+Space j/k/i/m` | move between panes (left/right/up/down) |
 | `Ctrl+Space J/K/I/M` | resize active pane (5 cells) |
 | `Ctrl+Space z` | zoom/unzoom active pane (fullscreen within tab) |
 | `Ctrl+Space x` | close the active pane (asks to confirm) |
-| `F1` / `F2` / `F3` / `F4` | jump to pane: top-left / top-right / bottom-left / bottom-right |
-| `Ctrl+Space 1/2/3/4` | same as F1–F4 (fallback if F-keys are captured by the OS) |
+| `F1`…`F6` | build-or-focus a cell of a 3×2 grid — F1 F2 F3 top row, F4 F5 F6 bottom; creates the pane if missing, else focuses it |
+| `Shift+F1`…`Shift+F6` | build the cell with its new pane opened in a fuzzy-picked domain |
+| `Ctrl+Space 1`…`Ctrl+Space 6` | same as F1–F6 (fallback if F-keys are captured by the OS) |
 | `Ctrl+Space w` | workspace picker (fuzzy) |
 | `Ctrl+Space n` | new named workspace |
 | `Ctrl+Space R` | rename the current workspace |
@@ -37,7 +38,7 @@ file changes.
 | `Alt+L` | launcher menu (includes TABS and WORKSPACES) |
 | `Ctrl+V` | paste |
 
-**Recommended model (one WezTerm OS window):** Use WezTerm *workspaces* (Ctrl+Space, w fuzzy picker, Ctrl+Space, n to create) as the unit of "what I'm working on" (Project-Alpha vs Project-Beta). Inside a workspace use *panes* (Ctrl+Space, h / v to split, j/k/i/m to move, J/K/I/M to resize, z to zoom, 1-4 / F1-4 for the four quadrants of a 2×2) for things you want to watch simultaneously. Need a remote shell beside your work? Ctrl+Space, H (right) or V (below) opens a domain picker — choose an SSH or WSL domain and it splits that in. Tabs are cheap full-screen flips within a workspace; jump straight to one with Alt+1…9. Each tab is labelled with its number and directory (e.g. `2: terminal-stack`) and tints green when Claude finishes / red on error; the top-right shows the active workspace and current path. This replaces the need for multiple top-level WezTerm windows.
+**Recommended model (one WezTerm OS window):** Use WezTerm *workspaces* (Ctrl+Space, w fuzzy picker, Ctrl+Space, n to create) as the unit of "what I'm working on" (Project-Alpha vs Project-Beta). Inside a workspace use *panes* (Ctrl+Space, h / v to split, j/k/i/m to move, J/K/I/M to resize, z to zoom, F1-F6 / Ctrl+Space 1-6 to build-or-focus a 3×2 grid) for things you want to watch simultaneously. Need a remote shell beside your work? Ctrl+Space, H (below) or V (right) opens a domain picker — choose an SSH or WSL domain and it splits that in. Tabs are cheap full-screen flips within a workspace; jump straight to one with Alt+1…9. Each tab is labelled with its number and directory (e.g. `2: terminal-stack`) and tints green when Claude finishes / red on error; the top-right shows the active workspace and current path. This replaces the need for multiple top-level WezTerm windows.
 
 **Managing workspaces:** rename the current one with `Ctrl+Space R`; "delete" a live one with `Ctrl+Space X` (closes all its panes).
 
@@ -120,6 +121,7 @@ file changes.
 | `lt` | eza tree view |
 | `bat file` | cat with syntax highlighting |
 | `glow file.md` | render markdown in the terminal (`glow .` for a browser) |
+| `npp file` | open file(s) in Notepad++ (launches the GUI; `npp` alone opens it empty) |
 | `Ctrl+R` | fzf fuzzy-search command history |
 | `Ctrl+T` | fzf fuzzy-find a file, insert its path |
 | `rg pattern` | ripgrep — recursive grep, fast |
