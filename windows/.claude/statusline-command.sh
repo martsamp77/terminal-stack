@@ -47,7 +47,9 @@ lines_removed=$(json_get cost.total_lines_removed)
 duration_ms=$(json_get cost.total_duration_ms)
 
 five_hr_pct=$(json_get rate_limits.five_hour.used_percentage)
+five_hr_reset=$(json_get rate_limits.five_hour.resets_at)
 seven_day_pct=$(json_get rate_limits.seven_day.used_percentage)
+seven_day_reset=$(json_get rate_limits.seven_day.resets_at)
 
 repo_owner=$(json_get workspace.repo.owner)
 repo_name=$(json_get workspace.repo.name)
@@ -130,10 +132,35 @@ if [ -n "$duration_ms" ] && [ "$duration_ms" -gt 0 ] 2>/dev/null; then
     dur_str="${mins}m"
 fi
 
-# ── Rate limits ───────────────────────────────────────────────────────────────
+# ── Rate limits + reset countdowns ───────────────────────────────────────────
+fmt_reset() {
+    local ts="$1"
+    [ -z "$ts" ] || [ -z "$_py" ] && { printf ''; return; }
+    printf '%s' "$ts" | "$_py" -c "
+import sys, time
+try:
+    r = int(sys.stdin.read().strip()) - int(time.time())
+    if r <= 0: print('soon')
+    elif r < 3600: print(f'{r//60}m')
+    elif r < 86400:
+        h,m = r//3600,(r%3600)//60
+        print(f'{h}h {m}m' if m else f'{h}h')
+    else:
+        d,h = r//86400,(r%86400)//3600
+        print(f'{d}d {h}h' if h else f'{d}d')
+except: print('')
+" 2>/dev/null
+}
+
 limits_str=""
 if [ -n "$five_hr_pct" ] && [ -n "$seven_day_pct" ]; then
-    limits_str="5h: ${five_hr_pct}% • 7d: ${seven_day_pct}%"
+    five_reset=$(fmt_reset "$five_hr_reset")
+    seven_reset=$(fmt_reset "$seven_day_reset")
+    five_str="5h: ${five_hr_pct}%"
+    [ -n "$five_reset" ] && five_str="${five_str} (resets ${five_reset})"
+    seven_str="7d: ${seven_day_pct}%"
+    [ -n "$seven_reset" ] && seven_str="${seven_str} (resets ${seven_reset})"
+    limits_str="${five_str} • ${seven_str}"
 fi
 
 # ── Identity ──────────────────────────────────────────────────────────────────
