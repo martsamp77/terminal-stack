@@ -21,7 +21,7 @@ common_apt_prereqs() {
     # Core packages — must be in apt on any supported Debian/Ubuntu.
     sudo apt-get install -y \
         zsh git curl unzip tmux \
-        zoxide fzf bat ripgrep \
+        zoxide fzf bat ripgrep micro \
         fonts-jetbrains-mono fontconfig \
         >/dev/null
     # Optional — present on Ubuntu 23.10+, missing on 22.04 (jammy). Try, ignore failures;

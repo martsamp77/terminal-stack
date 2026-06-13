@@ -57,7 +57,8 @@ $corePackages = @(
     'dandavison.delta',                 # git diff pager
     'BurntSushi.ripgrep.MSVC',          # Fast grep
     'ajeetdsouza.zoxide',               # Smarter cd
-    'charmbracelet.glow'                # Markdown reader (TUI)
+    'charmbracelet.glow',               # Markdown reader (TUI)
+    'zyedidia.micro'                    # nano-like terminal text editor
 )
 
 foreach ($pkg in $corePackages) {

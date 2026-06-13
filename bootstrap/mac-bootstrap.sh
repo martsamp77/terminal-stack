@@ -38,7 +38,7 @@ fi
 echo "$INFO Installing brew formulae and casks"
 brew install \
     zsh git tmux \
-    eza zoxide fzf bat git-delta ripgrep \
+    eza zoxide fzf bat git-delta ripgrep micro \
     starship chezmoi
 
 # 3. WezTerm (cask) — nightly, matching the Windows side.
