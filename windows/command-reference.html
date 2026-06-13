@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Command Reference — terminal-stack (Windows / PowerShell)</title>
 <!-- Generated from command-reference.md by scripts/render-command-reference.sh - do not edit by hand. -->
-<!-- source-sha256: 4eceb61e901bbb81347d048ca856a2ef46cfc25aec8006164f84b5b7ecb8af75 -->
+<!-- source-sha256: 0fc65692d0fd46c783df8826ebe5060699e24af06e152adbea83a7954c88f2b3 -->
 <style>
 :root { color-scheme: light dark; }
 body {
@@ -67,10 +67,13 @@ file changes.</p>
   <tr><td><code>Ctrl+Space j/k/i/m</code></td><td>move between panes (left/right/up/down)</td></tr>
   <tr><td><code>Ctrl+Space J/K/I/M</code></td><td>resize active pane (5 cells)</td></tr>
   <tr><td><code>Ctrl+Space z</code></td><td>zoom/unzoom active pane (fullscreen within tab)</td></tr>
+  <tr><td><code>Ctrl+Space x</code></td><td>close the active pane (asks to confirm)</td></tr>
   <tr><td><code>F1</code> / <code>F2</code> / <code>F3</code> / <code>F4</code></td><td>jump to pane: top-left / top-right / bottom-left / bottom-right</td></tr>
   <tr><td><code>Ctrl+Space 1/2/3/4</code></td><td>same as F1–F4 (fallback if F-keys are captured by the OS)</td></tr>
   <tr><td><code>Ctrl+Space w</code></td><td>workspace picker (fuzzy)</td></tr>
   <tr><td><code>Ctrl+Space n</code></td><td>new named workspace</td></tr>
+  <tr><td><code>Ctrl+Space R</code></td><td>rename the current workspace</td></tr>
+  <tr><td><code>Ctrl+Space X</code></td><td>close every pane in the current workspace ("delete" it)</td></tr>
   <tr><td><code>Ctrl+Space o</code></td><td>pop the current pane out into a new window</td></tr>
   <tr><td><code>Ctrl+Shift+O</code></td><td>pop the current pane out (quick access, no leader)</td></tr>
   <tr><td><code>Ctrl+Space r</code></td><td>reload the WezTerm configuration (after editing .wezterm.lua or pane_grid.lua etc.)</td></tr>
@@ -82,6 +85,7 @@ file changes.</p>
  </tbody>
 </table>
 <p><strong>Recommended model (one WezTerm OS window):</strong> Use WezTerm <em>workspaces</em> (Ctrl+Space, w fuzzy picker, Ctrl+Space, n to create) as the unit of "what I'm working on" (Project-Alpha vs Project-Beta). Inside a workspace use <em>panes</em> (Ctrl+Space, h / v to split, j/k/i/m to move, J/K/I/M to resize, z to zoom, 1-4 / F1-4 for the four quadrants of a 2×2) for things you want to watch simultaneously. Need a remote shell beside your work? Ctrl+Space, H (right) or V (below) opens a domain picker — choose an SSH or WSL domain and it splits that in. Tabs are cheap full-screen flips within a workspace; jump straight to one with Alt+1…9. Each tab is labelled with its number and directory (e.g. <code>2: terminal-stack</code>) and tints green when Claude finishes / red on error; the top-right shows the active workspace and current path. This replaces the need for multiple top-level WezTerm windows.</p>
+<p><strong>Managing workspaces:</strong> rename the current one with <code>Ctrl+Space R</code>; "delete" a live one with <code>Ctrl+Space X</code> (closes all its panes).</p>
 <hr>
 <h2>git</h2>
 <h3>Shell functions (typed bare)</h3>

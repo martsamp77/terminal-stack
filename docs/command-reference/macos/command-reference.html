@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Command Reference — terminal-stack</title>
 <!-- Generated from command-reference.md.tmpl (resolved for darwin) by scripts/render-command-reference.sh - do not edit by hand. -->
-<!-- source-sha256: 7c1ff86fcac6c1c5fc6a0ceb574d064994c898414a4ba729150aefb78f276b3b -->
+<!-- source-sha256: 224031306172eb269f49eecc66f4896ab447567c80ab983f0347a72658c8141e -->
 <style>
 :root { color-scheme: light dark; }
 body {
@@ -101,10 +101,13 @@ changes.</p>
   <tr><td><code>Ctrl+Space j/k/i/m</code></td><td>move between panes (left/right/up/down)</td></tr>
   <tr><td><code>Ctrl+Space J/K/I/M</code></td><td>resize active pane (5 cells)</td></tr>
   <tr><td><code>Ctrl+Space z</code></td><td>zoom/unzoom active pane (fullscreen within tab)</td></tr>
+  <tr><td><code>Ctrl+Space x</code></td><td>close the active pane (asks to confirm)</td></tr>
   <tr><td><code>F1</code> / <code>F2</code> / <code>F3</code> / <code>F4</code></td><td>jump to pane: top-left / top-right / bottom-left / bottom-right</td></tr>
   <tr><td><code>Ctrl+Space 1/2/3/4</code></td><td>same as F1–F4 (fallback if F-keys are captured by the OS)</td></tr>
   <tr><td><code>Ctrl+Space w</code></td><td>workspace picker (fuzzy)</td></tr>
   <tr><td><code>Ctrl+Space n</code></td><td>new named workspace</td></tr>
+  <tr><td><code>Ctrl+Space R</code></td><td>rename the current workspace</td></tr>
+  <tr><td><code>Ctrl+Space X</code></td><td>close every pane in the current workspace ("delete" it)</td></tr>
   <tr><td><code>Ctrl+Space o</code></td><td>pop the current pane out into a new window</td></tr>
   <tr><td><code>Ctrl+Shift+O</code></td><td>pop the current pane out (quick access, no leader)</td></tr>
   <tr><td><code>Ctrl+Space r</code></td><td>reload the WezTerm configuration (after editing .wezterm.lua or pane_grid.lua etc.)</td></tr>

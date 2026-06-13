@@ -21,10 +21,13 @@ file changes.
 | `Ctrl+Space j/k/i/m` | move between panes (left/right/up/down) |
 | `Ctrl+Space J/K/I/M` | resize active pane (5 cells) |
 | `Ctrl+Space z` | zoom/unzoom active pane (fullscreen within tab) |
+| `Ctrl+Space x` | close the active pane (asks to confirm) |
 | `F1` / `F2` / `F3` / `F4` | jump to pane: top-left / top-right / bottom-left / bottom-right |
 | `Ctrl+Space 1/2/3/4` | same as F1–F4 (fallback if F-keys are captured by the OS) |
 | `Ctrl+Space w` | workspace picker (fuzzy) |
 | `Ctrl+Space n` | new named workspace |
+| `Ctrl+Space R` | rename the current workspace |
+| `Ctrl+Space X` | close every pane in the current workspace ("delete" it) |
 | `Ctrl+Space o` | pop the current pane out into a new window |
 | `Ctrl+Shift+O` | pop the current pane out (quick access, no leader) |
 | `Ctrl+Space r` | reload the WezTerm configuration (after editing .wezterm.lua or pane_grid.lua etc.) |
@@ -35,6 +38,8 @@ file changes.
 | `Ctrl+V` | paste |
 
 **Recommended model (one WezTerm OS window):** Use WezTerm *workspaces* (Ctrl+Space, w fuzzy picker, Ctrl+Space, n to create) as the unit of "what I'm working on" (Project-Alpha vs Project-Beta). Inside a workspace use *panes* (Ctrl+Space, h / v to split, j/k/i/m to move, J/K/I/M to resize, z to zoom, 1-4 / F1-4 for the four quadrants of a 2×2) for things you want to watch simultaneously. Need a remote shell beside your work? Ctrl+Space, H (right) or V (below) opens a domain picker — choose an SSH or WSL domain and it splits that in. Tabs are cheap full-screen flips within a workspace; jump straight to one with Alt+1…9. Each tab is labelled with its number and directory (e.g. `2: terminal-stack`) and tints green when Claude finishes / red on error; the top-right shows the active workspace and current path. This replaces the need for multiple top-level WezTerm windows.
+
+**Managing workspaces:** rename the current one with `Ctrl+Space R`; "delete" a live one with `Ctrl+Space X` (closes all its panes).
 
 ---
 

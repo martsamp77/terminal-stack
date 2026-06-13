@@ -12,5 +12,9 @@ WORKSPACES                              persistent named sessions; each has its
   Ctrl+Space, w      switch             fuzzy picker of existing workspaces
   Ctrl+Space, n      new / switch       type a name to create or jump to one
 
+MANAGE
+  Ctrl+Space, R      rename             rename the current workspace
+  Ctrl+Space, X      kill               close every pane in this workspace
+
 ──────────────────────────────────────────────────────────────────────────────
 wzr list  ·  wzr panes  ·  wzr tabs  ·  wzr workspace

@@ -24,10 +24,11 @@ RESIZE                                  uppercase — hold Shift with the key
   Ctrl+Space, I      expand up
   Ctrl+Space, M      expand down
 
-ZOOM & POP
+ZOOM, POP & CLOSE
   Ctrl+Space, z      toggle zoom        fills the window; again to restore
   Ctrl+Space, o      pop to window      moves pane into its own WezTerm window
   Ctrl+Shift+O       pop to window      quick-access alias (no leader)
+  Ctrl+Space, x      close pane         closes this pane (confirms first)
 
 QUADRANT GRID                           also Ctrl+Space, 1-4 (matches the layout)
   F1  top-left              F2  top-right

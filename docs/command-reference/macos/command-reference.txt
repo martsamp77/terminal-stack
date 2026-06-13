@@ -49,10 +49,13 @@ changes.
 | `Ctrl+Space j/k/i/m` | move between panes (left/right/up/down) |
 | `Ctrl+Space J/K/I/M` | resize active pane (5 cells) |
 | `Ctrl+Space z` | zoom/unzoom active pane (fullscreen within tab) |
+| `Ctrl+Space x` | close the active pane (asks to confirm) |
 | `F1` / `F2` / `F3` / `F4` | jump to pane: top-left / top-right / bottom-left / bottom-right |
 | `Ctrl+Space 1/2/3/4` | same as F1–F4 (fallback if F-keys are captured by the OS) |
 | `Ctrl+Space w` | workspace picker (fuzzy) |
 | `Ctrl+Space n` | new named workspace |
+| `Ctrl+Space R` | rename the current workspace |
+| `Ctrl+Space X` | close every pane in the current workspace ("delete" it) |
 | `Ctrl+Space o` | pop the current pane out into a new window |
 | `Ctrl+Shift+O` | pop the current pane out (quick access, no leader) |
 | `Ctrl+Space r` | reload the WezTerm configuration (after editing .wezterm.lua or pane_grid.lua etc.) |
