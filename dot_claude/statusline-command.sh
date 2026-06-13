@@ -3,8 +3,8 @@
 # Receives session JSON on stdin. Writes three coloured lines to stdout.
 #
 # Line 1: <cwd> | <branch> <✓|●> [↑N][↓N] | <owner/repo>
-# Line 2: <model> | ctx: <pct>% <bar> | <used_k>/<total_M> tokens
-# Line 3: <user@host> | 5h: <pct>% • 7d: <pct>% | cost: $X.XX | +N/-M lines | Nm
+# Line 2: <model> | ctx <pct>% <bar> | 5h <pct>% <bar> <reset> | 7d <pct>% <bar> <reset>
+# Line 3: <user@host> | <used_k>/<total_M> tok | cost: $X.XX | +N/-M lines
 
 raw=$(cat)
 
@@ -44,7 +44,6 @@ ctx_total_tok=$(json_get context_window.total_input_tokens)
 cost_usd=$(json_get cost.total_cost_usd)
 lines_added=$(json_get cost.total_lines_added)
 lines_removed=$(json_get cost.total_lines_removed)
-duration_ms=$(json_get cost.total_duration_ms)
 
 five_hr_pct=$(json_get rate_limits.five_hour.used_percentage)
 five_hr_reset=$(json_get rate_limits.five_hour.resets_at)
@@ -76,36 +75,39 @@ if command -v git &>/dev/null && [ -n "$cwd" ]; then
     fi
 fi
 
-# ── Context bar ───────────────────────────────────────────────────────────────
+# ── Bar renderer (shared by ctx + rate limits) ───────────────────────────────
 R=$'\033[0m'
-ctx_str="?"
-if [ -n "$ctx_used_pct" ] && [ "$ctx_used_pct" -ge 0 ] 2>/dev/null; then
-    pct=$ctx_used_pct
+GREY=$'\033[90m'
+# make_bar <pct> → "<pct>% <colour><10-seg █/░ bar><reset>"  (green<70 / yellow<90 / red)
+make_bar() {
+    local pct=$1 filled empty bar="" i c
+    pct=${pct%%.*}                                      # floats → int part (0.41 → 0)
+    case "$pct" in ''|*[!0-9]*) printf '?'; return;; esac
     [ "$pct" -gt 100 ] && pct=100
-    filled=$(( pct * 10 / 100 ))
-    [ "$filled" -gt 10 ] && filled=10
+    filled=$(( pct * 10 / 100 )); [ "$filled" -gt 10 ] && filled=10
     empty=$(( 10 - filled ))
-    bar=""; i=0
-    while [ $i -lt "$filled" ]; do bar="${bar}█"; i=$(( i+1 )); done
-    i=0
-    while [ $i -lt "$empty"  ]; do bar="${bar}░"; i=$(( i+1 )); done
+    i=0; while [ $i -lt "$filled" ]; do bar="${bar}█"; i=$(( i+1 )); done
+    i=0; while [ $i -lt "$empty"  ]; do bar="${bar}░"; i=$(( i+1 )); done
     if   [ "$pct" -ge 90 ]; then c=$'\033[1;31m'
     elif [ "$pct" -ge 70 ]; then c=$'\033[1;33m'
     else                          c=$'\033[1;32m'
     fi
-    ctx_str="${pct}% ${c}${bar}${R}"
-fi
+    printf '%s%% %s%s%s' "$pct" "$c" "$bar" "$R"
+}
 
-# ── Token display (e.g. 205k/1M tokens) ──────────────────────────────────────
+ctx_str="?"
+[ -n "$ctx_used_pct" ] && [ "$ctx_used_pct" -ge 0 ] 2>/dev/null && ctx_str=$(make_bar "$ctx_used_pct")
+
+# ── Token display (e.g. 205k/1M tok) ─────────────────────────────────────────
 token_str=""
 if [ -n "$ctx_total_tok" ] && [ -n "$ctx_window" ] && [ "$ctx_window" -gt 0 ] 2>/dev/null; then
     used_k=$(( ctx_total_tok / 1000 ))
     if [ "$ctx_window" -ge 1000000 ] 2>/dev/null; then
         total_m=$(( ctx_window / 1000000 ))
-        token_str="${used_k}k/${total_m}M tokens"
+        token_str="${used_k}k/${total_m}M tok"
     else
         total_k=$(( ctx_window / 1000 ))
-        token_str="${used_k}k/${total_k}k tokens"
+        token_str="${used_k}k/${total_k}k tok"
     fi
 fi
 
@@ -125,14 +127,8 @@ if [ -n "$lines_added" ] || [ -n "$lines_removed" ]; then
     lines_str="+${lines_added:-0}/-${lines_removed:-0} lines"
 fi
 
-# ── Session duration ──────────────────────────────────────────────────────────
-dur_str=""
-if [ -n "$duration_ms" ] && [ "$duration_ms" -gt 0 ] 2>/dev/null; then
-    mins=$(( duration_ms / 60000 ))
-    dur_str="${mins}m"
-fi
-
-# ── Rate limits + reset countdowns ───────────────────────────────────────────
+# ── Rate limits: ctx-style bars + compact reset countdown ────────────────────
+# fmt_reset <unix-ts> → a single coarse unit (e.g. "14m", "2h", "2d"); "" on error.
 fmt_reset() {
     local ts="$1"
     [ -z "$ts" ] || [ -z "$_py" ] && { printf ''; return; }
@@ -141,26 +137,21 @@ import sys, time
 try:
     r = int(sys.stdin.read().strip()) - int(time.time())
     if r <= 0: print('soon')
-    elif r < 3600: print(f'{r//60}m')
-    elif r < 86400:
-        h,m = r//3600,(r%3600)//60
-        print(f'{h}h {m}m' if m else f'{h}h')
-    else:
-        d,h = r//86400,(r%86400)//3600
-        print(f'{d}d {h}h' if h else f'{d}d')
+    elif r < 3600: print(f'{round(r/60)}m')
+    elif r < 86400: print(f'{round(r/3600)}h')
+    else: print(f'{round(r/86400)}d')
 except: print('')
 " 2>/dev/null
 }
 
-limits_str=""
-if [ -n "$five_hr_pct" ] && [ -n "$seven_day_pct" ]; then
-    five_reset=$(fmt_reset "$five_hr_reset")
-    seven_reset=$(fmt_reset "$seven_day_reset")
-    five_str="5h: ${five_hr_pct}%"
-    [ -n "$five_reset" ] && five_str="${five_str} (resets ${five_reset})"
-    seven_str="7d: ${seven_day_pct}%"
-    [ -n "$seven_reset" ] && seven_str="${seven_str} (resets ${seven_reset})"
-    limits_str="${five_str} • ${seven_str}"
+five_str=""; seven_str=""
+if [ -n "$five_hr_pct" ]; then
+    five_str="5h $(make_bar "$five_hr_pct")"
+    fr=$(fmt_reset "$five_hr_reset"); [ -n "$fr" ] && five_str="${five_str} ${GREY}${fr}${R}"
+fi
+if [ -n "$seven_day_pct" ]; then
+    seven_str="7d $(make_bar "$seven_day_pct")"
+    sr=$(fmt_reset "$seven_day_reset"); [ -n "$sr" ] && seven_str="${seven_str} ${GREY}${sr}${R}"
 fi
 
 # ── Identity ──────────────────────────────────────────────────────────────────
@@ -176,13 +167,13 @@ if [ -n "$branch" ]; then
 fi
 [ -n "$repo_owner" ] && [ -n "$repo_name" ] && line1="${line1}${SEP}${repo_owner}/${repo_name}"
 
-line2="${model:-?}${SEP}ctx: ${ctx_str}"
-[ -n "$token_str" ] && line2="${line2}${SEP}${token_str}"
+line2="${model:-?}${SEP}ctx ${ctx_str}"
+[ -n "$five_str"  ] && line2="${line2}${SEP}${five_str}"
+[ -n "$seven_str" ] && line2="${line2}${SEP}${seven_str}"
 
 line3="${user}@${host}"
-[ -n "$limits_str" ] && line3="${line3}${SEP}${limits_str}"
-[ -n "$cost_str"   ] && line3="${line3}${SEP}cost: ${cost_str}"
-[ -n "$lines_str"  ] && line3="${line3}${SEP}${lines_str}"
-[ -n "$dur_str"    ] && line3="${line3}${SEP}${dur_str}"
+[ -n "$token_str" ] && line3="${line3}${SEP}${token_str}"
+[ -n "$cost_str"  ] && line3="${line3}${SEP}cost: ${cost_str}"
+[ -n "$lines_str" ] && line3="${line3}${SEP}${lines_str}"
 
 printf '%s\n%s\n%s\n' "$line1" "$line2" "$line3"
