@@ -116,11 +116,13 @@ Native console TUIs routinely call `SetConsoleOutputCP()` directly to change the
 
 The P/Invoke version (`Native.ConsoleCP::GetConsoleOutputCP()`) asks the OS directly. It runs once per prompt, costs a few microseconds, and is the authoritative source.
 
-## Why OpenGL front_end instead of WezTerm's default WebGpu?
+## Why WebGpu front_end (with OpenGL as the documented fallback)?
 
-WebGpu is the default and generally faster on a discrete GPU, but on some Intel iGPU drivers (we've reproduced on the local Windows 11 setup) it has an output-buffer queueing behavior where rapid post-redirect output from a child process (Claude Code starting up, large `cat` of a colored log, etc.) doesn't trigger an immediate redraw. The buffer flushes only when WezTerm processes the next input event — which manifests as "type `ccd`, hit Enter, nothing happens, hit space, Claude Code's whole intro screen suddenly appears."
+`WebGpu` is WezTerm's modern default backend and the fastest; both GUI configs (`windows/.wezterm.lua` and `dot_wezterm.lua`) set it explicitly.
 
-`OpenGL` doesn't have this problem on the same hardware. The trade-off is slightly less polished animation/scrolling under heavy load. For an interactive terminal workflow that's the right call. If a future user is on a discrete GPU and wants WebGpu back, change `config.front_end = 'OpenGL'` to `'WebGpu'` and restore the `webgpu_power_preference` + `max_fps` lines.
+One known failure mode is kept here because it bit us once. On some Intel iGPU drivers (reproduced on an earlier Windows 11 setup, May 2026) WebGpu had an output-buffer queueing behavior where rapid post-redirect output from a child process (Claude Code starting up, a large `cat` of a colored log) didn't trigger an immediate redraw — the buffer flushed only on the next input event, so "type `ccd`, hit Enter, nothing happens; hit space and Claude Code's whole intro screen appears at once." We switched to `OpenGL` for a while (commit `7922da8`); a later WezTerm-nightly / driver update cleared it and the configs returned to WebGpu.
+
+If that startup stall ever reappears, the fix is a one-liner — set `config.front_end = 'OpenGL'` in the affected platform's `.wezterm.lua` (the comment beside the setting points here). OpenGL trades slightly less polished scrolling under load for immunity to the stall; macOS (Metal-backed WebGpu) never had the issue.
 
 ## Why not just use a single GUI tool like Microsoft Terminal?
 

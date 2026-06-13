@@ -18,6 +18,7 @@ All notable changes captured here. Format loosely follows [Keep a Changelog](htt
 ### Changed
 
 - **WezTerm tab bar + keybindings reworked** (both `windows/.wezterm.lua` and `dot_wezterm.lua`). The fancy tab bar is now a flat retro bar; each tab is labelled `<number>: <dir>` and tinted **green** (Claude done) / **red** (error) from the state glyph the Claude-Code hooks write into the tab title — so an inactive tab that needs you still stands out. Inactive panes dim harder (`inactive_pane_hsb` brightness `0.25`) with a bright lavender split line, and the right-status shows the active workspace + cwd. Keys: local splits are now `Ctrl+Space h` (right) / `v` (below); `Ctrl+Space H` / `V` open a fuzzy domain picker and split the chosen domain (local / WSL / SSH) right / below; tab selection moved to `Alt+1…9` (the number matches the tab) with `Ctrl+Tab` / `Ctrl+Shift+Tab` to cycle — replacing the old `Ctrl+Space 6-9`, which clashed awkwardly with the `Ctrl+Space 1-4` quadrant grid. Command references and `wzr` updated to match.
+- **`front_end` returned to `WebGpu`** (the WezTerm default) on both GUI configs, reverting the temporary `OpenGL` workaround (`7922da8`) now that the Intel-iGPU startup stall it addressed has cleared on current WezTerm nightly. OpenGL stays documented as the one-line fallback (`docs/decisions.md`, `docs/powershell-quirks.md`) if the stall ever returns.
 
 ### Fixed
 

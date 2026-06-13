@@ -33,19 +33,21 @@ function Invoke-Starship-PreCommand {
 
 **Why `[Console]::OutputEncoding` alone wasn't enough.** The first version of this fix (commit `116087d`) only consulted `[Console]::OutputEncoding.CodePage` — a .NET-side cached value that does NOT get invalidated when a native child process changes the codepage via raw `SetConsoleOutputCP`. After Claude Code exited, .NET still believed the codepage was 65001 and the conditional skipped the reset, while the underlying OS console was actually at 437. The P/Invoke version asks the OS directly.
 
-## Claude Code startup output stalls until next keypress
+## Claude Code startup output stalls until next keypress (WebGpu)
 
 **Symptom.** You type `ccd`, hit Enter. The cursor moves to a new line but Claude Code's TUI doesn't draw. You press any key — even space — and the entire Claude Code intro screen pops into existence at once.
 
 **Cause.** WezTerm's `WebGpu` front_end has an output-buffer behavior on some Intel iGPU drivers where rapid post-redirect output from a child process doesn't trigger an immediate redraw. The buffer is flushed only when WezTerm processes the next input event.
 
-**Fix.** Switch the front_end to `OpenGL` in `.wezterm.lua`:
+**Status.** The stack runs `WebGpu` (the WezTerm default) on both GUI configs. This stall was last reproduced in May 2026; a later WezTerm-nightly / driver update cleared it, so the configs returned to WebGpu. macOS (Metal) never had it.
+
+**Fallback if it reappears.** Switch the front_end to `OpenGL` in the affected `.wezterm.lua`:
 
 ```lua
 config.front_end = 'OpenGL'
 ```
 
-Also drop `webgpu_power_preference` (no longer applies) and `max_fps = 120` (default 60 matches typical panel refresh and avoids wasted frames). The trade-off is slightly less polished scrolling animation; interactive responsiveness wins. If you're on a discrete GPU and don't see the stall, you can keep WebGpu.
+OpenGL trades slightly less polished scrolling animation for immunity to the stall. The comment next to `config.front_end` in each config points back here.
 
 ## CRLF drift on chezmoi sources
 
