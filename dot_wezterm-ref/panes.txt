@@ -5,12 +5,12 @@ WEZTERM — PANE MANAGEMENT
   Comma below means "then":  Ctrl+Space, h  =  leader, then h.
 
 SPLIT — LOCAL
-  Ctrl+Space, h      split right        new pane on the right (side-by-side)
-  Ctrl+Space, v      split down         new pane below (stacked)
+  Ctrl+Space, h      split down         new pane below (stacked, top/bottom)
+  Ctrl+Space, v      split right        new pane on the right (side-by-side)
 
 SPLIT — INTO A DOMAIN                   Shift = "remote": fuzzy-pick a domain
-  Ctrl+Space, H      → right            (local, WSL, SSH:* …) from a list, then
-  Ctrl+Space, V      → down             split that domain in (right / below)
+  Ctrl+Space, H      → down             (local, WSL, SSH:* …) from a list, then
+  Ctrl+Space, V      → right            split that domain in (below / right)
 
 NAVIGATE
   Ctrl+Space, j      left
@@ -30,9 +30,10 @@ ZOOM, POP & CLOSE
   Ctrl+Shift+O       pop to window      quick-access alias (no leader)
   Ctrl+Space, x      close pane         closes this pane (confirms first)
 
-QUADRANT GRID                           also Ctrl+Space, 1-4 (matches the layout)
-  F1  top-left              F2  top-right
-  F3  bottom-left           F4  bottom-right
+GRID — 3 ACROSS × 2 DOWN                press to build that cell, or focus it if
+  F1  F2  F3   top row                  it exists; also Ctrl+Space, 1-6.
+  F4  F5  F6   bottom row               Shift+F# opens the new cell in a domain.
+  Columns fill to even thirds, rows to even halves, as you build the grid.
 
 ──────────────────────────────────────────────────────────────────────────────
 wzr list  ·  wzr panes  ·  wzr tabs  ·  wzr workspace

@@ -1,13 +1,40 @@
--- pane_grid.lua — quadrant pane selection for WezTerm.
+-- pane_grid.lua — build-or-focus a 3×2 pane grid for WezTerm.
 -- Deployed to ~/.wezterm/pane_grid.lua (WezTerm's Lua module search path).
 -- Keep in sync with dot_wezterm/pane_grid.lua (macOS chezmoi deploy).
--- F1-F4 (and Ctrl+Space 1-4) activate the pane occupying each quadrant of a
--- 2x2 split. Selection is by largest overlap, so it works for uneven splits too.
+--
+-- F1..F6 (and Ctrl+Space 1..6) each map to one cell of a row-major
+-- 3-across × 2-down grid:
+--     F1 | F2 | F3      columns grow rightward → even thirds
+--     F4 | F5 | F6      rows grow downward     → even halves
+-- Pressing a key focuses that cell's pane, creating it — and any missing parent
+-- cells — by splitting. Shift+F<n> prompts for a domain and opens the new pane
+-- there. Panes are tracked by id per tab (not by geometry), so uneven/manual
+-- splits don't confuse it and a re-press just refocuses. State is per WezTerm
+-- process: it resets on config reload / restart, and a grid pane closed by hand
+-- is recreated from its parent on the next press.
 
 local wezterm = require 'wezterm'
 local act = wezterm.action
 
 local M = {}
+
+-- Cell construction tree. Each non-origin cell is made by splitting its parent in
+-- `dir`, the NEW pane taking `frac` of the parent (pane:split size = fraction).
+-- Column fracs make the finished top row even thirds: F2 takes 2/3 of F1 (→ 1/3
+-- each), then F3 halves F2's 2/3 block (→ 1/3, 1/3). Rows are even halves.
+-- (Stopping at two columns therefore leaves a 1/3–2/3 split; resize with
+-- Leader+J/K if you don't go on to add the third.)
+local CELLS = {
+  ['1'] = {},                                          -- origin (top-left)
+  ['2'] = { parent = '1', dir = 'Right',  frac = 0.67 },
+  ['3'] = { parent = '2', dir = 'Right',  frac = 0.5 },
+  ['4'] = { parent = '1', dir = 'Bottom', frac = 0.5 },
+  ['5'] = { parent = '2', dir = 'Bottom', frac = 0.5 },
+  ['6'] = { parent = '3', dir = 'Bottom', frac = 0.5 },
+}
+
+-- grid_state[tab_id] = { ['1'] = pane_id, ... }
+local grid_state = {}
 
 local function unzoom_tab_if_needed(tab)
   for _, info in ipairs(tab:panes_with_info()) do
@@ -18,70 +45,88 @@ local function unzoom_tab_if_needed(tab)
   end
 end
 
-local function quadrant_rect(cols, rows, quadrant)
-  local mid_x = math.floor(cols / 2)
-  local mid_y = math.floor(rows / 2)
-  if quadrant == 'tl' then
-    return 0, 0, mid_x, mid_y
-  elseif quadrant == 'tr' then
-    return mid_x, 0, cols - mid_x, mid_y
-  elseif quadrant == 'bl' then
-    return 0, mid_y, mid_x, rows - mid_y
-  elseif quadrant == 'br' then
-    return mid_x, mid_y, cols - mid_x, rows - mid_y
+-- The live MuxPane for pane_id if it still exists *in this tab*, else nil.
+local function pane_in_tab(tab, pane_id)
+  if not pane_id then return nil end
+  for _, p in ipairs(tab:panes()) do
+    if p:pane_id() == pane_id then return p end
   end
-  return 0, 0, cols, rows
+  return nil
 end
 
-local function overlap_area(left, top, width, height, qleft, qtop, qwidth, qheight)
-  local x1 = math.max(left, qleft)
-  local y1 = math.max(top, qtop)
-  local x2 = math.min(left + width, qleft + qwidth)
-  local y2 = math.min(top + height, qtop + qheight)
-  if x2 <= x1 or y2 <= y1 then
-    return 0
-  end
-  return (x2 - x1) * (y2 - y1)
-end
+-- Return the pane for `key`, creating it (and any missing parents) as needed.
+-- `leaf_domain` (a pane:split domain spec) applies only to the key's own new
+-- pane; parents are always created in the current domain.
+local function ensure(tab, key, leaf_domain)
+  local tid = tab:tab_id()
+  grid_state[tid] = grid_state[tid] or {}
+  local st = grid_state[tid]
+  local cell = CELLS[key]
+  if not cell then return nil end
 
-function M.activate_quadrant(window, pane, quadrant)
-  local tab = pane:tab()
-  if not tab then
-    return
-  end
-  unzoom_tab_if_needed(tab)
-  local size = tab:get_size()
-  local qleft, qtop, qwidth, qheight = quadrant_rect(size.cols, size.rows, quadrant)
-  local best = nil
-  local best_area = 0
-  for _, info in ipairs(tab:panes_with_info()) do
-    local area = overlap_area(info.left, info.top, info.width, info.height, qleft, qtop, qwidth, qheight)
-    if area > best_area then
-      best_area = area
-      best = info
-    end
-  end
-  if best then
-    window:perform_action(act.ActivatePaneByIndex(best.index), pane)
-  end
-end
+  local existing = pane_in_tab(tab, st[key])
+  if existing then return existing end
 
--- Register quadrant bindings. Uses phys:F* (physical key position) because
--- key_map_preference defaults to Mapped and bare F1 may not match on Windows.
-function M.bind_keys(keys, wezterm_mod)
-  local specs = {
-    { key = 'phys:F1', leader = '1', quadrant = 'tl' },
-    { key = 'phys:F2', leader = '2', quadrant = 'tr' },
-    { key = 'phys:F3', leader = '3', quadrant = 'bl' },
-    { key = 'phys:F4', leader = '4', quadrant = 'br' },
+  if not cell.parent then          -- origin: adopt the active pane
+    local p = tab:active_pane()
+    st[key] = p:pane_id()
+    return p
+  end
+
+  local parent = ensure(tab, cell.parent, nil)
+  if not parent then return nil end
+  local newp = parent:split {
+    direction = cell.dir,
+    size = cell.frac,
+    domain = leaf_domain or 'CurrentPaneDomain',
   }
-  for _, spec in ipairs(specs) do
-    local quadrant = spec.quadrant  -- capture for closure (loop var is not stable across invocations)
-    local action = wezterm_mod.action_callback(function(w, p)
-      M.activate_quadrant(w, p, quadrant)
+  st[key] = newp:pane_id()
+  return newp
+end
+
+-- Build-or-focus grid cell `key`. `leaf_domain` is nil (current domain) or a
+-- pane:split domain spec (e.g. { DomainName = 'WSL:Ubuntu' }).
+function M.go(window, pane, key, leaf_domain)
+  local tab = pane:tab()
+  if not tab then return end
+  unzoom_tab_if_needed(tab)
+  local target = ensure(tab, key, leaf_domain)
+  if target then target:activate() end
+end
+
+local function domain_choices()
+  local choices = {}
+  for _, d in ipairs(wezterm.mux.all_domains()) do
+    table.insert(choices, { id = d:name(), label = d:name() })
+  end
+  table.sort(choices, function(a, b) return a.label < b.label end)
+  return choices
+end
+
+-- F1..F6 + Leader+1..6 → build/focus in the current domain.
+-- Shift+F1..F6      → prompt for a domain, open the cell's new pane there.
+-- phys:F* (physical position) because key_map_preference defaults to Mapped and
+-- bare F-keys may not match on Windows.
+function M.bind_keys(keys, wezterm_mod)
+  for n = 1, 6 do
+    local key = tostring(n)   -- fresh local per iteration → safe to close over
+    local plain = wezterm_mod.action_callback(function(w, p)
+      M.go(w, p, key, nil)
     end)
-    table.insert(keys, { key = spec.key, mods = 'NONE', action = action })
-    table.insert(keys, { key = spec.leader, mods = 'LEADER', action = action })
+    table.insert(keys, { key = 'phys:F' .. n, mods = 'NONE',   action = plain })
+    table.insert(keys, { key = key,           mods = 'LEADER', action = plain })
+
+    local pick = wezterm_mod.action_callback(function(w, p)
+      w:perform_action(act.InputSelector {
+        title = 'Open grid cell F' .. key .. ' in domain',
+        choices = domain_choices(),
+        fuzzy = true,
+        action = wezterm_mod.action_callback(function(win, p2, id)
+          if id then M.go(win, p2, key, { DomainName = id }) end
+        end),
+      }, p)
+    end)
+    table.insert(keys, { key = 'phys:F' .. n, mods = 'SHIFT', action = pick })
   end
 end
 

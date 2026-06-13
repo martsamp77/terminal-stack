@@ -138,12 +138,12 @@ config.keys = {
         end
       end) } },
   { key = 'X', mods = 'LEADER', action = wezterm.action_callback(kill_workspace) },
-  -- Local splits: h = SplitHorizontal (side-by-side), v = SplitVertical (stacked).
-  { key = 'h', mods = 'LEADER', action = act.SplitHorizontal { domain = 'CurrentPaneDomain' } },
-  { key = 'v', mods = 'LEADER', action = act.SplitVertical   { domain = 'CurrentPaneDomain' } },
-  -- Domain splits (Shift = "remote"): H = pick domain → right, V = pick domain → down.
-  { key = 'H', mods = 'LEADER', action = wezterm.action_callback(function(w, p) pick_domain_split(w, p, 'Right') end) },
-  { key = 'V', mods = 'LEADER', action = wezterm.action_callback(function(w, p) pick_domain_split(w, p, 'Down') end) },
+  -- Local splits: h = top/bottom (stacked), v = left/right (side-by-side).
+  { key = 'h', mods = 'LEADER', action = act.SplitVertical   { domain = 'CurrentPaneDomain' } },
+  { key = 'v', mods = 'LEADER', action = act.SplitHorizontal { domain = 'CurrentPaneDomain' } },
+  -- Domain splits (Shift = "remote"): H = pick domain → top/bottom, V = pick domain → left/right.
+  { key = 'H', mods = 'LEADER', action = wezterm.action_callback(function(w, p) pick_domain_split(w, p, 'Down') end) },
+  { key = 'V', mods = 'LEADER', action = wezterm.action_callback(function(w, p) pick_domain_split(w, p, 'Right') end) },
   { key = 'j', mods = 'LEADER', action = act.ActivatePaneDirection 'Left' },
   { key = 'k', mods = 'LEADER', action = act.ActivatePaneDirection 'Right' },
   { key = 'i', mods = 'LEADER', action = act.ActivatePaneDirection 'Up' },
@@ -156,7 +156,7 @@ config.keys = {
   { key = 'phys:Space', mods = 'LEADER|CTRL', action = act.SendKey { key = ' ', mods = 'CTRL' } },
   { key = 'r', mods = 'LEADER', action = act.ReloadConfiguration },
   -- Tab selection: Alt+1..9 (number matches tab); Ctrl+Tab / Ctrl+Shift+Tab cycle.
-  -- (Leader+1..4 stay bound to the pane quadrant grid in pane_grid.lua.)
+  -- (Leader+1..6 build/focus the 3×2 pane grid; see pane_grid.lua.)
   { key = 'Tab', mods = 'CTRL',       action = act.ActivateTabRelative(1) },
   { key = 'Tab', mods = 'CTRL|SHIFT', action = act.ActivateTabRelative(-1) },
   -- Pop the current pane out into its own new window.
@@ -165,6 +165,10 @@ config.keys = {
   -- Close the current pane (x freed when the domain picker moved to Leader+V).
   { key = 'x', mods = 'LEADER', action = act.CloseCurrentPane { confirm = true } },
   { key = 'v', mods = 'CTRL', action = act.PasteFrom 'Clipboard' },
+  -- Shift+Enter → newline in CLI REPLs (Claude Code): send LF (= Ctrl+J, the
+  -- default chat:newline). WezTerm doesn't deliver a distinct Shift+Enter to the
+  -- app by default, so the app-level keybinding (keybindings.json) alone can't fire.
+  { key = 'Enter', mods = 'SHIFT', action = act.SendString '\n' },
 }
 
 -- ── Flat tab labels: "<index>: <dir-leaf>", with a light Claude Code hint ─────
@@ -211,6 +215,23 @@ wezterm.on('update-right-status', function(window, pane)
     { Foreground = { Color = '#a6adc8' } },
     { Text = cwd_path(pane) .. '  ' },
   })
+end)
+
+-- ── Dim every pane while the window is unfocused ──────────────────────────────
+-- inactive_pane_hsb only dims *inactive* panes of the focused window; the active
+-- pane stays bright. On blur we want a uniform dim across all panes, so we dim all
+-- text (foreground_text_hsb) and cancel the per-pane inactive dim. On focus we drop
+-- both overrides → back to active-bright / inactive-dim.
+wezterm.on('window-focus-changed', function(window)
+  local o = window:get_config_overrides() or {}
+  if window:is_focused() then
+    o.foreground_text_hsb = nil
+    o.inactive_pane_hsb   = nil
+  else
+    o.foreground_text_hsb = { brightness = 0.35, saturation = 0.8, hue = 1.0 }
+    o.inactive_pane_hsb   = { brightness = 1.0, saturation = 1.0, hue = 1.0 }
+  end
+  window:set_config_overrides(o)
 end)
 
 -- Alt+1..9 → activate tab by number (appended to the literal config.keys above).
