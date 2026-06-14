@@ -307,7 +307,9 @@ wezterm.on('user-var-changed', function(window, pane, name, value)
   pcall(function() pane:inject_output('\x1b]11;' .. color .. '\x07') end)
 end)
 
--- ── Top-right status: workspace + current path (both always shown) ────────────
+-- ── Top-right status: [⬡ workspace │] user@host │ current path ─────────────────
+-- The ⬡ workspace segment shows only when it isn't the default (it's `default` most of
+-- the time, so that slot is freed for the identity). user@host is computed once below.
 local function cwd_path(pane)
   local cwd = pane:get_current_working_dir()
   if not cwd then return '' end
@@ -315,15 +317,32 @@ local function cwd_path(pane)
   return (tostring(cwd):gsub('^file://[^/]*', ''))
 end
 
+-- Local identity for the right status: "User@host" (FQDN domain stripped). os.getenv
+-- reads the wezterm GUI process env (USERNAME on Windows, USER on macOS/Linux).
+local function titlecase(s) return #s > 0 and (s:sub(1, 1):upper() .. s:sub(2):lower()) or s end
+local IDENTITY = (function()
+  local user = titlecase(os.getenv('USERNAME') or os.getenv('USER') or '')
+  local host = titlecase((wezterm.hostname() or ''):gsub('%..*$', ''))   -- ORION -> Orion
+  if #user > 0 and #host > 0 then return user .. '@' .. host end
+  return user .. host
+end)()
+
 wezterm.on('update-right-status', function(window, pane)
-  window:set_right_status(wezterm.format {
-    { Foreground = { Color = '#89b4fa' } },
-    { Text = '⬡ ' .. window:active_workspace() },
-    { Foreground = { Color = '#585b70' } },
-    { Text = '  │  ' },
-    { Foreground = { Color = '#a6adc8' } },
-    { Text = cwd_path(pane) .. '  ' },
-  })
+  local items = {}
+  local ws = window:active_workspace()
+  if ws ~= 'default' then                              -- workspace only when non-default
+    table.insert(items, { Foreground = { Color = '#89b4fa' } })
+    table.insert(items, { Text = '⬡ ' .. ws })
+    table.insert(items, { Foreground = { Color = '#585b70' } })
+    table.insert(items, { Text = '  │  ' })
+  end
+  table.insert(items, { Foreground = { Color = '#94e2d5' } })   -- identity (teal)
+  table.insert(items, { Text = IDENTITY })
+  table.insert(items, { Foreground = { Color = '#585b70' } })
+  table.insert(items, { Text = '  │  ' })
+  table.insert(items, { Foreground = { Color = '#a6adc8' } })   -- path (grey)
+  table.insert(items, { Text = cwd_path(pane) .. '  ' })
+  window:set_right_status(wezterm.format(items))
 end)
 
 -- ── Dim every pane while the window is unfocused ──────────────────────────────
