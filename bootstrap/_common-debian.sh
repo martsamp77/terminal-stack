@@ -29,6 +29,30 @@ common_apt_prereqs() {
     sudo apt-get install -y eza git-delta >/dev/null 2>&1 || true
 }
 
+# glow — Charm's terminal markdown renderer (`glow file.md`; `glow .` for the TUI browser).
+# Not in the default Debian/Ubuntu apt repos, so add Charm's apt repository (keyring +
+# source) and install from there. Idempotent: the keyring is written once (gpg --dearmor
+# refuses to overwrite an existing file, so we guard on its presence), the source line is
+# rewritten harmlessly, and the install no-ops once glow is on PATH. Non-fatal — a repo or
+# network hiccup must not abort the whole bootstrap.
+common_install_glow() {
+    if command -v glow >/dev/null 2>&1; then
+        echo "$INFO glow already on PATH ($(command -v glow))"
+        return 0
+    fi
+    echo "$INFO Adding Charm apt repo and installing glow"
+    command -v gpg >/dev/null 2>&1 || sudo apt-get install -y gnupg >/dev/null 2>&1 || true
+    sudo mkdir -p /etc/apt/keyrings
+    if [ ! -s /etc/apt/keyrings/charm.gpg ]; then
+        curl -fsSL https://repo.charm.sh/apt/gpg.key \
+            | sudo gpg --dearmor -o /etc/apt/keyrings/charm.gpg
+    fi
+    echo "deb [signed-by=/etc/apt/keyrings/charm.gpg] https://repo.charm.sh/apt/ * *" \
+        | sudo tee /etc/apt/sources.list.d/charm.list >/dev/null
+    sudo apt-get update -qq
+    sudo apt-get install -y glow >/dev/null 2>&1 || echo "$WARN apt install glow failed (Charm repo)"
+}
+
 # Fetch the latest release tarball from a GitHub repo for the current arch and
 # extract the named binary into ~/.local/bin. Skips if the binary is already on PATH.
 # Usage: common_install_github_binary <repo> <binary-name> <asset-grep-pattern>
@@ -243,6 +267,7 @@ common_install_extra_tools() {
 common_install_all() {
     common_apt_prereqs
     common_install_optional_binaries
+    common_install_glow
     common_bat_symlink
     common_oh_my_zsh
     common_login_shell_zsh
