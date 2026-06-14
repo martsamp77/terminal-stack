@@ -52,10 +52,12 @@ config.front_end = 'WebGpu'
 config.scrollback_lines = 10000
 config.audible_bell = 'Disabled'
 config.adjust_window_size_when_changing_font_size = false
+config.status_update_interval = 100  -- ms; keep the LEADER indicator snappy (update-right-status)
 -- Strong active-pane signal: heavily dim inactive panes + a bright split line.
 config.inactive_pane_hsb = { brightness = 0.25, saturation = 0.6, hue = 1.0 }
 config.colors = {
   split = '#b4befe',  -- lavender divider between panes
+  compose_cursor = '#fab387',  -- cursor turns peach while the leader key is pending input
   tab_bar = {  -- Catppuccin Mocha; per-segment text colour is driven in format-tab-title
     background = '#11111b',
     active_tab         = { bg_color = '#313244', fg_color = '#cdd6f4', intensity = 'Bold' },
@@ -69,7 +71,10 @@ config.colors = {
 -- Ctrl+Space leader: left pinky + thumb, frees the right hand for j/k/i/m.
 -- phys:Space matches the physical key — Ctrl+Space emits NUL on Windows, which a
 -- logical ' ' match would miss (same reason pane_grid.lua uses phys:F*).
-config.leader = { key = 'phys:Space', mods = 'CTRL', timeout_milliseconds = 1500 }
+-- ~24h timeout = effectively no timeout (WezTerm has no 'infinite'): the leader
+-- waits for input instead of silently expiring. The peach cursor + ⌨ LEADER badge
+-- show it's pending; Ctrl+Space then Esc cancels (binding below).
+config.leader = { key = 'phys:Space', mods = 'CTRL', timeout_milliseconds = 86400000 }
 
 -- Fuzzy-pick a domain (Alt+L style) and split it into the current pane.
 -- direction is a wezterm SplitPane direction ('Right' or 'Down').
@@ -329,6 +334,16 @@ end)()
 
 wezterm.on('update-right-status', function(window, pane)
   local items = {}
+  if window:leader_is_active() then          -- leader pending: bold peach badge
+    table.insert(items, { Background = { Color = '#fab387' } })
+    table.insert(items, { Foreground = { Color = '#1e1e2e' } })
+    table.insert(items, { Attribute = { Intensity = 'Bold' } })
+    table.insert(items, { Text = ' ⌨ LEADER ' })
+    table.insert(items, { Background = { Color = '#11111b' } })
+    table.insert(items, { Foreground = { Color = '#585b70' } })
+    table.insert(items, { Attribute = { Intensity = 'Normal' } })
+    table.insert(items, { Text = '  ' })
+  end
   local ws = window:active_workspace()
   if ws ~= 'default' then                              -- workspace only when non-default
     table.insert(items, { Foreground = { Color = '#89b4fa' } })
@@ -361,6 +376,10 @@ wezterm.on('window-focus-changed', function(window)
   end
   window:set_config_overrides(o)
 end)
+
+-- Ctrl+Space, Esc cancels a pending leader (a no-op consumes Esc; with the
+-- ~no-timeout leader this is the deliberate way to back out).
+table.insert(config.keys, { key = 'Escape', mods = 'LEADER', action = wezterm.action_callback(function() end) })
 
 -- Alt+1..9 → activate tab by number (appended to the literal config.keys above).
 for i = 1, 9 do
