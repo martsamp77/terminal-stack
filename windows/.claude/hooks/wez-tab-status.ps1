@@ -11,6 +11,9 @@ $project = if ($env:CLAUDE_PROJECT_DIR) {
 # Per-pane background tint by state (OSC 11; this pane only). Written to CONOUT$
 # so it reaches the WezTerm pane even though the hook's stdout is captured by Claude
 # Code. Catppuccin-accent dark tints — tune to taste. Reset happens in cc on exit.
+# NOTE: on Windows ConPTY swallows OSC 11, so the *primary* path is the WezTerm
+# user-var-changed handler (driven by the cc_state OSC 1337 below), which re-emits
+# this tint via pane:inject_output. This raw OSC 11 is the non-ConPTY/mux fallback.
 $bg = switch ($State) {
     { $_ -in 'thinking', 'working' } { '#2a2420'; break }  # warm/peach — working
     'waiting' { '#1f2a20'; break }                          # green — your turn / done

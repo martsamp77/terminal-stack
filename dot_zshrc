@@ -78,23 +78,54 @@ plugins=(git sudo)
 source $ZSH/oh-my-zsh.sh
 
 # ---- terminal-stack-zsh-start ----
-# History — 50k lines, share between shells, drop entries containing secrets.
+# History — 100k lines, per-shell append + on-demand import, expire dups, drop secrets.
 HISTFILE="$HOME/.zsh_history"
-HISTSIZE=50000
-SAVEHIST=50000
-setopt HIST_IGNORE_DUPS
-setopt HIST_IGNORE_ALL_DUPS
+HISTSIZE=100000
+SAVEHIST=100000
+unsetopt HIST_IGNORE_DUPS         # keep dups in-session; HIST_EXPIRE_DUPS_FIRST trims them
+unsetopt HIST_IGNORE_ALL_DUPS     # only when SAVEHIST is exceeded, oldest dups first
+setopt HIST_EXPIRE_DUPS_FIRST
 setopt HIST_IGNORE_SPACE
 setopt HIST_REDUCE_BLANKS
 setopt HIST_VERIFY
-setopt SHARE_HISTORY
+setopt INC_APPEND_HISTORY          # append each command at once (per-shell; import via `history all`)
 setopt EXTENDED_HISTORY
 
 # Filter secrets from history entirely (return 1 = discard, not just hide from file).
 zshaddhistory() {
+  emulate -L zsh
   local line="${1%%$'\n'}"
-  [[ "$line" =~ '(sk-|Bearer |--token|_KEY=|_SECRET=|_PASSWORD=|_TOKEN=)' ]] && return 1
+
+  [[ "$line" =~ '(sk-[A-Za-z0-9_-]{20,}|Bearer[[:space:]]+[^[:space:]]+|--token[=[:space:]]+[^[:space:]]+|--api-key[=[:space:]]+[^[:space:]]+|OPENAI_API_KEY=|ANTHROPIC_API_KEY=|GITHUB_TOKEN=|GH_TOKEN=|NPM_TOKEN=|_KEY=|_SECRET=|_PASSWORD=|_TOKEN=)' ]] && return 1
+
   return 0
+}
+
+# Show a short history by default (`history`), but keep full history searchable
+# (`history all`, `hgrep <pattern>`). INC_APPEND keeps history per-shell; `fc -RI`
+# imports newer lines other shells appended.
+HISTORY_DEFAULT_LIMIT=200
+
+history() {
+  if [[ $# -eq 0 ]]; then
+    fc -l -$HISTORY_DEFAULT_LIMIT
+  elif [[ "$1" == "all" ]]; then
+    shift
+    fc -RI       # import any newer lines from other shells
+    fc -l 1 "$@"
+  else
+    fc -l "$@"
+  fi
+}
+
+hgrep() {
+  local pattern="$*"
+  if [[ -z "$pattern" ]]; then
+    echo "usage: hgrep <pattern>" >&2
+    return 2
+  fi
+  fc -RI
+  fc -l 1 | grep -i -- "$pattern"
 }
 
 # micro (a nano alternative) is installed by the bootstrap; fall back to nano on
@@ -328,20 +359,243 @@ command -v zoxide >/dev/null && eval "$(zoxide init zsh)"
 # so the source just no-ops on older versions.
 command -v fzf    >/dev/null && source <(fzf --zsh 2>/dev/null)
 command -v eza    >/dev/null && alias ls='eza --icons=always --git --group-directories-first'
-command -v bat    >/dev/null && alias cat='bat --paging=never'
+command -v bat    >/dev/null && alias ccat='bat --paging=never'   # ccat, not cat — don't shadow real cat
 
-# Open the command reference (~/command-reference.md, chezmoi-managed) plus the
-# machine-local supplement (~/command-reference.local.md, untracked) if present.
-ref() {
-  local -a files=("$HOME/command-reference.md")
-  [[ -f "$HOME/command-reference.local.md" ]] && files+=("$HOME/command-reference.local.md")
-  if command -v bat >/dev/null; then
-    bat --paging=always "${files[@]}"
+# ref — alias into the `doc` knowledge base (replaced the old command-reference file).
+ref() { doc "$@"; }
+
+# Clipboard helpers: copy stdin (or a file via catclip) to the system clipboard.
+clipcopy() {
+  if command -v wl-copy >/dev/null 2>&1; then
+    wl-copy "$@"
+  elif command -v xclip >/dev/null 2>&1; then
+    xclip -selection clipboard "$@"
+  elif command -v clip.exe >/dev/null 2>&1; then
+    clip.exe
+  elif command -v pbcopy >/dev/null 2>&1; then
+    pbcopy
   else
-    less "${files[@]}"
+    echo "clipcopy: no clipboard tool found: install wl-clipboard, xclip, or use WSL clip.exe" >&2
+    return 1
   fi
 }
+
+catclip() {
+  if [[ $# -ne 1 ]]; then
+    echo "usage: catclip <file>" >&2
+    return 2
+  fi
+  cat -- "$1" | clipcopy
+}
 # ---- cli-tools-end ----
+
+# ---- doc-start ----
+# `doc` — personal markdown knowledge base. Topics live in <clone>/docs/kb
+# (tracked) + ~/.doc.local (untracked personal layer); rendered by glow, bat
+# fallback. Repo-canonical: the viewer reads straight from the clone, no deploy.
+# See docs/kb/_index.md. (`ref`/`wzr` stay as they are for now.)
+_doc_root() {
+  local cz="" cm_src="" c
+  if [[ -x "$HOME/.local/bin/chezmoi" ]]; then cz="$HOME/.local/bin/chezmoi"
+  elif command -v chezmoi >/dev/null 2>&1; then cz="chezmoi"; fi
+  [[ -n "$cz" ]] && cm_src="$("$cz" source-path 2>/dev/null)"
+  for c in "$DOC_ROOT" \
+           "${TERMINAL_STACK_DIR:+$TERMINAL_STACK_DIR/docs/kb}" \
+           "${cm_src:+$cm_src/docs/kb}" \
+           /mnt/c/DATA/Workspace/terminal-stack/docs/kb \
+           "$HOME/terminal-stack/docs/kb" \
+           "$HOME/Workspace/terminal-stack/docs/kb" \
+           "$HOME/Documents/Workspace/terminal-stack/docs/kb"; do
+    [[ -n "$c" && -d "$c" ]] && { echo "$c"; return 0; }
+  done
+  return 1
+}
+_doc_local() { echo "${DOC_LOCAL:-$HOME/.doc.local}"; }
+_doc_os() { [[ "$(uname -s)" == Darwin ]] && echo macos || echo linux; }
+
+# Emit "label<TAB>path" for visible topics. $1 = os (default current; 'all' = every OS).
+_doc_index() {
+  local os="${1:-$(_doc_os)}" root local_root r tag sub f rel i
+  root="$(_doc_root)"; local_root="$(_doc_local)"
+  local -a roots tags
+  [[ -n "$root" ]] && { roots+=("$root"); tags+=(""); }
+  [[ -d "$local_root" ]] && { roots+=("$local_root"); tags+=(" [local]"); }
+  for i in {1..${#roots}}; do
+    r="${roots[$i]}"; tag="${tags[$i]}"
+    local -a files=()
+    if [[ "$os" == all ]]; then
+      files=("${(@f)$(find "$r" -type f -name '*.md' 2>/dev/null)}")
+    else
+      for sub in common wezterm "$os"; do
+        [[ -d "$r/$sub" ]] && files+=("${(@f)$(find "$r/$sub" -type f -name '*.md' 2>/dev/null)}")
+      done
+      files+=("${(@f)$(find "$r" -maxdepth 1 -type f -name '*.md' 2>/dev/null)}")
+    fi
+    for f in $files; do
+      [[ -n "$f" ]] || continue
+      rel="${f#$r/}"; rel="${rel%.md}"
+      printf '%s%s\t%s\n' "$rel" "$tag" "$f"
+    done
+  done
+}
+
+_doc_view() {
+  local f="$1"
+  [[ -f "$f" ]] || { echo "doc: not found: $f" >&2; return 1; }
+  if command -v glow >/dev/null; then glow -p "$f"
+  elif command -v bat >/dev/null; then bat --language=markdown --paging=always "$f"
+  else less "$f"; fi
+}
+
+_doc_finder() {
+  local os="$1" query="$2" prev sel
+  command -v fzf >/dev/null || { echo "doc: fzf not installed" >&2; return 1; }
+  if command -v glow >/dev/null; then prev='glow -s dark {2}'; else prev='bat --color=always --style=plain {2}'; fi
+  sel=$(_doc_index "$os" | sort | fzf --delimiter=$'\t' --with-nth=1 --query="$query" \
+        --preview="$prev" --preview-window='right,60%,wrap' --header='enter=open') || return 0
+  [[ -n "$sel" ]] && _doc_view "${sel#*$'\t'}"
+}
+
+# Find a single command across all docs and drop it on the prompt to run.
+_doc_cmd() {
+  local query="$1" sel cmd
+  command -v fzf >/dev/null || { echo "doc: fzf not installed" >&2; return 1; }
+  sel=$(_doc_index all | cut -f2 | while IFS= read -r f; do
+          awk -v file="$f" '
+            /^[[:space:]]*```/ { infence = !infence; next }
+            infence { line=$0; sub(/^[[:space:]]+/,"",line); sub(/[[:space:]]+$/,"",line);
+                      if (line=="" || line ~ /^#/) next; printf "%s\t%s\t%d\n", line, file, NR }
+          ' "$f"
+        done | fzf --delimiter=$'\t' --with-nth=1 --query="$query" \
+                   --preview='bat --color=always --highlight-line {3} {2}' \
+                   --preview-window='right,60%,wrap' --header='enter = put command on your prompt') || return 0
+  [[ -n "$sel" ]] || return 0
+  cmd="${sel%%$'\t'*}"
+  print -z -- "$cmd"
+}
+
+_doc_grep() {
+  local pat="$1"
+  [[ -n "$pat" ]] || { echo "usage: doc -g <pattern>"; return 2; }
+  local -a files
+  files=("${(@f)$(_doc_index all | cut -f2)}")
+  (( ${#files} )) || { echo "doc: no docs" >&2; return 1; }
+  if command -v rg >/dev/null; then rg --line-number --heading --color=always -- "$pat" $files
+  else grep -rn -- "$pat" $files; fi
+}
+
+_doc_open() {
+  local q="$1" os="$2" line label
+  local -a m
+  m=("${(@f)$(_doc_index all | awk -F'\t' -v q="${(L)q}" 'tolower($1) ~ q {print}')}")
+  m=(${m:#})
+  if (( ${#m} == 0 )); then
+    command -v fzf >/dev/null && { _doc_finder "$os" "$q"; return; }   # no exact hit -> fuzzy finder
+    echo "doc: no topic matching '$q' (try: doc ls)" >&2; return 1
+  fi
+  if (( ${#m} == 1 )); then _doc_view "${m[1]#*$'\t'}"; return; fi
+  for line in $m; do
+    label="${line%%$'\t'*}"; label="${label% \[local\]}"
+    [[ "${(L)label}" == "${(L)q}" ]] && { _doc_view "${line#*$'\t'}"; return; }
+  done
+  if command -v fzf >/dev/null; then _doc_finder "$os" "$q"
+  else echo "Multiple matches for '$q':"; for line in $m; do echo "  ${line%%$'\t'*}"; done; fi
+}
+
+_doc_edit() {
+  local mode="$1" arg="$2" os="$3" editor="${EDITOR:-}" root p first
+  [[ -z "$editor" ]] && { command -v micro >/dev/null && editor=micro || editor=vi; }
+  root="$(_doc_root)"
+  if [[ "$mode" == new ]]; then
+    [[ -n "$arg" ]] || { echo "usage: doc new <os>/<name>   e.g. doc new linux/foo"; return 2; }
+    p="$root/$arg"; [[ "$p" == *.md ]] || p="$p.md"
+    mkdir -p "${p:h}"
+    [[ -f "$p" ]] || printf '# %s\n' "${${p:t}:r}" > "$p"
+    "$editor" "$p"
+  else
+    first="$(_doc_index all | awk -F'\t' -v q="${(L)arg}" 'tolower($1) ~ q {print $2; exit}')"
+    [[ -n "$first" ]] && "$editor" "$first" || echo "doc edit: no topic matching '$arg'" >&2
+  fi
+}
+
+# Insert a "### Docs" bullet under ## [Unreleased] (create the subsection if absent).
+_doc_changelog() {
+  local repo="$1"; shift
+  local cl="$repo/CHANGELOG.md" t tmp
+  [[ -f "$cl" ]] || return 0
+  local -a bt; for t in "$@"; do bt+=("\`$t\`"); done
+  local bullet="- **Docs:** updated ${(j:, :)bt}."
+  tmp="$(mktemp)"
+  awk -v bullet="$bullet" '
+    function flush_new() { if (ui==1 && !done) { print "### Docs"; print ""; print bullet; print ""; done=1 } }
+    /^## \[Unreleased\]/ { print; ui=1; next }
+    ui==1 && /^### Docs[ \t]*$/ { print; ins=1; ui=2; next }
+    ins==1 { if ($0 ~ /^[ \t]*$/) { print; print bullet } else { print bullet; print }; ins=0; done=1; next }
+    ui==1 && /^## / { flush_new(); ui=0; print; next }
+    ui==1 && /^### / { flush_new(); ui=0; print; next }
+    { print }
+  ' "$cl" > "$tmp" && mv "$tmp" "$cl"
+}
+
+_doc_sync() {
+  local msg="$1" root repo changed ans prefill
+  root="$(_doc_root)" || { echo "doc sync: no docs/kb" >&2; return 1; }
+  repo="${root:h:h}"
+  [[ -d "$repo/.git" ]] || { echo "doc sync: $repo is not a git clone" >&2; return 1; }
+  changed="$(git -C "$repo" status --porcelain -- docs/kb)"
+  [[ -n "$changed" ]] || { echo "doc sync: no changes under docs/kb."; return 0; }
+  echo "doc sync: changes:"; print -r -- "$changed" | sed 's/^/  /'
+  local -a topics
+  topics=("${(@f)$(print -r -- "$changed" | sed -E 's/^...//; s|^docs/kb/||; s/\.md$//' | sort -u)}")
+  _doc_changelog "$repo" $topics
+  git -C "$repo" add -- docs/kb CHANGELOG.md
+  prefill="${msg:-docs(kb): update ${(j:, :)topics}}"
+  git -C "$repo" commit -e -m "$prefill" || { echo "doc sync: commit aborted." >&2; return 1; }
+  printf 'push to origin? [y/N]: '; read -r ans
+  case "$ans" in y|Y|yes|YES) git -C "$repo" push ;; *) echo "doc sync: not pushed (git -C $repo push)";; esac
+}
+
+_doc_help() {
+  cat <<'EOF'
+doc                     fuzzy-find a topic (glow preview) -> open in pager
+doc <topic>             open a topic directly (e.g. doc veracrypt, doc ssh-keys)
+doc -g <pattern>        grep across every topic
+doc cmd [pattern]       find a command and drop it on your prompt
+doc tui                 glow's tree browser
+doc edit <topic>        edit a topic   |   doc new <os>/<name>   scaffold one
+doc ls                  list topics (this OS + common + local)
+doc --os <linux|macos|windows> ...    browse another OS
+doc sync [msg]          commit doc edits back to the repo (+ changelog, confirm push)
+EOF
+}
+
+doc() {
+  emulate -L zsh
+  local os; os="$(_doc_os)"
+  local -a rest
+  while (( $# )); do
+    if [[ "$1" == --os && -n "$2" ]]; then os="$2"; shift 2
+    else rest+=("$1"); shift; fi
+  done
+  _doc_root >/dev/null || { echo "doc: can't find docs/kb (set \$TERMINAL_STACK_DIR or \$DOC_ROOT)" >&2; return 1; }
+  local cmd="${rest[1]:-}"
+  case "$cmd" in
+    '')             _doc_finder "$os" "" ;;
+    find)           _doc_finder "$os" "${(j: :)rest[2,-1]}" ;;
+    -g|grep)        _doc_grep "${(j: :)rest[2,-1]}" ;;
+    cmd|c)          _doc_cmd "${(j: :)rest[2,-1]}" ;;
+    tui)            command -v glow >/dev/null && glow "$(_doc_root)" || echo "doc tui needs glow" >&2 ;;
+    ls|list)        _doc_index "$os" | sort | cut -f1 ;;
+    edit|new)       _doc_edit "$cmd" "${(j: :)rest[2,-1]}" "$os" ;;
+    sync)           _doc_sync "${(j: :)rest[2,-1]}" ;;
+    -h|--help|help) _doc_help ;;
+    *)              _doc_open "$cmd" "$os" ;;
+  esac
+}
+
+# wzr — WezTerm key reference, now a thin alias into `doc` (docs/kb/wezterm/*).
+wzr() { [[ -n "$1" ]] && doc "wezterm/$1" || doc wezterm; }
+# ---- doc-end ----
 
 # ---- claude-code-start ----
 ccnotify() {

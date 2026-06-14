@@ -29,6 +29,48 @@ common_apt_prereqs() {
     sudo apt-get install -y eza git-delta >/dev/null 2>&1 || true
 }
 
+# glow — Charm's terminal markdown renderer (`glow file.md`; `glow .` for the TUI browser).
+# Not in the default Debian/Ubuntu apt repos, so add Charm's apt repository (keyring +
+# source) and install from there. Idempotent: the keyring is written once (gpg --dearmor
+# refuses to overwrite an existing file, so we guard on its presence), the source line is
+# rewritten harmlessly, and the install no-ops once glow is on PATH. Non-fatal — a repo or
+# network hiccup must not abort the whole bootstrap.
+common_install_glow() {
+    if command -v glow >/dev/null 2>&1; then
+        echo "$INFO glow already on PATH ($(command -v glow))"
+        return 0
+    fi
+    echo "$INFO Adding Charm apt repo and installing glow"
+    command -v gpg >/dev/null 2>&1 || sudo apt-get install -y gnupg >/dev/null 2>&1 || true
+    sudo mkdir -p /etc/apt/keyrings
+    if [ ! -s /etc/apt/keyrings/charm.gpg ]; then
+        curl -fsSL https://repo.charm.sh/apt/gpg.key \
+            | sudo gpg --dearmor -o /etc/apt/keyrings/charm.gpg
+    fi
+    echo "deb [signed-by=/etc/apt/keyrings/charm.gpg] https://repo.charm.sh/apt/ * *" \
+        | sudo tee /etc/apt/sources.list.d/charm.list >/dev/null
+    sudo apt-get update -qq
+    sudo apt-get install -y glow >/dev/null 2>&1 || echo "$WARN apt install glow failed (Charm repo)"
+}
+
+# neovim — current release via the official PPA. apt's neovim is too old on older
+# Ubuntu (0.6 on 22.04 jammy), so add ppa:neovim-ppa/unstable and install from there.
+# Idempotent (skips if nvim is on PATH); non-fatal. On Debian (no PPAs) the
+# add-apt-repository step warns and the install falls back to Debian's own neovim.
+# A CLI editor, so safe on every Debian/Ubuntu target including headless servers.
+common_install_neovim() {
+    if command -v nvim >/dev/null 2>&1; then
+        echo "$INFO neovim already on PATH ($(command -v nvim))"
+        return 0
+    fi
+    echo "$INFO Adding neovim PPA and installing neovim"
+    sudo apt-get install -y software-properties-common >/dev/null 2>&1 || true
+    sudo add-apt-repository -y ppa:neovim-ppa/unstable >/dev/null 2>&1 \
+        || echo "$WARN add-apt-repository ppa:neovim-ppa/unstable failed (non-Ubuntu?); using distro neovim"
+    sudo apt-get update -qq
+    sudo apt-get install -y neovim >/dev/null 2>&1 || echo "$WARN apt install neovim failed"
+}
+
 # Fetch the latest release tarball from a GitHub repo for the current arch and
 # extract the named binary into ~/.local/bin. Skips if the binary is already on PATH.
 # Usage: common_install_github_binary <repo> <binary-name> <asset-grep-pattern>
@@ -219,11 +261,12 @@ common_git_include() {
 }
 
 # Optional extras, opt-in via TS_EXTRA_TOOLS=1 or the /dev/tty prompt:
-# tldr always; nvtop only on GPU hosts; lazydocker only where docker exists.
+# tldr always; nvtop only on GPU hosts; lazydocker only where docker exists;
+# Zed (GUI editor) here too — opt-in because native-Linux targets are headless.
 common_install_extra_tools() {
     local answer="${TS_EXTRA_TOOLS:-}"
     if [ -z "$answer" ]; then
-        answer="$(common_tty_prompt "Install extra tools (tldr, nvtop on GPU hosts, lazydocker with docker)? [y/N]: ")"
+        answer="$(common_tty_prompt "Install extra tools (tldr, nvtop on GPU hosts, lazydocker with docker, Zed editor)? [y/N]: ")"
     fi
     case "$answer" in
         1|y|Y|yes|YES) ;;
@@ -237,12 +280,19 @@ common_install_extra_tools() {
     if command -v docker >/dev/null 2>&1; then
         common_install_github_binary "jesseduffield/lazydocker" "lazydocker" "lazydocker_.*_Linux_x86_64\\.tar\\.gz$" || true
     fi
+    # Zed — GUI editor, opt-in here (headless native-Linux targets don't need it).
+    if ! command -v zed >/dev/null 2>&1; then
+        echo "$INFO Installing Zed via zed.dev install.sh"
+        curl -f https://zed.dev/install.sh | sh >/dev/null 2>&1 || echo "$WARN Zed install failed (headless / network?)"
+    fi
 }
 
 # Run all standard install steps in the order the original WSL bootstrap used.
 common_install_all() {
     common_apt_prereqs
     common_install_optional_binaries
+    common_install_glow
+    common_install_neovim
     common_bat_symlink
     common_oh_my_zsh
     common_login_shell_zsh

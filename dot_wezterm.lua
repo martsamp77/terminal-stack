@@ -45,6 +45,7 @@ config.window_frame = {
 config.inactive_pane_hsb = { brightness = 0.25, saturation = 0.6, hue = 1.0 }
 config.colors = {
   split = '#b4befe',  -- lavender divider between panes
+  compose_cursor = '#fab387',  -- cursor turns peach while the leader key is pending input
   tab_bar = {  -- Catppuccin Mocha; per-segment text colour is driven in format-tab-title
     background = '#11111b',
     active_tab         = { bg_color = '#313244', fg_color = '#cdd6f4', intensity = 'Bold' },
@@ -59,10 +60,13 @@ config.colors = {
 -- stall on child-process startup reappears, fall back to 'OpenGL'.
 config.front_end = 'WebGpu'
 config.scrollback_lines = 10000
+config.status_update_interval = 100  -- ms; keep the LEADER indicator snappy (update-right-status)
 
 -- Ctrl+Space leader: left pinky + thumb, frees the right hand for j/k/i/m.
 -- phys:Space matches the physical key (kept identical to the Windows side).
-config.leader = { key = 'phys:Space', mods = 'CTRL', timeout_milliseconds = 1500 }
+-- ~24h timeout = effectively no timeout: the leader waits for input. The peach
+-- cursor + ⌨ LEADER badge show it's pending; Ctrl+Space then Esc cancels.
+config.leader = { key = 'phys:Space', mods = 'CTRL', timeout_milliseconds = 86400000 }
 
 -- Fuzzy-pick a domain (Alt+L style) and split it into the current pane.
 -- direction is a wezterm SplitPane direction ('Right' or 'Down').
@@ -152,14 +156,24 @@ config.keys = {
   -- Domain splits (Shift = "remote"): H = pick domain → top/bottom, V = pick domain → left/right.
   { key = 'H', mods = 'LEADER', action = wezterm.action_callback(function(w, p) pick_domain_split(w, p, 'Down') end) },
   { key = 'V', mods = 'LEADER', action = wezterm.action_callback(function(w, p) pick_domain_split(w, p, 'Right') end) },
-  { key = 'j', mods = 'LEADER', action = act.ActivatePaneDirection 'Left' },
-  { key = 'k', mods = 'LEADER', action = act.ActivatePaneDirection 'Right' },
-  { key = 'i', mods = 'LEADER', action = act.ActivatePaneDirection 'Up' },
-  { key = 'm', mods = 'LEADER', action = act.ActivatePaneDirection 'Down' },
-  { key = 'J', mods = 'LEADER', action = act.AdjustPaneSize { 'Left',  5 } },
-  { key = 'K', mods = 'LEADER', action = act.AdjustPaneSize { 'Right', 5 } },
-  { key = 'I', mods = 'LEADER', action = act.AdjustPaneSize { 'Up',    5 } },
-  { key = 'M', mods = 'LEADER', action = act.AdjustPaneSize { 'Down',  5 } },
+  -- Arrow-driven pane control. Each does its first action AND enters a repeatable
+  -- mode (key_tables below); inside a mode, plain arrows or j/k/i/m repeat.
+  -- Move = Leader+Arrow · Resize = Leader+Shift+Arrow · Rotate = Leader+Ctrl+Arrow.
+  { key = 'LeftArrow',  mods = 'LEADER', action = act.Multiple { act.ActivatePaneDirection 'Left',  act.ActivateKeyTable { name = 'activate_pane', one_shot = false, until_unknown = true, timeout_milliseconds = 1000 } } },
+  { key = 'RightArrow', mods = 'LEADER', action = act.Multiple { act.ActivatePaneDirection 'Right', act.ActivateKeyTable { name = 'activate_pane', one_shot = false, until_unknown = true, timeout_milliseconds = 1000 } } },
+  { key = 'UpArrow',    mods = 'LEADER', action = act.Multiple { act.ActivatePaneDirection 'Up',    act.ActivateKeyTable { name = 'activate_pane', one_shot = false, until_unknown = true, timeout_milliseconds = 1000 } } },
+  { key = 'DownArrow',  mods = 'LEADER', action = act.Multiple { act.ActivatePaneDirection 'Down',  act.ActivateKeyTable { name = 'activate_pane', one_shot = false, until_unknown = true, timeout_milliseconds = 1000 } } },
+  { key = 'LeftArrow',  mods = 'LEADER|SHIFT', action = act.Multiple { act.AdjustPaneSize { 'Left',  3 }, act.ActivateKeyTable { name = 'resize_pane', one_shot = false } } },
+  { key = 'RightArrow', mods = 'LEADER|SHIFT', action = act.Multiple { act.AdjustPaneSize { 'Right', 3 }, act.ActivateKeyTable { name = 'resize_pane', one_shot = false } } },
+  { key = 'UpArrow',    mods = 'LEADER|SHIFT', action = act.Multiple { act.AdjustPaneSize { 'Up',    3 }, act.ActivateKeyTable { name = 'resize_pane', one_shot = false } } },
+  { key = 'DownArrow',  mods = 'LEADER|SHIFT', action = act.Multiple { act.AdjustPaneSize { 'Down',  3 }, act.ActivateKeyTable { name = 'resize_pane', one_shot = false } } },
+  { key = 'LeftArrow',  mods = 'LEADER|CTRL', action = act.Multiple { act.RotatePanes 'CounterClockwise', act.ActivateKeyTable { name = 'rotate_pane', one_shot = false, until_unknown = true, timeout_milliseconds = 1500 } } },
+  { key = 'UpArrow',    mods = 'LEADER|CTRL', action = act.Multiple { act.RotatePanes 'CounterClockwise', act.ActivateKeyTable { name = 'rotate_pane', one_shot = false, until_unknown = true, timeout_milliseconds = 1500 } } },
+  { key = 'RightArrow', mods = 'LEADER|CTRL', action = act.Multiple { act.RotatePanes 'Clockwise', act.ActivateKeyTable { name = 'rotate_pane', one_shot = false, until_unknown = true, timeout_milliseconds = 1500 } } },
+  { key = 'DownArrow',  mods = 'LEADER|CTRL', action = act.Multiple { act.RotatePanes 'Clockwise', act.ActivateKeyTable { name = 'rotate_pane', one_shot = false, until_unknown = true, timeout_milliseconds = 1500 } } },
+  -- Repeatable tab-switch (Leader+t) and font-size (Leader+f) modes.
+  { key = 't', mods = 'LEADER', action = act.ActivateKeyTable { name = 'switch_tab', one_shot = false, until_unknown = true, timeout_milliseconds = 1500 } },
+  { key = 'f', mods = 'LEADER', action = act.ActivateKeyTable { name = 'font_size', one_shot = false, until_unknown = true, timeout_milliseconds = 1500 } },
   { key = 'z', mods = 'LEADER', action = act.TogglePaneZoomState },
   { key = 'phys:Space', mods = 'LEADER|CTRL', action = act.SendKey { key = ' ', mods = 'CTRL' } },
   { key = 'r', mods = 'LEADER', action = act.ReloadConfiguration },
@@ -284,7 +298,26 @@ wezterm.on('format-tab-title', function(tab, tabs, panes, cfg, hover, max_width)
   return items
 end)
 
--- ── Top-right status: workspace + current path (both always shown) ────────────
+-- ── Per-pane Claude background tint (ConPTY-proof) ────────────────────────────
+-- The hook also emits an OSC 11 background tint, but on Windows ConPTY eats OSC
+-- 10/11/12 before they reach WezTerm (the cc_state user var survives because
+-- ConPTY passes the unknown OSC 1337 through verbatim — that's why the tab dots
+-- work but the pane never tinted). Re-drive the tint from that user var here:
+-- user-var-changed fires reliably, and pane:inject_output feeds the OSC 11 into
+-- WezTerm's own emulator, bypassing ConPTY entirely. Local panes, every platform;
+-- mux/SSH panes (no inject_output) fall back to the hook's raw OSC 11. macOS/Linux
+-- have no ConPTY so the hook's OSC 11 already works — this re-sets the same colour.
+local CC_BG   = { working = '#2a2420', done = '#1f2a20', error = '#2e1e24' }
+local CC_BASE = '#1e1e2e'  -- Catppuccin Mocha base (matches config.color_scheme)
+wezterm.on('user-var-changed', function(window, pane, name, value)
+  if name ~= 'cc_state' then return end
+  local color = CC_BG[value] or CC_BASE          -- '' (cleared on exit) → reset
+  pcall(function() pane:inject_output('\x1b]11;' .. color .. '\x07') end)
+end)
+
+-- ── Top-right status: [⬡ workspace │] user@host │ current path ─────────────────
+-- The ⬡ workspace segment shows only when it isn't the default (it's `default` most of
+-- the time, so that slot is freed for the identity). user@host is computed once below.
 local function cwd_path(pane)
   local cwd = pane:get_current_working_dir()
   if not cwd then return '' end
@@ -292,15 +325,56 @@ local function cwd_path(pane)
   return (tostring(cwd):gsub('^file://[^/]*', ''))
 end
 
+-- Local identity for the right status: "User@host" (FQDN domain stripped). os.getenv
+-- reads the wezterm GUI process env (USERNAME on Windows, USER on macOS/Linux).
+local function titlecase(s) return #s > 0 and (s:sub(1, 1):upper() .. s:sub(2):lower()) or s end
+local IDENTITY = (function()
+  local user = titlecase(os.getenv('USERNAME') or os.getenv('USER') or '')
+  local host = titlecase((wezterm.hostname() or ''):gsub('%..*$', ''))   -- ORION -> Orion
+  if #user > 0 and #host > 0 then return user .. '@' .. host end
+  return user .. host
+end)()
+
 wezterm.on('update-right-status', function(window, pane)
-  window:set_right_status(wezterm.format {
-    { Foreground = { Color = '#89b4fa' } },
-    { Text = '⬡ ' .. window:active_workspace() },
-    { Foreground = { Color = '#585b70' } },
-    { Text = '  │  ' },
-    { Foreground = { Color = '#a6adc8' } },
-    { Text = cwd_path(pane) .. '  ' },
-  })
+  local items = {}
+  local kt = window:active_key_table()
+  if kt then                                  -- in a repeatable mode: sapphire badge
+    local MODE = {
+      resize_pane = '⤢ RESIZE ↑↓←→', activate_pane = '✛ MOVE ↑↓←→',
+      rotate_pane = '⟳ ROTATE ↑↓←→', switch_tab = '⇥ TAB ←→', font_size = 'A± FONT ↑↓0',
+    }
+    table.insert(items, { Background = { Color = '#89b4fa' } })
+    table.insert(items, { Foreground = { Color = '#1e1e2e' } })
+    table.insert(items, { Attribute = { Intensity = 'Bold' } })
+    table.insert(items, { Text = ' ' .. (MODE[kt] or kt) .. ' · Esc ' })
+    table.insert(items, { Background = { Color = '#11111b' } })
+    table.insert(items, { Foreground = { Color = '#585b70' } })
+    table.insert(items, { Attribute = { Intensity = 'Normal' } })
+    table.insert(items, { Text = '  ' })
+  elseif window:leader_is_active() then        -- leader pending: bold peach badge
+    table.insert(items, { Background = { Color = '#fab387' } })
+    table.insert(items, { Foreground = { Color = '#1e1e2e' } })
+    table.insert(items, { Attribute = { Intensity = 'Bold' } })
+    table.insert(items, { Text = ' ⌨ LEADER ' })
+    table.insert(items, { Background = { Color = '#11111b' } })
+    table.insert(items, { Foreground = { Color = '#585b70' } })
+    table.insert(items, { Attribute = { Intensity = 'Normal' } })
+    table.insert(items, { Text = '  ' })
+  end
+  local ws = window:active_workspace()
+  if ws ~= 'default' then                              -- workspace only when non-default
+    table.insert(items, { Foreground = { Color = '#89b4fa' } })
+    table.insert(items, { Text = '⬡ ' .. ws })
+    table.insert(items, { Foreground = { Color = '#585b70' } })
+    table.insert(items, { Text = '  │  ' })
+  end
+  table.insert(items, { Foreground = { Color = '#94e2d5' } })   -- identity (teal)
+  table.insert(items, { Text = IDENTITY })
+  table.insert(items, { Foreground = { Color = '#585b70' } })
+  table.insert(items, { Text = '  │  ' })
+  table.insert(items, { Foreground = { Color = '#a6adc8' } })   -- path (grey)
+  table.insert(items, { Text = cwd_path(pane) .. '  ' })
+  window:set_right_status(wezterm.format(items))
 end)
 
 -- ── Dim every pane while the window is unfocused ──────────────────────────────
@@ -320,10 +394,88 @@ wezterm.on('window-focus-changed', function(window)
   window:set_config_overrides(o)
 end)
 
+-- Ctrl+Space, Esc cancels a pending leader (a no-op consumes Esc; with the
+-- ~no-timeout leader this is the deliberate way to back out).
+table.insert(config.keys, { key = 'Escape', mods = 'LEADER', action = wezterm.action_callback(function() end) })
+
 -- Alt+1..9 → activate tab by number (appended to the literal config.keys above).
 for i = 1, 9 do
   table.insert(config.keys, { key = tostring(i), mods = 'ALT', action = act.ActivateTab(i - 1) })
 end
+
+-- ── Repeatable leader modes (key tables) ─────────────────────────────────────
+-- Entered from the arrow / t / f bindings above; inside a mode plain arrows or
+-- j/k/i/m repeat. resize_pane is sticky (Esc/Enter/q to leave); the others
+-- auto-exit (until_unknown + timeout). window:active_key_table() drives the badge.
+config.key_tables = {
+  activate_pane = {
+    { key = 'LeftArrow',  action = act.ActivatePaneDirection 'Left' },
+    { key = 'RightArrow', action = act.ActivatePaneDirection 'Right' },
+    { key = 'UpArrow',    action = act.ActivatePaneDirection 'Up' },
+    { key = 'DownArrow',  action = act.ActivatePaneDirection 'Down' },
+    { key = 'j', action = act.ActivatePaneDirection 'Left' },
+    { key = 'k', action = act.ActivatePaneDirection 'Right' },
+    { key = 'i', action = act.ActivatePaneDirection 'Up' },
+    { key = 'm', action = act.ActivatePaneDirection 'Down' },
+    { key = 'Escape', action = 'PopKeyTable' },
+    { key = 'Enter',  action = 'PopKeyTable' },
+  },
+  resize_pane = {
+    { key = 'LeftArrow',  action = act.AdjustPaneSize { 'Left',  3 } },
+    { key = 'RightArrow', action = act.AdjustPaneSize { 'Right', 3 } },
+    { key = 'UpArrow',    action = act.AdjustPaneSize { 'Up',    3 } },
+    { key = 'DownArrow',  action = act.AdjustPaneSize { 'Down',  3 } },
+    { key = 'LeftArrow',  mods = 'SHIFT', action = act.AdjustPaneSize { 'Left',  3 } },
+    { key = 'RightArrow', mods = 'SHIFT', action = act.AdjustPaneSize { 'Right', 3 } },
+    { key = 'UpArrow',    mods = 'SHIFT', action = act.AdjustPaneSize { 'Up',    3 } },
+    { key = 'DownArrow',  mods = 'SHIFT', action = act.AdjustPaneSize { 'Down',  3 } },
+    { key = 'j', action = act.AdjustPaneSize { 'Left',  3 } },
+    { key = 'k', action = act.AdjustPaneSize { 'Right', 3 } },
+    { key = 'i', action = act.AdjustPaneSize { 'Up',    3 } },
+    { key = 'm', action = act.AdjustPaneSize { 'Down',  3 } },
+    { key = 'Escape', action = 'PopKeyTable' },
+    { key = 'Enter',  action = 'PopKeyTable' },
+    { key = 'q',      action = 'PopKeyTable' },
+  },
+  rotate_pane = {
+    { key = 'LeftArrow',  action = act.RotatePanes 'CounterClockwise' },
+    { key = 'UpArrow',    action = act.RotatePanes 'CounterClockwise' },
+    { key = 'RightArrow', action = act.RotatePanes 'Clockwise' },
+    { key = 'DownArrow',  action = act.RotatePanes 'Clockwise' },
+    { key = 'LeftArrow',  mods = 'CTRL', action = act.RotatePanes 'CounterClockwise' },
+    { key = 'UpArrow',    mods = 'CTRL', action = act.RotatePanes 'CounterClockwise' },
+    { key = 'RightArrow', mods = 'CTRL', action = act.RotatePanes 'Clockwise' },
+    { key = 'DownArrow',  mods = 'CTRL', action = act.RotatePanes 'Clockwise' },
+    { key = 'j', action = act.RotatePanes 'CounterClockwise' },
+    { key = 'i', action = act.RotatePanes 'CounterClockwise' },
+    { key = 'k', action = act.RotatePanes 'Clockwise' },
+    { key = 'm', action = act.RotatePanes 'Clockwise' },
+    { key = 'Escape', action = 'PopKeyTable' },
+    { key = 'Enter',  action = 'PopKeyTable' },
+  },
+  switch_tab = {
+    { key = 'RightArrow', action = act.ActivateTabRelative(1) },
+    { key = 'LeftArrow',  action = act.ActivateTabRelative(-1) },
+    { key = 'k', action = act.ActivateTabRelative(1) },
+    { key = 'j', action = act.ActivateTabRelative(-1) },
+    { key = 'n', action = act.ActivateTabRelative(1) },
+    { key = 'p', action = act.ActivateTabRelative(-1) },
+    { key = 'Escape', action = 'PopKeyTable' },
+    { key = 'Enter',  action = 'PopKeyTable' },
+  },
+  font_size = {
+    { key = 'UpArrow',   action = act.IncreaseFontSize },
+    { key = 'DownArrow', action = act.DecreaseFontSize },
+    { key = 'k', action = act.IncreaseFontSize },
+    { key = 'j', action = act.DecreaseFontSize },
+    { key = '+', action = act.IncreaseFontSize },
+    { key = '=', action = act.IncreaseFontSize },
+    { key = '-', action = act.DecreaseFontSize },
+    { key = '0', action = act.ResetFontSize },
+    { key = 'Escape', action = 'PopKeyTable' },
+    { key = 'Enter',  action = 'PopKeyTable' },
+  },
+}
 
 pane_grid.bind_keys(config.keys, wezterm)
 
