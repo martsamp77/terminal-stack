@@ -127,6 +127,37 @@ function Set-WezTabTitle([string]$title) {
 
 Commit: [`d291b92`](../CHANGELOG.md).
 
+## ConPTY swallows the OSC 11 pane background tint
+
+**Symptom.** The `wez-tab-status` hook is supposed to tint a pane's background by Claude state (peach = working, green = done, red = error). On Windows the tab title and the per-pane `●/○` dots + green/red tab-text update correctly, but the **pane background never changes**. Same hook works on macOS / native Linux.
+
+**Cause.** On Windows every pane's byte-stream passes through **ConPTY** (the Windows pseudo-console) on its way to WezTerm. ConPTY parses standard VT itself and **intercepts the dynamic-colour OSC sequences (`OSC 10`/`11`/`12`)** to track its own buffer colours — it does **not** forward them to the host terminal. So the `\033]11;#…\007` the hook writes to `CONOUT$` dies inside ConPTY and WezTerm never sees it.
+
+The two signals that *do* work bypass that stream entirely, which is the tell:
+
+- `wezterm cli set-tab-title` → out-of-band over the WezTerm mux socket (no terminal stream).
+- The `cc_state` dots → `OSC 1337 SetUserVar`, an iTerm2-proprietary sequence ConPTY doesn't recognise, so it passes through verbatim and fires WezTerm's `user-var-changed`.
+
+And WezTerm has **no Lua API to set one pane's background** (`window:set_config_overrides` is per-*window*), so OSC-11-from-inside-the-pane is the only mechanism — exactly the thing ConPTY blocks.
+
+**Fix.** Re-drive the tint from the user var that already arrives, using **`pane:inject_output()`** — which feeds the escape sequence directly into WezTerm's own terminal emulator, downstream of ConPTY. Added to both `.wezterm.lua` configs:
+
+```lua
+local CC_BG   = { working = '#2a2420', done = '#1f2a20', error = '#2e1e24' }
+local CC_BASE = '#1e1e2e'  -- Catppuccin Mocha base
+wezterm.on('user-var-changed', function(window, pane, name, value)
+  if name ~= 'cc_state' then return end
+  local color = CC_BG[value] or CC_BASE          -- '' (cleared on exit) → reset
+  pcall(function() pane:inject_output('\x1b]11;' .. color .. '\x07') end)
+end)
+```
+
+OSC 11 only sets the default background colour — it never moves the cursor — so injecting it is safe even while Claude Code's full-screen TUI is drawing. The reset is free: the `cc`/`Set-WezTabTitle` wrappers already clear `cc_state` on exit, which fires `user-var-changed` with an empty value → the handler injects the base colour.
+
+The hook's raw `OSC 11` is **left in place on purpose**: it's harmless where ConPTY drops it, and it's the correct path for WezTerm **mux/SSH panes**, where `inject_output` is unsupported but the remote (ConPTY-free) shell's OSC 11 flows through the mux stream.
+
+**Caveat.** `pane:inject_output` requires WezTerm `20221119` or newer and works for **local panes only**. ConPTY's OSC handling has shifted across Windows builds; if a future build forwards OSC 11, the handler simply re-sets the same colour (no flicker, no harm).
+
 ## Synthetic Ctrl+V doesn't reach Claude Code
 
 **Symptom.** Wispr Flow's voice-dictation paste works in pwsh, but not in Claude Code. Other apps that simulate Ctrl+V (some clipboard managers, accessibility tools) also fail.
@@ -165,7 +196,7 @@ Commit: [`2a3f527`](../CHANGELOG.md). Related upstream issue: [anthropics/claude
 - Restarting GitKraken Desktop clears the **in-memory** portion of the stale registry (observed ~87 → ~31 dead ports) but does **not** fully drain it — the remainder is persisted in `DIPS` and only a GitKraken-side prune would clear it. Don't perform surgery on `DIPS` to chase benign warnings.
 - To silence the broadcasts entirely you would disable the `gitkraken-hooks` plugin — but that removes the feature.
 
-**Note.** Plugin enablement lives in `~/.claude/settings.json`, which this repo manages whole-file. The Windows template now tracks these plugin blocks so a `chezmoi apply` doesn't wipe them — see `decisions.md` § "Why the Windows settings template tracks the claude-obsidian + gitkraken plugins".
+**Note.** Plugin enablement lives in `~/.claude/settings.json`, which this repo manages whole-file. The tracked templates **no longer** carry `enabledPlugins` / `extraKnownMarketplaces` — plugins are a per-machine choice you make through the `/plugin` UI, owned by your live file. The trade-off (why the repo stopped imposing them) is in `decisions.md` § "Why `settings.json` ships only shared infra — no model, prefs, permissions, or plugins". If you want GitKraken's hooks, re-enable `gitkraken-hooks` there; this section describes its behavior once you do.
 
 ## Same-day backup file got clobbered
 
