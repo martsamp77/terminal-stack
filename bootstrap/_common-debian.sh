@@ -8,6 +8,12 @@
 INFO=$'\033[1;34m==>\033[0m'
 WARN=$'\033[1;33m!!\033[0m'
 
+# Config store + wizard helpers (app catalog, chord/theme mapping, prompts).
+# shellcheck source=_config.sh
+. "$(dirname -- "${BASH_SOURCE[0]}")/_config.sh"
+# shellcheck source=_wizard.sh
+. "$(dirname -- "${BASH_SOURCE[0]}")/_wizard.sh"
+
 common_require_non_root() {
     if [ "$(id -u)" -eq 0 ]; then
         echo "$WARN Don't run this as root. Run as your normal user; sudo will prompt as needed."
@@ -16,17 +22,63 @@ common_require_non_root() {
 }
 
 common_apt_prereqs() {
-    echo "$INFO Installing apt packages (zsh, git, curl, unzip, tmux, CLI tools, JetBrains Mono regular font)"
+    echo "$INFO Installing base apt packages (zsh, git, curl, unzip, JetBrains Mono regular font)"
     sudo apt-get update -qq
-    # Core packages — must be in apt on any supported Debian/Ubuntu.
+    # Hard prerequisites only — must be in apt on any supported Debian/Ubuntu.
+    # The toggleable CLI tools (eza/fzf/bat/.../tmux) are installed per the user's
+    # selection by common_install_selected_apps.
     sudo apt-get install -y \
-        zsh git curl unzip tmux \
-        zoxide fzf bat ripgrep micro \
+        zsh git curl unzip \
         fonts-jetbrains-mono fontconfig \
         >/dev/null
-    # Optional — present on Ubuntu 23.10+, missing on 22.04 (jammy). Try, ignore failures;
-    # common_install_optional_binaries fills the gap from upstream releases.
-    sudo apt-get install -y eza git-delta >/dev/null 2>&1 || true
+}
+
+# Install the user-selected toggleable apps (catalog ids; default: recommended).
+# apt where it has them; the bespoke installers (glow/neovim/eza/delta/zed/…)
+# otherwise. GPU/docker-gated ids no-op when the host lacks the hardware/tool.
+common_install_selected_apps() {
+    local apps="$*"; [ -n "$apps" ] || apps="$TS_APPS_RECOMMENDED"
+    echo "$INFO Installing selected apps: $apps"
+    local apt_pkgs="" id
+    for id in $apps; do
+        case "$id" in
+            tmux)    apt_pkgs="$apt_pkgs tmux" ;;
+            fzf)     apt_pkgs="$apt_pkgs fzf" ;;
+            ripgrep) apt_pkgs="$apt_pkgs ripgrep" ;;
+            zoxide)  apt_pkgs="$apt_pkgs zoxide" ;;
+            micro)   apt_pkgs="$apt_pkgs micro" ;;
+            bat)     apt_pkgs="$apt_pkgs bat" ;;
+            eza)     apt_pkgs="$apt_pkgs eza" ;;        # may be absent pre-23.10; github fallback below
+            delta)   apt_pkgs="$apt_pkgs git-delta" ;;
+            tldr)    apt_pkgs="$apt_pkgs tldr" ;;
+            nvtop)   command -v nvidia-smi >/dev/null 2>&1 && apt_pkgs="$apt_pkgs nvtop" ;;
+        esac
+    done
+    if [ -n "$apt_pkgs" ]; then
+        # shellcheck disable=SC2086
+        sudo apt-get install -y $apt_pkgs >/dev/null 2>&1 \
+            || { for id in $apt_pkgs; do sudo apt-get install -y "$id" >/dev/null 2>&1 || echo "$WARN apt install $id failed"; done; }
+    fi
+    case " $apps " in *" bat "*) common_bat_symlink ;; esac
+    case " $apps " in *" eza "*) command -v eza >/dev/null 2>&1 \
+        || common_install_github_binary "eza-community/eza" "eza" "eza_x86_64-unknown-linux-gnu\\.tar\\.gz$" || true ;; esac
+    case " $apps " in *" delta "*) command -v delta >/dev/null 2>&1 \
+        || common_install_github_binary "dandavison/delta" "delta" "delta-.*-x86_64-unknown-linux-gnu\\.tar\\.gz$" || true ;; esac
+    case " $apps " in *" glow "*)   common_install_glow ;; esac
+    case " $apps " in *" neovim "*) common_install_neovim ;; esac
+    case " $apps " in *" lazydocker "*)
+        if command -v docker >/dev/null 2>&1; then
+            common_install_github_binary "jesseduffield/lazydocker" "lazydocker" "lazydocker_.*_Linux_x86_64\\.tar\\.gz$" || true
+        else
+            echo "$INFO lazydocker selected but docker not found; skipping"
+        fi ;;
+    esac
+    case " $apps " in *" zed "*)
+        if ! command -v zed >/dev/null 2>&1; then
+            echo "$INFO Installing Zed via zed.dev install.sh"
+            curl -f https://zed.dev/install.sh | sh >/dev/null 2>&1 || echo "$WARN Zed install failed (headless / network?)"
+        fi ;;
+    esac
 }
 
 # glow — Charm's terminal markdown renderer (`glow file.md`; `glow .` for the TUI browser).
@@ -260,40 +312,14 @@ common_git_include() {
     fi
 }
 
-# Optional extras, opt-in via TS_EXTRA_TOOLS=1 or the /dev/tty prompt:
-# tldr always; nvtop only on GPU hosts; lazydocker only where docker exists;
-# Zed (GUI editor) here too — opt-in because native-Linux targets are headless.
-common_install_extra_tools() {
-    local answer="${TS_EXTRA_TOOLS:-}"
-    if [ -z "$answer" ]; then
-        answer="$(common_tty_prompt "Install extra tools (tldr, nvtop on GPU hosts, lazydocker with docker, Zed editor)? [y/N]: ")"
-    fi
-    case "$answer" in
-        1|y|Y|yes|YES) ;;
-        *) echo "$INFO Skipping extra tools (TS_EXTRA_TOOLS=1 to enable)"; return 0 ;;
-    esac
-    echo "$INFO Installing extra tools"
-    sudo apt-get install -y tldr >/dev/null 2>&1 || echo "$WARN apt install tldr failed"
-    if command -v nvidia-smi >/dev/null 2>&1; then
-        sudo apt-get install -y nvtop >/dev/null 2>&1 || echo "$WARN apt install nvtop failed"
-    fi
-    if command -v docker >/dev/null 2>&1; then
-        common_install_github_binary "jesseduffield/lazydocker" "lazydocker" "lazydocker_.*_Linux_x86_64\\.tar\\.gz$" || true
-    fi
-    # Zed — GUI editor, opt-in here (headless native-Linux targets don't need it).
-    if ! command -v zed >/dev/null 2>&1; then
-        echo "$INFO Installing Zed via zed.dev install.sh"
-        curl -f https://zed.dev/install.sh | sh >/dev/null 2>&1 || echo "$WARN Zed install failed (headless / network?)"
-    fi
-}
-
-# Run all standard install steps in the order the original WSL bootstrap used.
+# Run all standard install steps. The wizard runs early (collects leader/theme/
+# app choices into TS_WIZ_*); the selected apps are then installed. Persisting the
+# choices into chezmoi [data] happens in the wrapper AFTER chezmoi.toml is written
+# (ts_save_config) — chezmoi.toml may not exist yet at this point.
 common_install_all() {
     common_apt_prereqs
-    common_install_optional_binaries
-    common_install_glow
-    common_install_neovim
-    common_bat_symlink
+    ts_wizard_collect
+    common_install_selected_apps "$TS_WIZ_APPS"
     common_oh_my_zsh
     common_login_shell_zsh
     common_chezmoi
@@ -301,5 +327,4 @@ common_install_all() {
     common_nerd_font_jetbrains
     common_git_include
     common_workspace_config
-    common_install_extra_tools
 }

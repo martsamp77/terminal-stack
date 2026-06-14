@@ -32,9 +32,15 @@ curl -fsSL https://raw.githubusercontent.com/martsamp77/terminal-stack/main/inst
 
 Defaults: the Windows installer clones to `%USERPROFILE%\terminal-stack` (visible from WSL as `/mnt/c/Users/<you>/terminal-stack`); Linux and macOS clone to `~/code/terminal-stack`. Override with `$env:TERMINAL_STACK_DIR` (PowerShell) or `TERMINAL_STACK_DIR=…` (bash). Expects a clean home directory — if you already have a hand-edited `~/.zshrc` or `$PROFILE`, see `INSTALL.md` for the per-step path that preserves user content.
 
+## Configuring (`ts-config`)
+
+The install is a short **wizard** — pick your WezTerm **leader key** (`Ctrl+Space`/`Ctrl+A`/`Ctrl+B`/custom), a **theme** (`dark` Catppuccin Mocha / `light` Latte / `follow` the OS light-dark setting), and which **apps** to install (recommended set or a per-app picker). Choices are saved (chezmoi `[data]` on WSL/Linux/macOS, `%LOCALAPPDATA%\terminal-stack\config.json` on Windows) and survive `ts-update`.
+
+Change them anytime with **`ts-config`** (both shells): run it bare for an interactive menu, or one-shot — `ts-config theme follow`, `ts-config leader ctrl-a`, `ts-config tmux ctrl-a`, `ts-config apps`, `ts-config show`. It re-applies and installs any newly-selected apps (it never uninstalls). In `follow` mode WezTerm switches light/dark live; the Starship/tmux palette is baked at apply and refreshed by `ts-update`/`ts-config`. In a combined Windows+WSL setup, run `ts-config` from WSL (its `chezmoi apply` is authoritative for the Windows files). Scripted installs skip the prompts with `TS_LEADER` / `TS_THEME` / `TS_APPS` (see `INSTALL.md` § Install wizard).
+
 ## Updating & rollback
 
-After install, `ts-update` is available in both pwsh and zsh. It fetches, shows the incoming commits, records a rollback point, then pulls and re-applies:
+After install, `ts-update` is available in both pwsh and zsh. It fetches, shows the incoming commits, records a rollback point, then pulls and re-applies (honoring your saved `ts-config` choices):
 
 ```text
 $ ts-update
@@ -61,7 +67,7 @@ Two caveats: the clone may double as a dev checkout — commit or stash before a
 
 ## What you get
 
-- **WezTerm nightly** with a flat tab bar (each tab labelled `N: <dir>`, tinted green when Claude finishes / red on error; each Claude pane's background tints to match), integrated window buttons, JetBrainsMono Nerd Font at 11.5pt, and a right-status showing `user@host` · workspace · cwd. A **no-timeout leader** (`Ctrl+Space`, peach-cursor "waiting" indicator) drives splits (`h`/`v` local; `H`/`V` into a chosen SSH/WSL domain) and **arrow-key repeatable modes** — `Ctrl+Space`+arrows move focus, `+Shift` resizes, `+Ctrl` rotates panes, plus `t`/`f` for tab-switch / font-size — each shown by an on-screen mode badge. Also `Alt+1…9` tab selection, `Ctrl+V` rebound for synthetic-paste (Wispr Flow, etc.), `Ctrl+Space o` to pop a pane into its own window, the `F1`–`F6` 3×2 grid, and workspace management (`Ctrl+Space R` rename, `Ctrl+Space X` close-all). On macOS, two System Settings toggles free `Ctrl+Space` and the F-row first — see `INSTALL.md` § macOS.
+- **WezTerm nightly** with a flat tab bar (each tab labelled `N: <dir>`, tinted green when Claude finishes / red on error; each Claude pane's background tints to match), integrated window buttons, JetBrainsMono Nerd Font at 11.5pt, and a right-status showing `user@host` · workspace · cwd. A **no-timeout leader** (`Ctrl+Space` by default — configurable via `ts-config leader`; peach-cursor "waiting" indicator) drives splits (`h`/`v` local; `H`/`V` into a chosen SSH/WSL domain) and **arrow-key repeatable modes** — `Ctrl+Space`+arrows move focus, `+Shift` resizes, `+Ctrl` rotates panes, plus `t`/`f` for tab-switch / font-size — each shown by an on-screen mode badge. Also `Alt+1…9` tab selection, `Ctrl+V` rebound for synthetic-paste (Wispr Flow, etc.), `Ctrl+Space o` to pop a pane into its own window, the `F1`–`F6` 3×2 grid, and workspace management (`Ctrl+Space R` rename, `Ctrl+Space X` close-all). The colour theme (Catppuccin **Mocha** dark / **Latte** light / **follow** the OS) is set by `ts-config theme` and switches live in follow mode. On macOS, two System Settings toggles free `Ctrl+Space` and the F-row first — see `INSTALL.md` § macOS.
 - **PowerShell 7 `$PROFILE`** with Starship prompt, OSC 7 cwd hint, tilde-abbreviated tab title, UTF-8 console restore (heals Claude-Code `Γ¥»` mojibake), and `cc`/`ccc`/`ccd`/`ccdc`/`cca` wrappers that set per-tab project titles.
 - **WSL zsh** with oh-my-zsh, theme cleared so Starship owns the prompt, a `precmd` that sets tab titles, and `ccs` / `ssht` helpers for tmux-attached Claude Code and SSH sessions.
 - **Claude Code hooks** that flip the WezTerm tab title to `cc ⏳ <project>` while Claude is thinking and `cc ✓ <project>` when it's waiting for your input — symmetric across Windows pwsh and WSL bash.

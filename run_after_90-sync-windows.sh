@@ -5,9 +5,14 @@
 #   1. chezmoi data: `windowsUsername` under the [data] section of chezmoi.toml
 #   2. Fallback: `cmd.exe /c echo %USERNAME%` via WSL interop
 #
-# Files ending in `.tmpl` are rendered before copy: occurrences of `__WIN_USER__`
-# are replaced with the resolved username, and the `.tmpl` suffix is stripped on
-# the destination path.
+# Files ending in `.tmpl` are rendered before copy: tokens are replaced and the
+# `.tmpl` suffix is stripped on the destination path. Tokens:
+#   __WIN_USER__        resolved Windows username
+#   __LEADER_KEY__      WezTerm leader key   (from leaderKey   in chezmoi [data])
+#   __LEADER_MODS__     WezTerm leader mods  (from leaderMods)
+#   __THEME_MODE__      dark|light|follow    (from themeMode)
+#   __THEME_RESOLVED__  baked palette light|dark (from resolvedTheme)
+#   __TMUX_PREFIX__     tmux prefix spec     (from tmuxPrefixResolved)
 #
 # Idempotent: only writes targets whose content differs.
 # Backs up any pre-existing target to <path>.bak.YYYYMMDD[.N] before overwrite.
@@ -60,6 +65,27 @@ if [ -z "$WIN_USER" ]; then
   exit 1
 fi
 
+# Resolve the terminal-stack config tokens from chezmoi [data], each with a
+# default so a clone that predates the wizard renders today's behaviour.
+resolve_cz() {
+  if command -v chezmoi >/dev/null 2>&1; then command -v chezmoi
+  elif [ -x "$HOME/.local/bin/chezmoi" ]; then echo "$HOME/.local/bin/chezmoi"
+  elif [ -x /usr/local/bin/chezmoi ]; then echo /usr/local/bin/chezmoi
+  else return 1; fi
+}
+cfg() {  # cfg <data-key> <default>
+  local cz v=""
+  if cz="$(resolve_cz)"; then
+    v="$("$cz" execute-template "{{ if hasKey . \"$1\" }}{{ index . \"$1\" }}{{ end }}" 2>/dev/null || true)"
+  fi
+  [ -n "$v" ] && echo "$v" || echo "$2"
+}
+LEADER_KEY="$(cfg leaderKey 'phys:Space')"
+LEADER_MODS="$(cfg leaderMods 'CTRL')"
+THEME_MODE="$(cfg themeMode 'dark')"
+THEME_RESOLVED="$(cfg resolvedTheme 'dark')"
+TMUX_PREFIX="$(cfg tmuxPrefixResolved 'C-b')"
+
 dst_dir="/mnt/c/Users/$WIN_USER"
 if [ ! -d "$dst_dir" ]; then
   # Non-WSL host or non-existent user dir; noop cleanly.
@@ -79,7 +105,13 @@ while IFS= read -r -d '' src; do
 
   if [[ "$rel" == *.tmpl ]]; then
     rel_out="${rel%.tmpl}"
-    sed "s|__WIN_USER__|$WIN_USER|g" "$src" > "$rendered"
+    sed -e "s|__WIN_USER__|$WIN_USER|g" \
+        -e "s|__LEADER_KEY__|$LEADER_KEY|g" \
+        -e "s|__LEADER_MODS__|$LEADER_MODS|g" \
+        -e "s|__THEME_MODE__|$THEME_MODE|g" \
+        -e "s|__THEME_RESOLVED__|$THEME_RESOLVED|g" \
+        -e "s|__TMUX_PREFIX__|$TMUX_PREFIX|g" \
+        "$src" > "$rendered"
     effective_src="$rendered"
   else
     rel_out="$rel"

@@ -16,6 +16,12 @@ if [ "$(uname -s)" != "Darwin" ]; then
     exit 1
 fi
 
+SCRIPT_DIR="$(cd -- "$(dirname -- "$0")" && pwd)"
+# shellcheck source=_config.sh
+. "$SCRIPT_DIR/_config.sh"
+# shellcheck source=_wizard.sh
+. "$SCRIPT_DIR/_wizard.sh"
+
 echo "$INFO Terminal stack macOS bootstrap"
 echo "    Detected: user $USER, home $HOME, arch $(uname -m)"
 
@@ -34,12 +40,12 @@ elif [ -x /usr/local/bin/brew ]; then
     eval "$(/usr/local/bin/brew shellenv)"
 fi
 
-# 2. Core packages via brew
-echo "$INFO Installing brew formulae and casks"
-brew install \
-    zsh git tmux \
-    eza zoxide fzf bat git-delta ripgrep micro glow neovim \
-    starship chezmoi
+# 2. Wizard — collect leader/theme/app choices (env vars skip prompts), then
+# install the required formulae plus the selected toggleable apps.
+ts_wizard_collect
+echo "$INFO Installing required brew formulae (zsh, git, starship, chezmoi)"
+brew install zsh git starship chezmoi
+ts_brew_install_apps "$TS_WIZ_APPS"
 
 # 3. WezTerm (cask) — nightly, matching the Windows side.
 # The plain `wezterm` cask is pinned to the stale 20240203 stable; this stack
@@ -49,14 +55,6 @@ if ! brew list --cask wezterm@nightly >/dev/null 2>&1; then
     brew install --cask wezterm@nightly
 else
     echo "$INFO WezTerm nightly cask already installed"
-fi
-
-# 3b. Zed (cask) — GUI editor.
-if ! brew list --cask zed >/dev/null 2>&1; then
-    echo "$INFO Installing Zed cask"
-    brew install --cask zed
-else
-    echo "$INFO Zed cask already installed"
 fi
 
 # 4. JetBrainsMono Nerd Font (cask)
@@ -110,6 +108,14 @@ else
     echo "$INFO $TOML already exists; not overwriting sourceDir."
 fi
 
+# 7b. Persist the wizard's config choices into chezmoi [data] (regenerates the
+# derived leaderKey/leaderMods/resolvedTheme via `chezmoi init`).
+if [ -f "$TOML" ]; then
+    # shellcheck disable=SC2086
+    ts_save_config "${TS_WIZ_LEADER:-ctrl-space}" "${TS_WIZ_THEME:-dark}" "${TS_WIZ_TMUX:-ctrl-b}" ${TS_WIZ_APPS:-}
+    echo "$INFO Saved terminal-stack config to $TOML [data]"
+fi
+
 # 8. Git include — stack aliases + delta config (file lands via chezmoi apply;
 # git silently skips missing include files, so ordering is safe).
 GIT_INC="$HOME/.config/git/terminal-stack.gitconfig"
@@ -153,21 +159,6 @@ else
         echo "$INFO Wrote WORKSPACE_DIR=$WS_CHOICE to $RC"
     fi
 fi
-
-# 10. Optional extras (opt-in): tldr + lazydocker via brew. TS_EXTRA_TOOLS=1
-# or answer y at the prompt.
-EXTRA_ANSWER="${TS_EXTRA_TOOLS:-}"
-if [ -z "$EXTRA_ANSWER" ]; then
-    if { printf 'Install extra tools (tldr, lazydocker)? [y/N]: ' > /dev/tty \
-         && read -r EXTRA_ANSWER < /dev/tty; } 2>/dev/null; then :; else EXTRA_ANSWER=""; fi
-fi
-case "$EXTRA_ANSWER" in
-    1|y|Y|yes|YES)
-        echo "$INFO Installing extra tools (tldr, lazydocker)"
-        brew install tldr lazydocker
-        ;;
-    *) echo "$INFO Skipping extra tools (TS_EXTRA_TOOLS=1 to enable)" ;;
-esac
 
 echo ""
 echo "$INFO macOS bootstrap done."

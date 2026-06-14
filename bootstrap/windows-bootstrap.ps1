@@ -10,6 +10,10 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
+# Config store + app catalog + wizard prompts (Save-TsConfig, $TsWingetIds,
+# Read-TsLeader/Theme/Apps, etc.).
+. (Join-Path $PSScriptRoot '_config.ps1')
+
 function Install-WingetPackage {
     param([Parameter(Mandatory)][string]$Id)
     if ($PSCmdlet.ShouldProcess($Id, 'winget install')) {
@@ -45,36 +49,35 @@ Write-Host '==> Terminal stack Windows bootstrap'
 Write-Host '    Detected: ' -NoNewline
 Write-Host "PowerShell $($PSVersionTable.PSVersion); user $env:USERNAME"
 
-# Core packages
-$corePackages = @(
+# Wizard — collect leader / theme / app choices (env vars skip prompts).
+$leaderChord  = Read-TsLeader
+$themeMode    = Read-TsTheme
+$selectedApps = @(Read-TsApps)
+Write-Host "==> Config: leader=$leaderChord theme=$themeMode"
+$appsLabel = if ($selectedApps.Count) { $selectedApps -join ', ' } else { '<none>' }
+Write-Host "==> Apps: $appsLabel"
+
+# Required packages (always installed; not part of the picker).
+$requiredPackages = @(
     'wez.wezterm.nightly',              # WezTerm nightly (preferred over stale stable)
     'DEVCOM.JetBrainsMonoNerdFont',     # Nerd Font for glyph rendering
     'Starship.Starship',                # Shell prompt
-    'twpayne.chezmoi',                  # Dotfile manager (used to apply this repo)
-    'eza-community.eza',                # Modern ls
-    'junegunn.fzf',                     # Fuzzy finder
-    'sharkdp.bat',                      # cat with syntax highlighting
-    'dandavison.delta',                 # git diff pager
-    'BurntSushi.ripgrep.MSVC',          # Fast grep
-    'ajeetdsouza.zoxide',               # Smarter cd
-    'charmbracelet.glow',               # Markdown reader (TUI)
-    'zyedidia.micro',                   # nano-like terminal text editor
-    'Neovim.Neovim',                    # Neovim editor
-    'Zed.Zed'                           # Zed editor (Windows build is preview)
+    'twpayne.chezmoi'                   # Dotfile manager (used to apply this repo)
 )
+foreach ($pkg in $requiredPackages) { Install-WingetPackage -Id $pkg }
 
-foreach ($pkg in $corePackages) {
-    Install-WingetPackage -Id $pkg
+# Selected toggleable apps (catalog id -> winget id).
+foreach ($id in $selectedApps) {
+    if ($script:TsWingetIds.ContainsKey($id)) {
+        Install-WingetPackage -Id $script:TsWingetIds[$id]
+    }
 }
 
-# Optional packages — only if -IncludeOptional was passed
-if ($IncludeOptional) {
-    $optionalPackages = @(
-        # Add here as the stack grows. Currently none required.
-    )
-    foreach ($pkg in $optionalPackages) {
-        Install-WingetPackage -Id $pkg
-    }
+# Save the chosen config to %LOCALAPPDATA%\terminal-stack\config.json — read by
+# sync-windows.ps1 (and the WSL hook's mirror) to render the Windows .tmpl files.
+if ($PSCmdlet.ShouldProcess('terminal-stack config.json', 'save config')) {
+    Save-TsConfig -LeaderChord $leaderChord -ThemeMode $themeMode -Apps $selectedApps | Out-Null
+    Write-Host "==> Saved config to $(Get-TsConfigPath)"
 }
 
 # Git include — stack aliases + delta config. The included file lands at

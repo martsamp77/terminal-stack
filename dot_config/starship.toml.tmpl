@@ -8,6 +8,13 @@
 # Glyph requirements: any Nerd Font (JetBrainsMono Nerd Font is the stack default).
 # Nerd Font glyphs use \u escapes — the Private-Use-Area characters (U+E000–U+F8FF)
 # are not safe to paste literally because some editors silently strip them.
+#
+# Colours come from the `palette` selected below (Catppuccin Mocha = dark,
+# Latte = light). The palette overrides the standard colour names used in the
+# styles, so the prompt tracks the stack's theme. `palette` is baked at apply
+# time from the saved config (themeMode/resolvedTheme); change it with
+# `ts-config theme <dark|light|follow>`.
+palette = "{{ if hasKey . "resolvedTheme" }}{{ .resolvedTheme }}{{ else }}dark{{ end }}"
 
 add_newline      = true
 command_timeout  = 1000
@@ -38,36 +45,36 @@ disabled = false
 format   = "[$symbol ](bold cyan)"
 
 [os.symbols]
-Alpine           = ""
-Arch             = ""
-CentOS           = ""
-Debian           = ""
-Fedora           = ""
-Linux            = ""
-Macos            = ""
-Manjaro          = ""
-Mint             = ""
-NixOS            = ""
-openSUSE         = ""
-Pop              = ""
-Raspbian         = ""
-Redhat           = ""
-RedHatEnterprise = ""
-Ubuntu           = ""
-Unknown          = ""
-Windows          = ""
+Alpine           = ""
+Arch             = ""
+CentOS           = ""
+Debian           = ""
+Fedora           = ""
+Linux            = ""
+Macos            = ""
+Manjaro          = ""
+Mint             = ""
+NixOS            = ""
+openSUSE         = ""
+Pop              = ""
+Raspbian         = ""
+Redhat           = ""
+RedHatEnterprise = ""
+Ubuntu           = ""
+Unknown          = ""
+Windows          = ""
 
 # ── Current directory (folder glyph + path) ───────────────────────────────────
 [directory]
-format            = "[   $path]($style)"
+format            = "[   $path]($style)"
 style             = "bold cyan"
 truncation_length = 4
 truncate_to_repo  = false
-read_only         = "  "
+read_only         = "  "
 
 # ── Git branch (octocat + branch glyph + name) ────────────────────────────────
 [git_branch]
-format = "[    $branch]($style)"
+format = "[    $branch]($style)"
 symbol = ""
 style  = "bold green"
 
@@ -106,7 +113,7 @@ style    = "bold green"
 # ── Clock ─────────────────────────────────────────────────────────────────────
 [time]
 disabled    = false
-format      = " [ $time]($style)"
+format      = " [ $time]($style)"
 time_format = "%r"
 style       = "bold cyan"
 
@@ -121,3 +128,20 @@ disabled = true
 disabled = true
 [azure]
 disabled = true
+
+# ── Palettes ──────────────────────────────────────────────────────────────────
+# These redefine the standard colour names used above, so selecting a palette
+# (top of file) re-themes the whole prompt. dark = Catppuccin Mocha, light = Latte.
+[palettes.dark]
+green  = "#a6e3a1"
+cyan   = "#89dceb"
+yellow = "#f9e2af"
+red    = "#f38ba8"
+black  = "#585b70"
+
+[palettes.light]
+green  = "#40a02b"
+cyan   = "#04a5e5"
+yellow = "#df8e1d"
+red    = "#d20f39"
+black  = "#acb0be"
