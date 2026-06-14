@@ -1,0 +1,4 @@
+# Paths chezmoi removes from the target on apply (POSIX/$HOME side).
+# wzr was absorbed into `doc` (docs/kb/wezterm/*); drop its old deployed files.
+.local/bin/wzr
+.wezterm-ref

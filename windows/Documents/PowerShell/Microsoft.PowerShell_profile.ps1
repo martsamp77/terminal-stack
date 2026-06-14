@@ -258,31 +258,9 @@ function ccnotify {
 # ---- claude-code-end ----
 
 # ---- wzr-start ----
-function wzr {
-    param([string]$Topic = '')
-    $refDir = Join-Path $env:USERPROFILE '.wezterm-ref'
-
-    if ($Topic -eq '' -or $Topic -eq 'list' -or $Topic -eq '-h') {
-        if ($Topic -ne 'list') { Write-Host 'Usage: wzr <topic>  |  wzr list'; Write-Host '' }
-        Write-Host 'Topics:'
-        Get-ChildItem (Join-Path $refDir '*.txt') | ForEach-Object {
-            Write-Host "  wzr $($_.BaseName)"
-        }
-        return
-    }
-
-    $file = Join-Path $refDir "$Topic.txt"
-    if (-not (Test-Path $file)) {
-        Write-Warning "wzr: no topic '$Topic' — run 'wzr list'"
-        return
-    }
-
-    if (Get-Command bat -ErrorAction SilentlyContinue) {
-        & bat --style=plain --paging=always $file
-    } else {
-        Get-Content $file
-    }
-}
+# wzr — WezTerm key reference. Now a thin alias into `doc` (docs/kb/wezterm/*).
+# `wzr` browses the WezTerm topics; `wzr panes` opens that one.
+function wzr { param([string]$Topic) if ($Topic) { doc "wezterm/$Topic" } else { doc wezterm } }
 # ---- wzr-end ----
 
 # ---- editor-launch-start ----
@@ -315,6 +293,200 @@ function npp {
     & $exe @resolved
 }
 # ---- editor-launch-end ----
+
+# ---- doc-start ----
+# `doc` — personal markdown knowledge base. Topics live in <clone>/docs/kb
+# (tracked) + ~/.doc.local (untracked personal layer); rendered by glow, bat
+# fallback. Repo-canonical: no deploy, the viewer reads straight from the clone.
+# See docs/kb/_index.md. (`ref`/`wzr` are separate for now.)
+function Get-DocRoot {
+    $cands = @()
+    if ($env:DOC_ROOT) { $cands += $env:DOC_ROOT }
+    if ($env:TERMINAL_STACK_DIR) { $cands += (Join-Path $env:TERMINAL_STACK_DIR 'docs\kb') }
+    foreach ($base in @('C:\DATA\Workspace', (Join-Path $env:USERPROFILE 'workspace'),
+                        (Join-Path $env:USERPROFILE 'Documents\Workspace'), $env:USERPROFILE)) {
+        $cands += (Join-Path $base 'terminal-stack\docs\kb')
+    }
+    foreach ($c in $cands) { if ($c -and (Test-Path -LiteralPath $c -PathType Container)) { return (Resolve-Path -LiteralPath $c).Path } }
+    return $null
+}
+function Get-DocLocal { if ($env:DOC_LOCAL) { $env:DOC_LOCAL } else { Join-Path $env:USERPROFILE '.doc.local' } }
+
+function Get-DocIndex([string]$Os = 'windows') {
+    $roots = [ordered]@{}
+    $r = Get-DocRoot; if ($r) { $roots[$r] = '' }
+    $l = Get-DocLocal; if (Test-Path -LiteralPath $l) { $roots[(Resolve-Path -LiteralPath $l).Path] = ' [local]' }
+    $subs = if ($Os -eq 'all') { $null } else { @('common', 'wezterm', $Os) }
+    foreach ($root in $roots.Keys) {
+        $tag = $roots[$root]
+        $files = if ($subs) {
+            @(foreach ($s in $subs) { $d = Join-Path $root $s; if (Test-Path -LiteralPath $d) { Get-ChildItem -LiteralPath $d -Recurse -File -Filter *.md } }) +
+            @(Get-ChildItem -LiteralPath $root -File -Filter *.md)
+        } else { Get-ChildItem -LiteralPath $root -Recurse -File -Filter *.md }
+        foreach ($f in $files) {
+            $rel = ($f.FullName.Substring($root.Length).TrimStart('\', '/') -replace '\.md$', '') -replace '\\', '/'
+            [pscustomobject]@{ Label = "$rel$tag"; Path = $f.FullName }
+        }
+    }
+}
+
+function Invoke-DocView([string]$path) {
+    if (-not (Test-Path -LiteralPath $path)) { Write-Warning "doc: not found: $path"; return }
+    if     (Get-Command glow -EA SilentlyContinue) { & glow -p $path }
+    elseif (Get-Command bat  -EA SilentlyContinue) { & bat --language=markdown --paging=always $path }
+    else   { Get-Content -LiteralPath $path }
+}
+
+function Invoke-DocOpen([string]$query, [string]$os) {
+    $m = @(Get-DocIndex 'all' | Where-Object { $_.Label -like "*$query*" })
+    if ($m.Count -eq 0) { Write-Warning "doc: no topic matching '$query' (try: doc ls)"; return }
+    # If every match is the same topic (tracked + its [local] twin), open the [local] one.
+    $bases = $m | Group-Object { $_.Label -replace ' \[local\]$', '' }
+    if ($bases.Count -eq 1) {
+        $pick = ($m | Where-Object { $_.Label -match '\[local\]$' } | Select-Object -First 1)
+        if (-not $pick) { $pick = $m[0] }
+        Invoke-DocView $pick.Path; return
+    }
+    if (Get-Command fzf -EA SilentlyContinue) { Invoke-DocFinder $os $query }
+    else { Write-Host "Multiple matches for '$query':"; $m | ForEach-Object { "  $($_.Label)" } }
+}
+
+function Invoke-DocFinder([string]$os, [string]$query) {
+    if (-not (Get-Command fzf -EA SilentlyContinue)) { Write-Warning 'doc: fzf not installed'; return }
+    $idx = Get-DocIndex $os | Sort-Object Label
+    if (-not $idx) { Write-Warning 'doc: no topics found'; return }
+    $prev = if (Get-Command glow -EA SilentlyContinue) { 'glow -s dark {2}' } else { 'bat --color=always --style=plain {2}' }
+    $sel = ($idx | ForEach-Object { "$($_.Label)`t$($_.Path)" }) |
+        fzf --delimiter="`t" --with-nth=1 --query=$query --preview=$prev --preview-window='right,60%,wrap' --header='enter=open'
+    if ($sel) { Invoke-DocView (($sel -split "`t")[-1]) }
+}
+
+# Find an individual command across all docs and drop it on the prompt to run.
+function Invoke-DocCmd([string]$query) {
+    if (-not (Get-Command fzf -EA SilentlyContinue)) { Write-Warning 'doc: fzf not installed'; return }
+    $rows = foreach ($f in (Get-DocIndex 'all')) {
+        $n = 0; $infence = $false
+        foreach ($line in (Get-Content -LiteralPath $f.Path)) {
+            $n++
+            if ($line -match '^\s*```') { $infence = -not $infence; continue }
+            if ($infence) { $t = $line.Trim(); if ($t -and $t -notmatch '^#') { "$t`t$($f.Path)`t$n" } }
+        }
+    }
+    if (-not $rows) { Write-Warning 'doc: no commands found'; return }
+    $sel = $rows | fzf --delimiter="`t" --with-nth=1 --query=$query `
+        --preview='bat --color=always --highlight-line {3} {2}' --preview-window='right,60%,wrap' `
+        --header='enter = put command on your prompt'
+    if ($sel) { [Microsoft.PowerShell.PSConsoleReadLine]::Insert((($sel -split "`t")[0])) }
+}
+
+function Invoke-DocGrep([string]$pat) {
+    if (-not $pat) { Write-Host 'usage: doc -g <pattern>'; return }
+    $files = @((Get-DocIndex 'all').Path)
+    if (-not $files) { Write-Warning 'doc: no docs'; return }
+    if (Get-Command rg -EA SilentlyContinue) { & rg --line-number --heading --color=always $pat @files }
+    else { Select-String -Path $files -Pattern $pat | ForEach-Object { "$($_.Filename):$($_.LineNumber): $($_.Line.Trim())" } }
+}
+
+function Invoke-DocEdit([string]$mode, [string]$arg, [string]$os) {
+    $editor = if ($env:EDITOR) { $env:EDITOR } elseif (Get-Command micro -EA SilentlyContinue) { 'micro' } else { 'notepad' }
+    if ($mode -eq 'new') {
+        if (-not $arg) { Write-Host 'usage: doc new <os>/<name>   e.g. doc new linux/foo'; return }
+        $p = Join-Path (Get-DocRoot) ($arg -replace '/', '\')
+        if (-not $p.EndsWith('.md')) { $p += '.md' }
+        New-Item -ItemType Directory -Force -Path (Split-Path $p) | Out-Null
+        if (-not (Test-Path -LiteralPath $p)) { "# $((Split-Path $p -Leaf) -replace '\.md$','')`n" | Set-Content -LiteralPath $p -Encoding utf8 }
+        & $editor $p
+    } else {
+        $m = @(Get-DocIndex 'all' | Where-Object { $_.Label -like "*$arg*" })
+        if ($m.Count -ge 1) { & $editor $m[0].Path } else { Write-Warning "doc edit: no topic matching '$arg'" }
+    }
+}
+
+function Update-DocChangelog([string]$repo, [string[]]$topics) {
+    $cl = Join-Path $repo 'CHANGELOG.md'
+    if (-not (Test-Path -LiteralPath $cl)) { return }
+    $lines = [System.Collections.Generic.List[string]](Get-Content -LiteralPath $cl)
+    $bullet = "- **Docs:** updated $((($topics | ForEach-Object { '`' + $_ + '`' }) -join ', '))."
+    $ui = -1
+    for ($i = 0; $i -lt $lines.Count; $i++) { if ($lines[$i] -match '^## \[Unreleased\]') { $ui = $i; break } }
+    if ($ui -lt 0) { return }
+    $docsIdx = -1
+    for ($i = $ui + 1; $i -lt $lines.Count; $i++) {
+        if ($lines[$i] -match '^## ') { break }
+        if ($lines[$i] -match '^### Docs\s*$') { $docsIdx = $i; break }
+    }
+    if ($docsIdx -ge 0) {
+        $ins = $docsIdx + 1
+        if ($ins -lt $lines.Count -and $lines[$ins] -eq '') { $ins++ }
+        $lines.Insert($ins, $bullet)
+    } else {
+        $block = @('', '### Docs', '', $bullet)
+        for ($k = $block.Count - 1; $k -ge 0; $k--) { $lines.Insert($ui + 1, $block[$k]) }
+    }
+    Set-Content -LiteralPath $cl -Value $lines -Encoding utf8
+}
+
+function Invoke-DocSync([string]$msg) {
+    $root = Get-DocRoot
+    if (-not $root) { Write-Warning 'doc sync: no docs/kb'; return }
+    $repo = (Resolve-Path -LiteralPath (Join-Path $root '..\..')).Path
+    if (-not (Test-Path (Join-Path $repo '.git'))) { Write-Warning "doc sync: $repo is not a git clone"; return }
+    Push-Location $repo
+    try {
+        $changed = & git status --porcelain -- docs/kb
+        if (-not $changed) { Write-Host 'doc sync: no changes under docs/kb.'; return }
+        Write-Host 'doc sync: changes:'; $changed | ForEach-Object { "  $_" }
+        $topics = @($changed | ForEach-Object { (($_ -replace '^...', '') -replace '^docs/kb/', '' -replace '\.md$', '').Trim('"', ' ') } | Sort-Object -Unique)
+        Update-DocChangelog $repo $topics
+        & git add -- docs/kb CHANGELOG.md
+        $prefill = if ($msg) { $msg } else { "docs(kb): update $($topics -join ', ')" }
+        & git commit -e -m $prefill
+        if ($LASTEXITCODE -ne 0) { Write-Warning 'doc sync: commit aborted; staged changes left in place.'; return }
+        $ans = Read-Host 'push to origin? [y/N]'
+        if ($ans -match '^(y|yes)$') { & git push } else { Write-Host "doc sync: not pushed (git -C `"$repo`" push)" }
+    } finally { Pop-Location }
+}
+
+function Write-DocHelp {
+    @'
+doc                     fuzzy-find a topic (glow preview) -> open in pager
+doc <topic>             open a topic directly (e.g. doc veracrypt, doc ssh-keys)
+doc -g <pattern>        grep across every topic
+doc cmd [pattern]       find a command and drop it on your prompt
+doc tui                 glow's tree browser
+doc edit <topic>        edit a topic   |   doc new <os>/<name>   scaffold one
+doc ls                  list topics (this OS + common + local)
+doc --os <linux|macos|windows> ...    browse another OS
+doc sync [msg]          commit doc edits back to the repo (+ changelog, confirm push)
+'@
+}
+
+function doc {
+    param([Parameter(ValueFromRemainingArguments)] [string[]]$Arguments)
+    $os = 'windows'; $rest = @()
+    if ($Arguments) {
+        for ($i = 0; $i -lt $Arguments.Count; $i++) {
+            if ($Arguments[$i] -eq '--os' -and $i + 1 -lt $Arguments.Count) { $os = $Arguments[$i + 1]; $i++ }
+            else { $rest += $Arguments[$i] }
+        }
+    }
+    $cmd = if ($rest.Count) { $rest[0] } else { '' }
+    $tail = if ($rest.Count -gt 1) { ($rest[1..($rest.Count - 1)] -join ' ') } else { '' }
+    if (-not (Get-DocRoot)) { Write-Warning "doc: can't find docs/kb (set `$env:TERMINAL_STACK_DIR or `$env:DOC_ROOT)"; return }
+    switch -Regex ($cmd) {
+        '^$'            { Invoke-DocFinder $os ''; break }
+        '^(find)$'      { Invoke-DocFinder $os $tail; break }
+        '^(-g|grep)$'   { Invoke-DocGrep $tail; break }
+        '^(cmd|c)$'     { Invoke-DocCmd $tail; break }
+        '^(tui)$'       { $r = Get-DocRoot; if (Get-Command glow -EA SilentlyContinue) { & glow $r } else { Write-Warning 'doc tui needs glow (winget install charmbracelet.glow)' }; break }
+        '^(ls|list)$'   { Get-DocIndex $os | Sort-Object Label | ForEach-Object { $_.Label }; break }
+        '^(edit|new)$'  { Invoke-DocEdit $cmd $tail $os; break }
+        '^(sync)$'      { Invoke-DocSync $tail; break }
+        '^(-h|--help|help)$' { Write-DocHelp; break }
+        default         { Invoke-DocOpen $cmd $os; break }
+    }
+}
+# ---- doc-end ----
 
 # ---- local-overrides-start ----
 # Per-machine overrides (not synced by the stack). The Windows counterpart of
