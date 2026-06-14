@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Command Reference — terminal-stack</title>
 <!-- Generated from command-reference.md.tmpl by scripts/render-command-reference.sh - do not edit by hand. -->
-<!-- source-sha256: 8bc799c41283d931bf6241e5085520b30dd7d2a3ef34a2449b4fe42eb77ded4f -->
+<!-- source-sha256: b2312861fbafadc5c05016ddc0836f18f23404de9a013ef72d8ddf7598fa6e24 -->
 <style>
 :root { color-scheme: light dark; }
 body {
@@ -121,6 +121,7 @@ changes.</p>
  </tbody>
 </table>
 <p>Tab labels read <code> &lt;number&gt;  &lt;icon&gt; &lt;dir&gt; </code> — the icon is the pane's foreground process, or a robot while Claude runs — followed by one coloured dot per pane (peach = working, green = done, red = error, hollow = idle); the label tints <strong>green</strong> when Claude finishes / <strong>red</strong> on error, and each Claude pane's background tints to match. The top-right shows the active workspace and current path.</p>
+<blockquote><p><strong>macOS — free the keys first.</strong> macOS grabs both <code>Ctrl+Space</code> and the bare <code>F1</code>–<code>F6</code> keys before WezTerm sees them. To use the bindings above: System Settings → Keyboard → enable <strong>"Use F1, F2, etc. keys as standard function keys"</strong> (or hold <strong>Fn</strong>); and System Settings → Keyboard → Keyboard Shortcuts → <strong>Input Sources</strong> → uncheck <strong>"Select the previous input source"</strong> (that's the system's <code>Ctrl+Space</code>). Until <code>Ctrl+Space</code> is freed, the <code>Ctrl+Space 1</code>–<code>6</code> F-key fallback won't work either.</p></blockquote>
 {{ end }}
 <hr>
 <h2>git</h2>

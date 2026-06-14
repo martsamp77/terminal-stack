@@ -67,6 +67,8 @@ changes.
 | `Ctrl+V` | paste |
 
 Tab labels read ` <number>  <icon> <dir> ` — the icon is the pane's foreground process, or a robot while Claude runs — followed by one coloured dot per pane (peach = working, green = done, red = error, hollow = idle); the label tints **green** when Claude finishes / **red** on error, and each Claude pane's background tints to match. The top-right shows the active workspace and current path.
+
+> **macOS — free the keys first.** macOS grabs both `Ctrl+Space` and the bare `F1`–`F6` keys before WezTerm sees them. To use the bindings above: System Settings → Keyboard → enable **"Use F1, F2, etc. keys as standard function keys"** (or hold **Fn**); and System Settings → Keyboard → Keyboard Shortcuts → **Input Sources** → uncheck **"Select the previous input source"** (that's the system's `Ctrl+Space`). Until `Ctrl+Space` is freed, the `Ctrl+Space 1`–`6` F-key fallback won't work either.
 {{ end }}
 ---
 

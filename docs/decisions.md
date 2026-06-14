@@ -193,6 +193,8 @@ Native-Linux hosts in this stack are headless (reached over ssh/PuTTY) and run n
 
 Trade-off: like the single-sourced `starship.toml`, nothing automatic keeps `dot_wezterm.lua` and `windows/.wezterm.lua` visually in sync — a shared change has to be made in both. `dot_wezterm.lua`'s header comment says so.
 
+One macOS-only caveat lives *outside* the config. macOS reserves both the `Ctrl+Space` leader (the system *Input Sources → "Select the previous input source"* shortcut) and the bare `F1`–`F6` pane-grid keys (hardware media keys), intercepting them before WezTerm sees the keystroke — so out of the box every `Ctrl+Space …` binding and the F-key grid look dead, and the `Ctrl+Space 1`–`6` F-key fallback (which routes through the same leader) dies with them. We keep the bindings byte-identical to the Windows side rather than picking Mac-specific keys — cross-platform muscle memory wins — and push the resolution to two System Settings toggles (enable standard function keys; free the `Ctrl+Space` input-source shortcut), documented in `INSTALL.md` § macOS and the darwin block of the command reference.
+
 ## Why generated, committed `.txt`/`.html` twins for the command reference instead of deploy-time conversion?
 
 The command reference ships in three formats per environment — `.md` (Obsidian, `ref`), `.html` (browser), `.txt` (console) — and the `.txt`/`.html` twins must never drift from the markdown. Two ways to guarantee that:

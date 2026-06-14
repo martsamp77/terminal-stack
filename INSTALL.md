@@ -159,6 +159,13 @@ Open a new WezTerm tab — auto-reload picks up the new `.wezterm.lua`. Open a p
 
 On macOS, quit and relaunch WezTerm so it sets JetBrainsMono Nerd Font from the freshly-applied `~/.wezterm.lua`, then open a new tab and confirm the Starship two-line prompt renders with glyphs. WezTerm itself must be set to a Nerd Font for the launch-window prompt; the config does that automatically.
 
+**macOS — free the keybinding keys.** macOS intercepts the WezTerm leader and the pane-grid F-keys before they reach the terminal, so out of the box `Ctrl+Space …` and `F1`–`F6` look dead. Two System Settings toggles fix it:
+
+- **F-keys** → System Settings → Keyboard → enable **"Use F1, F2, etc. keys as standard function keys"** (or hold **Fn** + F1…F6). The bare F-row is otherwise hardware media keys (brightness, Mission Control, …).
+- **`Ctrl+Space`** → System Settings → Keyboard → Keyboard Shortcuts → **Input Sources** → uncheck **"Select the previous input source"**. That system shortcut swallows `Ctrl+Space` system-wide, which also disables the `Ctrl+Space 1`–`6` F-key fallback.
+
+Then `Ctrl+Space r` in WezTerm to reload, and the bindings in the command reference work.
+
 ## Manual
 
 For when you want to understand each step. Every command is annotated; numbered headings just keep the steps ordered.

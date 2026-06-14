@@ -4,6 +4,10 @@ All notable changes captured here. Format loosely follows [Keep a Changelog](htt
 
 ## [Unreleased]
 
+### Fixed
+
+- **Documented why `Ctrl+Space` and `F1`–`F6` look dead on macOS.** macOS reserves `Ctrl+Space` system-wide for *Input Sources → "Select the previous input source"* and treats the bare F-row as hardware media keys, so it swallows the WezTerm leader and the pane-grid keys — and the `Ctrl+Space 1`–`6` F-key fallback with them — before WezTerm ever sees the keystroke. Nothing in the docs warned a Mac user. Added the two-toggle fix (enable *"Use F1, F2, etc. keys as standard function keys"*; uncheck the *Select the previous input source* shortcut) to the darwin block of `command-reference.md.tmpl` (with regenerated `.txt`/`.html` twins and the `docs/command-reference/macos/` preview), `INSTALL.md` § macOS, the README WezTerm bullet, and `docs/decisions.md`. No config change — the bindings stay byte-identical across Windows/macOS/Linux by design.
+
 ## [1.2.0] — 06/13/2026
 
 ### Added
