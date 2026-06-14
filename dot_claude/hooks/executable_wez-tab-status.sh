@@ -22,6 +22,10 @@ fi
 # to the controlling TTY (the hook's stdout is captured by Claude Code); DCS-wrapped
 # for tmux passthrough (needs allow-passthrough on). Catppuccin-accent dark tints —
 # tune the hexes to taste. Reset to base happens in the cc() wrapper on exit.
+# NOTE: under WezTerm the primary path is the user-var-changed handler (driven by
+# the cc_state OSC 1337 below), which re-emits this tint via pane:inject_output —
+# required on Windows, where ConPTY swallows OSC 11. This raw OSC 11 still covers
+# non-ConPTY mux/SSH panes that inject_output can't reach.
 case "$state" in
     thinking|working) _bg='#2a2420' ;;   # warm/peach — working
     waiting)          _bg='#1f2a20' ;;   # green — your turn / done

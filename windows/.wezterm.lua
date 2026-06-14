@@ -290,6 +290,23 @@ wezterm.on('format-tab-title', function(tab, tabs, panes, cfg, hover, max_width)
   return items
 end)
 
+-- ── Per-pane Claude background tint (ConPTY-proof) ────────────────────────────
+-- The hook also emits an OSC 11 background tint, but on Windows ConPTY eats OSC
+-- 10/11/12 before they reach WezTerm (the cc_state user var survives because
+-- ConPTY passes the unknown OSC 1337 through verbatim — that's why the tab dots
+-- work but the pane never tinted). Re-drive the tint from that user var here:
+-- user-var-changed fires reliably, and pane:inject_output feeds the OSC 11 into
+-- WezTerm's own emulator, bypassing ConPTY entirely. Local panes, every platform;
+-- mux/SSH panes (no inject_output) fall back to the hook's raw OSC 11. See
+-- docs/powershell-quirks.md § "ConPTY swallows the OSC 11 pane background tint".
+local CC_BG   = { working = '#2a2420', done = '#1f2a20', error = '#2e1e24' }
+local CC_BASE = '#1e1e2e'  -- Catppuccin Mocha base (matches config.color_scheme)
+wezterm.on('user-var-changed', function(window, pane, name, value)
+  if name ~= 'cc_state' then return end
+  local color = CC_BG[value] or CC_BASE          -- '' (cleared on exit) → reset
+  pcall(function() pane:inject_output('\x1b]11;' .. color .. '\x07') end)
+end)
+
 -- ── Top-right status: workspace + current path (both always shown) ────────────
 local function cwd_path(pane)
   local cwd = pane:get_current_working_dir()
