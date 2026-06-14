@@ -156,14 +156,24 @@ config.keys = {
   -- Domain splits (Shift = "remote"): H = pick domain → top/bottom, V = pick domain → left/right.
   { key = 'H', mods = 'LEADER', action = wezterm.action_callback(function(w, p) pick_domain_split(w, p, 'Down') end) },
   { key = 'V', mods = 'LEADER', action = wezterm.action_callback(function(w, p) pick_domain_split(w, p, 'Right') end) },
-  { key = 'j', mods = 'LEADER', action = act.ActivatePaneDirection 'Left' },
-  { key = 'k', mods = 'LEADER', action = act.ActivatePaneDirection 'Right' },
-  { key = 'i', mods = 'LEADER', action = act.ActivatePaneDirection 'Up' },
-  { key = 'm', mods = 'LEADER', action = act.ActivatePaneDirection 'Down' },
-  { key = 'J', mods = 'LEADER', action = act.AdjustPaneSize { 'Left',  5 } },
-  { key = 'K', mods = 'LEADER', action = act.AdjustPaneSize { 'Right', 5 } },
-  { key = 'I', mods = 'LEADER', action = act.AdjustPaneSize { 'Up',    5 } },
-  { key = 'M', mods = 'LEADER', action = act.AdjustPaneSize { 'Down',  5 } },
+  -- Arrow-driven pane control. Each does its first action AND enters a repeatable
+  -- mode (key_tables below); inside a mode, plain arrows or j/k/i/m repeat.
+  -- Move = Leader+Arrow · Resize = Leader+Shift+Arrow · Rotate = Leader+Ctrl+Arrow.
+  { key = 'LeftArrow',  mods = 'LEADER', action = act.Multiple { act.ActivatePaneDirection 'Left',  act.ActivateKeyTable { name = 'activate_pane', one_shot = false, until_unknown = true, timeout_milliseconds = 1000 } } },
+  { key = 'RightArrow', mods = 'LEADER', action = act.Multiple { act.ActivatePaneDirection 'Right', act.ActivateKeyTable { name = 'activate_pane', one_shot = false, until_unknown = true, timeout_milliseconds = 1000 } } },
+  { key = 'UpArrow',    mods = 'LEADER', action = act.Multiple { act.ActivatePaneDirection 'Up',    act.ActivateKeyTable { name = 'activate_pane', one_shot = false, until_unknown = true, timeout_milliseconds = 1000 } } },
+  { key = 'DownArrow',  mods = 'LEADER', action = act.Multiple { act.ActivatePaneDirection 'Down',  act.ActivateKeyTable { name = 'activate_pane', one_shot = false, until_unknown = true, timeout_milliseconds = 1000 } } },
+  { key = 'LeftArrow',  mods = 'LEADER|SHIFT', action = act.Multiple { act.AdjustPaneSize { 'Left',  3 }, act.ActivateKeyTable { name = 'resize_pane', one_shot = false } } },
+  { key = 'RightArrow', mods = 'LEADER|SHIFT', action = act.Multiple { act.AdjustPaneSize { 'Right', 3 }, act.ActivateKeyTable { name = 'resize_pane', one_shot = false } } },
+  { key = 'UpArrow',    mods = 'LEADER|SHIFT', action = act.Multiple { act.AdjustPaneSize { 'Up',    3 }, act.ActivateKeyTable { name = 'resize_pane', one_shot = false } } },
+  { key = 'DownArrow',  mods = 'LEADER|SHIFT', action = act.Multiple { act.AdjustPaneSize { 'Down',  3 }, act.ActivateKeyTable { name = 'resize_pane', one_shot = false } } },
+  { key = 'LeftArrow',  mods = 'LEADER|CTRL', action = act.Multiple { act.RotatePanes 'CounterClockwise', act.ActivateKeyTable { name = 'rotate_pane', one_shot = false, until_unknown = true, timeout_milliseconds = 1500 } } },
+  { key = 'UpArrow',    mods = 'LEADER|CTRL', action = act.Multiple { act.RotatePanes 'CounterClockwise', act.ActivateKeyTable { name = 'rotate_pane', one_shot = false, until_unknown = true, timeout_milliseconds = 1500 } } },
+  { key = 'RightArrow', mods = 'LEADER|CTRL', action = act.Multiple { act.RotatePanes 'Clockwise', act.ActivateKeyTable { name = 'rotate_pane', one_shot = false, until_unknown = true, timeout_milliseconds = 1500 } } },
+  { key = 'DownArrow',  mods = 'LEADER|CTRL', action = act.Multiple { act.RotatePanes 'Clockwise', act.ActivateKeyTable { name = 'rotate_pane', one_shot = false, until_unknown = true, timeout_milliseconds = 1500 } } },
+  -- Repeatable tab-switch (Leader+t) and font-size (Leader+f) modes.
+  { key = 't', mods = 'LEADER', action = act.ActivateKeyTable { name = 'switch_tab', one_shot = false, until_unknown = true, timeout_milliseconds = 1500 } },
+  { key = 'f', mods = 'LEADER', action = act.ActivateKeyTable { name = 'font_size', one_shot = false, until_unknown = true, timeout_milliseconds = 1500 } },
   { key = 'z', mods = 'LEADER', action = act.TogglePaneZoomState },
   { key = 'phys:Space', mods = 'LEADER|CTRL', action = act.SendKey { key = ' ', mods = 'CTRL' } },
   { key = 'r', mods = 'LEADER', action = act.ReloadConfiguration },
@@ -327,7 +337,21 @@ end)()
 
 wezterm.on('update-right-status', function(window, pane)
   local items = {}
-  if window:leader_is_active() then          -- leader pending: bold peach badge
+  local kt = window:active_key_table()
+  if kt then                                  -- in a repeatable mode: sapphire badge
+    local MODE = {
+      resize_pane = '⤢ RESIZE ↑↓←→', activate_pane = '✛ MOVE ↑↓←→',
+      rotate_pane = '⟳ ROTATE ↑↓←→', switch_tab = '⇥ TAB ←→', font_size = 'A± FONT ↑↓0',
+    }
+    table.insert(items, { Background = { Color = '#89b4fa' } })
+    table.insert(items, { Foreground = { Color = '#1e1e2e' } })
+    table.insert(items, { Attribute = { Intensity = 'Bold' } })
+    table.insert(items, { Text = ' ' .. (MODE[kt] or kt) .. ' · Esc ' })
+    table.insert(items, { Background = { Color = '#11111b' } })
+    table.insert(items, { Foreground = { Color = '#585b70' } })
+    table.insert(items, { Attribute = { Intensity = 'Normal' } })
+    table.insert(items, { Text = '  ' })
+  elseif window:leader_is_active() then        -- leader pending: bold peach badge
     table.insert(items, { Background = { Color = '#fab387' } })
     table.insert(items, { Foreground = { Color = '#1e1e2e' } })
     table.insert(items, { Attribute = { Intensity = 'Bold' } })
@@ -378,6 +402,80 @@ table.insert(config.keys, { key = 'Escape', mods = 'LEADER', action = wezterm.ac
 for i = 1, 9 do
   table.insert(config.keys, { key = tostring(i), mods = 'ALT', action = act.ActivateTab(i - 1) })
 end
+
+-- ── Repeatable leader modes (key tables) ─────────────────────────────────────
+-- Entered from the arrow / t / f bindings above; inside a mode plain arrows or
+-- j/k/i/m repeat. resize_pane is sticky (Esc/Enter/q to leave); the others
+-- auto-exit (until_unknown + timeout). window:active_key_table() drives the badge.
+config.key_tables = {
+  activate_pane = {
+    { key = 'LeftArrow',  action = act.ActivatePaneDirection 'Left' },
+    { key = 'RightArrow', action = act.ActivatePaneDirection 'Right' },
+    { key = 'UpArrow',    action = act.ActivatePaneDirection 'Up' },
+    { key = 'DownArrow',  action = act.ActivatePaneDirection 'Down' },
+    { key = 'j', action = act.ActivatePaneDirection 'Left' },
+    { key = 'k', action = act.ActivatePaneDirection 'Right' },
+    { key = 'i', action = act.ActivatePaneDirection 'Up' },
+    { key = 'm', action = act.ActivatePaneDirection 'Down' },
+    { key = 'Escape', action = 'PopKeyTable' },
+    { key = 'Enter',  action = 'PopKeyTable' },
+  },
+  resize_pane = {
+    { key = 'LeftArrow',  action = act.AdjustPaneSize { 'Left',  3 } },
+    { key = 'RightArrow', action = act.AdjustPaneSize { 'Right', 3 } },
+    { key = 'UpArrow',    action = act.AdjustPaneSize { 'Up',    3 } },
+    { key = 'DownArrow',  action = act.AdjustPaneSize { 'Down',  3 } },
+    { key = 'LeftArrow',  mods = 'SHIFT', action = act.AdjustPaneSize { 'Left',  3 } },
+    { key = 'RightArrow', mods = 'SHIFT', action = act.AdjustPaneSize { 'Right', 3 } },
+    { key = 'UpArrow',    mods = 'SHIFT', action = act.AdjustPaneSize { 'Up',    3 } },
+    { key = 'DownArrow',  mods = 'SHIFT', action = act.AdjustPaneSize { 'Down',  3 } },
+    { key = 'j', action = act.AdjustPaneSize { 'Left',  3 } },
+    { key = 'k', action = act.AdjustPaneSize { 'Right', 3 } },
+    { key = 'i', action = act.AdjustPaneSize { 'Up',    3 } },
+    { key = 'm', action = act.AdjustPaneSize { 'Down',  3 } },
+    { key = 'Escape', action = 'PopKeyTable' },
+    { key = 'Enter',  action = 'PopKeyTable' },
+    { key = 'q',      action = 'PopKeyTable' },
+  },
+  rotate_pane = {
+    { key = 'LeftArrow',  action = act.RotatePanes 'CounterClockwise' },
+    { key = 'UpArrow',    action = act.RotatePanes 'CounterClockwise' },
+    { key = 'RightArrow', action = act.RotatePanes 'Clockwise' },
+    { key = 'DownArrow',  action = act.RotatePanes 'Clockwise' },
+    { key = 'LeftArrow',  mods = 'CTRL', action = act.RotatePanes 'CounterClockwise' },
+    { key = 'UpArrow',    mods = 'CTRL', action = act.RotatePanes 'CounterClockwise' },
+    { key = 'RightArrow', mods = 'CTRL', action = act.RotatePanes 'Clockwise' },
+    { key = 'DownArrow',  mods = 'CTRL', action = act.RotatePanes 'Clockwise' },
+    { key = 'j', action = act.RotatePanes 'CounterClockwise' },
+    { key = 'i', action = act.RotatePanes 'CounterClockwise' },
+    { key = 'k', action = act.RotatePanes 'Clockwise' },
+    { key = 'm', action = act.RotatePanes 'Clockwise' },
+    { key = 'Escape', action = 'PopKeyTable' },
+    { key = 'Enter',  action = 'PopKeyTable' },
+  },
+  switch_tab = {
+    { key = 'RightArrow', action = act.ActivateTabRelative(1) },
+    { key = 'LeftArrow',  action = act.ActivateTabRelative(-1) },
+    { key = 'k', action = act.ActivateTabRelative(1) },
+    { key = 'j', action = act.ActivateTabRelative(-1) },
+    { key = 'n', action = act.ActivateTabRelative(1) },
+    { key = 'p', action = act.ActivateTabRelative(-1) },
+    { key = 'Escape', action = 'PopKeyTable' },
+    { key = 'Enter',  action = 'PopKeyTable' },
+  },
+  font_size = {
+    { key = 'UpArrow',   action = act.IncreaseFontSize },
+    { key = 'DownArrow', action = act.DecreaseFontSize },
+    { key = 'k', action = act.IncreaseFontSize },
+    { key = 'j', action = act.DecreaseFontSize },
+    { key = '+', action = act.IncreaseFontSize },
+    { key = '=', action = act.IncreaseFontSize },
+    { key = '-', action = act.DecreaseFontSize },
+    { key = '0', action = act.ResetFontSize },
+    { key = 'Escape', action = 'PopKeyTable' },
+    { key = 'Enter',  action = 'PopKeyTable' },
+  },
+}
 
 pane_grid.bind_keys(config.keys, wezterm)
 

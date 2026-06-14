@@ -1,7 +1,8 @@
 # WezTerm — pane management
 
-Leader: **Ctrl+Space** — tap, release, then press the next key within 1.5s.
-"`Ctrl+Space` `h`" means leader **then** `h`.
+Leader: **Ctrl+Space** — tap, release, then press the next key. It **waits** (no
+timeout): the cursor turns peach and a `⌨ LEADER` badge shows; `Ctrl+Space` `Esc`
+cancels. "`Ctrl+Space` `h`" means leader **then** `h`.
 
 ## Split — local
 | Key | Action |
@@ -17,15 +18,19 @@ Shift = "remote": fuzzy-pick a domain (local, WSL, `SSH:*`…), then split it.
 | `Ctrl+Space` `H` | pick domain → split down |
 | `Ctrl+Space` `V` | pick domain → split right |
 
-## Navigate / resize
-Resize uses the uppercase key (hold Shift), 5-unit steps.
+## Move / resize / rotate — repeatable modes
+Arrows after the leader **enter a repeatable mode** (a coloured badge shows in the
+right-status). Inside a mode, plain arrows **or** `j/k/i/m` keep going — no need to
+re-press the leader.
 
-| Move | Resize |
-|---|---|
-| `Ctrl+Space` `j` left | `Ctrl+Space` `J` expand left |
-| `Ctrl+Space` `k` right | `Ctrl+Space` `K` expand right |
-| `Ctrl+Space` `i` up | `Ctrl+Space` `I` expand up |
-| `Ctrl+Space` `m` down | `Ctrl+Space` `M` expand down |
+| Enter | Mode | Repeat | Exit |
+|---|---|---|---|
+| `Ctrl+Space` `←/→/↑/↓` | **move** focus between panes | arrows or `j/k/i/m` | any other key · ~1s idle · `Esc` |
+| `Ctrl+Space` `Shift+←/→/↑/↓` | **resize** (3 cells/press) | arrows (or `Shift+`) or `j/k/i/m` | `Esc` / `Enter` — **sticky**, stays until you exit |
+| `Ctrl+Space` `Ctrl+←/→/↑/↓` | **rotate** panes through their slots (`←`/`↑` = counter-clockwise, `→`/`↓` = clockwise) | arrows or `j/k/i/m` | any other key · `Esc` |
+
+e.g. `Ctrl+Space ← ← ←` moves focus left three panes; `Ctrl+Space Shift+→ → →`
+grows the pane right 9 cells, then `Esc`.
 
 ## Zoom, pop & close
 | Key | Action |
