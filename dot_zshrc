@@ -287,6 +287,12 @@ ts-update() {
   else
     echo "==> already up to date"
   fi
+  # Re-bake the resolved (light/dark) palette from the live OS theme so a
+  # `follow`-mode user who toggled the OS appearance gets the new Starship/tmux
+  # palette on this update. No-op for fixed dark/light. Runs in bash because the
+  # helpers are bash; failure is non-fatal.
+  TERMINAL_STACK_DIR="$src" TERMINAL_STACK_CHEZMOI="$cz" \
+    bash -c 'source "$1/bootstrap/_config.sh" && ts_refresh_resolved_theme' _ "$src" >/dev/null 2>&1 || true
   # `apply` without -v: -v prints the full content of every run_after_*
   # script (incl. our 114-line sync hook) as a git-style diff on every run,
   # which looks like a pager opening on long-output. Use `chezmoi diff` if
@@ -319,6 +325,18 @@ ts-rollback() {
   git -C "$src" reset --hard "$sha" || return $?
   "$cz" apply
   echo "==> done. run ts-update to return to latest."
+}
+
+# Configure the stack: leader key, theme (dark/light/follow), tmux prefix, apps.
+# Bare `ts-config` opens an interactive menu; `ts-config theme follow` etc. set one
+# value. Thin wrapper over the shared bootstrap/ts-config.sh in the clone, which
+# persists to chezmoi [data] and re-applies. In a combined WSL+Windows setup, run
+# this from WSL — it also mirrors the choice to the Windows side.
+ts-config() {
+  local cz src
+  cz="$(_ts_chezmoi)" || { echo "ts-config: chezmoi not found on PATH." >&2; return 1 }
+  src="$(_ts_src "$cz" ts-config)" || return 1
+  TERMINAL_STACK_DIR="$src" TERMINAL_STACK_CHEZMOI="$cz" bash "$src/bootstrap/ts-config.sh" "$@"
 }
 
 # Workspace navigation (mirrors the ws* PowerShell functions).

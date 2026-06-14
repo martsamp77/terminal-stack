@@ -49,6 +49,8 @@ Source → destination mapping for the `windows/` subtree is **relative-path-pre
 - WSL-side templates (`*.tmpl` under the chezmoi source root, e.g. `dot_claude/settings.json.tmpl`) use chezmoi's native engine — `{{ .chezmoi.homeDir }}`, `{{ .chezmoi.username }}`.
 - Windows-side templates (`*.tmpl` under `windows/`, e.g. `windows/.claude/settings.json.tmpl`) use a literal `__WIN_USER__` token that `run_after_90-sync-windows.sh` substitutes at sync time. The username is resolved from (1) `chezmoi data → windowsUsername` (written by the WSL bootstrap), falling back to (2) `cmd.exe /c echo %USERNAME%` via WSL interop. When you add a new Windows-side templated file, use `__WIN_USER__` — not Go-template syntax.
 
+**User config tokens.** The sync hook (and `scripts/sync-windows.ps1`) substitute more than `__WIN_USER__` into Windows-side `.tmpl` files, sourced from the saved config: `__LEADER_KEY__`, `__LEADER_MODS__` (WezTerm leader), `__THEME_MODE__` (`dark`|`light`|`follow`), `__THEME_RESOLVED__` (baked palette `light`|`dark`), `__TMUX_PREFIX__`. WSL/native chezmoi templates read the same values as `{{ .leaderKey }}` / `{{ .leaderMods }}` / `{{ .themeMode }}` / `{{ .resolvedTheme }}` / `{{ .tmuxPrefixResolved }}` — always behind a `hasKey` guard with a default, so a clone predating the wizard renders today's look (Ctrl+Space, Mocha). The choices live in chezmoi `[data]` (mirrored to `%LOCALAPPDATA%\terminal-stack\config.json` for Windows-standalone); `.chezmoi.toml.tmpl` re-emits the raw choices and derives the bindings, `resolve_os_theme` (in `bootstrap/_config.{sh,ps1}`) computes `resolvedTheme`. Wizard = `bootstrap/_wizard.sh` + pwsh prompts in `_config.ps1`; change later via `bootstrap/ts-config.sh` (zsh `ts-config`) / pwsh `Set-TerminalStackConfig`. Rationale in `docs/decisions.md` §§ "Why config lives in chezmoi `[data]` + a Windows JSON mirror" / "Why WezTerm follows the OS theme live, but Starship/tmux bake at apply time".
+
 **Important caveat:** `chezmoi diff` only shows changes to WSL targets. It does NOT show what the `run_after` hook will sync to `/mnt/c/`. To preview Windows-side changes, compare source manually or just run apply and read the `created`/`updated` lines.
 
 ## File-management strategies (don't mix them up)
@@ -57,7 +59,7 @@ Source → destination mapping for the `windows/` subtree is **relative-path-pre
 |---|---|---|
 | `~/.zshrc` | whole-file | We own every line (oh-my-zsh template + our additions) |
 | `~/.claude/settings.json` (both sides) | whole-file | We own it |
-| `~/.tmux.conf`, `~/.config/starship.toml` | whole-file | We own it |
+| `~/.tmux.conf`, `~/.config/starship.toml`, `~/.wezterm.lua` | whole-file **template** (`.tmpl`) | We own it; templated for leader/theme/prefix from chezmoi `[data]` (or `__TOKEN__`s on the Windows mirror). Edit the `.tmpl`, not the rendered file |
 | `~/.config/git/terminal-stack.gitconfig` (both sides) | whole-file | We own it; hooked via `include.path`, user's `~/.gitconfig` stays untouched and wins |
 | `$PROFILE` (Windows pwsh) | whole-file sync, **marker-block edited** | The sync copies the repo file over `$PROFILE` whole (with `.bak`); the `# ---- name-start ----` / `# ---- name-end ----` blocks organize the stack's regions. Personal content belongs in `profile.local.ps1`, never in `$PROFILE` itself |
 | `~/.zshrc.local`, `profile.local.ps1`, `~/.doc.local/**` | **never managed** | Per-machine; `.zshrc.local`/`profile.local.ps1` ship `.example` twins; `~/.doc.local` is the personal `doc` layer |

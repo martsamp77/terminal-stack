@@ -33,6 +33,19 @@ if (-not $dstRoot -or -not (Test-Path -LiteralPath $dstRoot -PathType Container)
     throw "sync-windows: `$env:USERPROFILE ($dstRoot) is not a valid directory."
 }
 
+# Load the saved config (leader/theme tokens). Falls back to defaults when the
+# config helper or config.json is absent (clone predating the wizard).
+$cfgHelper = Join-Path $SourceDir 'bootstrap\_config.ps1'
+if (Test-Path -LiteralPath $cfgHelper) { . $cfgHelper }
+$tsCfg = if (Get-Command Get-TsConfig -ErrorAction SilentlyContinue) { Get-TsConfig } else { $null }
+$tok = @{
+    '__LEADER_KEY__'     = if ($tsCfg.leaderKey)          { $tsCfg.leaderKey }          else { 'phys:Space' }
+    '__LEADER_MODS__'    = if ($tsCfg.leaderMods)         { $tsCfg.leaderMods }         else { 'CTRL' }
+    '__THEME_MODE__'     = if ($tsCfg.themeMode)          { $tsCfg.themeMode }          else { 'dark' }
+    '__THEME_RESOLVED__' = if ($tsCfg.resolvedTheme)      { $tsCfg.resolvedTheme }      else { 'dark' }
+    '__TMUX_PREFIX__'    = if ($tsCfg.tmuxPrefixResolved) { $tsCfg.tmuxPrefixResolved } else { 'C-b' }
+}
+
 $today = Get-Date -Format 'yyyyMMdd'
 $created = 0
 $updated = 0
@@ -50,12 +63,13 @@ Get-ChildItem -LiteralPath $srcRoot -Recurse -File | ForEach-Object {
     $src = $_.FullName
     $rel = $src.Substring($srcRoot.Length).TrimStart('\','/')
 
-    # Render .tmpl files to a temp file with __WIN_USER__ substituted.
+    # Render .tmpl files to a temp file with all tokens substituted.
     if ($rel.EndsWith('.tmpl')) {
         $relOut = $rel.Substring(0, $rel.Length - 5)
         $rendered = [IO.Path]::GetTempFileName()
-        (Get-Content -LiteralPath $src -Raw) -replace '__WIN_USER__', $WinUser |
-            Set-Content -LiteralPath $rendered -NoNewline -Encoding utf8
+        $content = (Get-Content -LiteralPath $src -Raw) -replace '__WIN_USER__', $WinUser
+        foreach ($k in $tok.Keys) { $content = $content -replace $k, $tok[$k] }
+        $content | Set-Content -LiteralPath $rendered -NoNewline -Encoding utf8
         $effectiveSrc = $rendered
     } else {
         $relOut = $rel

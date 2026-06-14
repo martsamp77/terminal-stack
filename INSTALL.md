@@ -26,10 +26,14 @@ curl -fsSL https://raw.githubusercontent.com/martsamp77/terminal-stack/main/inst
 
 Defaults: Windows clones to `%USERPROFILE%\terminal-stack` (WSL sees it as `/mnt/c/Users/<you>/terminal-stack`); Linux/macOS clone to `~/code/terminal-stack`. Override with `$env:TERMINAL_STACK_DIR` (PowerShell) or `TERMINAL_STACK_DIR=…` (bash). The WSL installer auto-detects your Windows username via `cmd.exe` interop, so it runs without prompts under `curl | bash`.
 
-**Install-time questions.** The bootstraps ask two questions, each skippable via env var (so scripted installs stay non-interactive — the prompts read `/dev/tty` directly and degrade to their defaults when no terminal is attached):
+**Install wizard.** The bootstraps run a short wizard, each prompt skippable via an env var (so scripted installs stay non-interactive — the bash prompts read `/dev/tty` directly and degrade to their defaults when no terminal is attached). Your answers are **saved** (chezmoi `[data]` on WSL/Linux/macOS; `%LOCALAPPDATA%\terminal-stack\config.json` on Windows) so `ts-update` keeps honoring them and `ts-config` can change them later.
 
-- **Workspace directory** — pre-filled with the autodetected candidate (`C:\DATA\Workspace` / `~/Documents/Workspace` / `~/workspace` / `~/Workspace`). Press Enter to accept. The answer is persisted to `~/.zshrc.local` (zsh) or `Documents\PowerShell\profile.local.ps1` (pwsh) *only* when it differs from the autodetect — the shells re-detect standard locations on their own. Skip with `WORKSPACE_DIR=/path` / `$env:WORKSPACE_DIR`.
-- **Extra tools** (`tldr` always; `nvtop` on GPU hosts; `lazydocker` where docker exists) — default No. Skip with `TS_EXTRA_TOOLS=1` to force-install. Not offered on Windows.
+- **Leader key** (WezTerm) — `Ctrl+Space` (recommended), `Ctrl+A`, `Ctrl+B`, or a custom `mod-key` chord (e.g. `alt-space`). Skip with `TS_LEADER=ctrl-a`.
+- **Theme** — `dark` (Catppuccin Mocha, recommended), `light` (Latte), or `follow` (track the OS light/dark setting; WezTerm switches live, the Starship/tmux palette is baked at apply and refreshed by `ts-update`/`ts-config`). Skip with `TS_THEME=dark|light|follow`.
+- **Apps** — accept the recommended set (`eza fzf bat delta ripgrep zoxide glow micro neovim`, plus `tmux` off-Windows) or customize per-app (also offers `zed`, `tldr`, `nvtop`, `lazydocker`). Required tools (WezTerm, the Nerd Font, Starship, chezmoi, git, zsh) are always installed. Skip with `TS_APPS=recommended|all|none|id,id,…`.
+- **Workspace directory** — pre-filled with the autodetected candidate (`C:\DATA\Workspace` / `~/Documents/Workspace` / `~/workspace` / `~/Workspace`). Press Enter to accept. Persisted to `~/.zshrc.local` (zsh) or `Documents\PowerShell\profile.local.ps1` (pwsh) *only* when it differs from the autodetect. Skip with `WORKSPACE_DIR=/path` / `$env:WORKSPACE_DIR`.
+
+Change any of these later with **`ts-config`** (interactive menu) or one-shot — `ts-config theme follow`, `ts-config leader ctrl-a`, `ts-config apps`, `ts-config show`. In a combined Windows+WSL setup, run `ts-config` from WSL (its `chezmoi apply` is authoritative for the Windows-side files).
 
 If you want to walk through each step instead (recommended for first-time inspection, or when chezmoi would clobber an existing hand-edited dotfile), keep reading.
 
@@ -46,14 +50,11 @@ cd $env:USERPROFILE\terminal-stack
 .\bootstrap\windows-bootstrap.ps1
 ```
 
-This installs:
-- WezTerm nightly (`wez.wezterm.nightly`)
-- JetBrainsMono Nerd Font (`DEVCOM.JetBrainsMonoNerdFont`)
-- Starship (`Starship.Starship`)
-- chezmoi (`twpayne.chezmoi`)
-- eza, fzf, bat, delta, ripgrep, zoxide (one winget each)
+It runs the wizard (leader key / theme / apps — see **Install wizard** above; set `$env:TS_LEADER`/`TS_THEME`/`TS_APPS` to skip prompts), then installs:
+- **Always:** WezTerm nightly (`wez.wezterm.nightly`), JetBrainsMono Nerd Font (`DEVCOM.JetBrainsMonoNerdFont`), Starship (`Starship.Starship`), chezmoi (`twpayne.chezmoi`)
+- **Selected apps** (recommended set by default): eza, fzf, bat, delta, ripgrep, zoxide, glow, micro, neovim; optional `zed` (one winget each)
 
-Pass `-WhatIf` to preview without installing. UAC prompts on machine-scope installs; approve each.
+It saves your choices to `%LOCALAPPDATA%\terminal-stack\config.json`. Pass `-WhatIf` to preview without installing. UAC prompts on machine-scope installs; approve each.
 
 ### 2. WSL side
 

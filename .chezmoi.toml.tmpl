@@ -8,23 +8,83 @@
   bootstrap and run `chezmoi init <repo>` instead — or when a template change
   makes apply warn "run chezmoi init to regenerate".
 
-  sourceDir and windowsUsername are re-emitted here so a bare `chezmoi init`
-  (no repo arg) keeps pointing at the existing clone and keeps the bootstrap's
-  answer. Without that, regenerating would silently drop sourceDir (chezmoi
-  falls back to ~/.local/share/chezmoi) and windowsUsername (sync hook falls
-  back to cmd.exe interop). Existing [data] values are in scope when chezmoi
-  executes this template. TOML: top-level keys must precede the [data] section.
+  sourceDir, windowsUsername and the terminal-stack config (leaderChord,
+  themeMode, tmuxPrefix, resolvedTheme, apps) are re-emitted here so a bare
+  `chezmoi init` (no repo arg) keeps pointing at the existing clone and keeps
+  the user's saved answers. Without that, regenerating would silently drop
+  sourceDir (chezmoi falls back to ~/.local/share/chezmoi), windowsUsername
+  (sync hook falls back to cmd.exe interop) and every config choice (back to
+  Ctrl+Space / dark). Existing [data] values are in scope when chezmoi executes
+  this template. TOML: top-level keys must precede the [data] section.
+
+  This template also DERIVES the concrete leader/prefix bindings from the saved
+  chord strings (one Go-template mapping, mirrored by bootstrap/_config.ps1 for
+  Windows-standalone installs that have no chezmoi.toml):
+    leaderChord "ctrl-space" -> leaderKey "phys:Space", leaderMods "CTRL"
+    tmuxPrefix  "ctrl-b"     -> tmuxPrefixResolved "C-b"
+  resolvedTheme (light|dark, the baked palette for Starship/tmux) is NOT
+  computed here — it needs live OS detection, so the shell helpers
+  (bootstrap/_config.sh resolve_os_theme) write it into [data]; we only re-emit.
 */ -}}
 {{- $os := .chezmoi.os -}}
 {{- if eq .chezmoi.os "linux" -}}
 {{-   if contains "microsoft" (lower .chezmoi.kernel.osrelease) -}}
 {{-     $os = "wsl" -}}
 {{-   end -}}
-{{- end }}
+{{- end -}}
+{{- /* ---- leader chord -> WezTerm key/mods ---- */ -}}
+{{- $chord := "ctrl-space" -}}
+{{- if hasKey . "leaderChord" -}}{{- $chord = .leaderChord -}}{{- end -}}
+{{- $cp := splitList "-" $chord -}}
+{{- $ckey := last $cp -}}
+{{- $cmods := initial $cp -}}
+{{- $wmods := list -}}
+{{- range $m := $cmods -}}
+{{-   $lm := lower $m -}}
+{{-   if eq $lm "ctrl" -}}{{- $wmods = append $wmods "CTRL" -}}
+{{-   else if eq $lm "alt" -}}{{- $wmods = append $wmods "ALT" -}}
+{{-   else if eq $lm "shift" -}}{{- $wmods = append $wmods "SHIFT" -}}
+{{-   else if or (eq $lm "super") (eq $lm "win") (eq $lm "cmd") -}}{{- $wmods = append $wmods "SUPER" -}}
+{{-   end -}}
+{{- end -}}
+{{- $leaderMods := (join "|" $wmods) -}}
+{{- $leaderKey := $ckey -}}
+{{- if eq (lower $ckey) "space" -}}{{- $leaderKey = "phys:Space" -}}{{- end -}}
+{{- /* ---- tmux prefix chord -> tmux key spec ---- */ -}}
+{{- $tchord := "ctrl-b" -}}
+{{- if hasKey . "tmuxPrefix" -}}{{- $tchord = .tmuxPrefix -}}{{- end -}}
+{{- $tp := splitList "-" $tchord -}}
+{{- $tkey := last $tp -}}
+{{- $tmods := initial $tp -}}
+{{- $tmodstr := "" -}}
+{{- range $m := $tmods -}}
+{{-   $lm := lower $m -}}
+{{-   if eq $lm "ctrl" -}}{{- $tmodstr = print $tmodstr "C-" -}}
+{{-   else if eq $lm "alt" -}}{{- $tmodstr = print $tmodstr "M-" -}}
+{{-   else if eq $lm "shift" -}}{{- $tmodstr = print $tmodstr "S-" -}}
+{{-   end -}}
+{{- end -}}
+{{- $tkeyout := $tkey -}}
+{{- if eq (lower $tkey) "space" -}}{{- $tkeyout = "Space" -}}{{- end -}}
+{{- $tmuxPrefixResolved := (print $tmodstr $tkeyout) -}}
+{{- $themeMode := "dark" -}}
+{{- if hasKey . "themeMode" -}}{{- $themeMode = .themeMode -}}{{- end -}}
+{{- $resolvedTheme := "dark" -}}
+{{- if hasKey . "resolvedTheme" -}}{{- $resolvedTheme = .resolvedTheme -}}{{- end -}}
 sourceDir = {{ .chezmoi.sourceDir | quote }}
 
 [data]
 os = "{{ $os }}"
 {{- if hasKey . "windowsUsername" }}
 windowsUsername = {{ .windowsUsername | quote }}
+{{- end }}
+leaderChord = {{ $chord | quote }}
+leaderKey = {{ $leaderKey | quote }}
+leaderMods = {{ $leaderMods | quote }}
+tmuxPrefix = {{ $tchord | quote }}
+tmuxPrefixResolved = {{ $tmuxPrefixResolved | quote }}
+themeMode = {{ $themeMode | quote }}
+resolvedTheme = {{ $resolvedTheme | quote }}
+{{- if hasKey . "apps" }}
+apps = [{{ range $i, $a := .apps }}{{ if $i }}, {{ end }}{{ $a | quote }}{{ end }}]
 {{- end }}

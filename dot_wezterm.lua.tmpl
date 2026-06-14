@@ -7,6 +7,9 @@
 -- hooks write into the tab title. A second handler (update-right-status) shows
 -- the workspace + cwd top-right.
 -- Keep in sync with windows/.wezterm.lua.
+--
+-- This file is a chezmoi template: leader chord + theme mode are injected from
+-- the saved config in chezmoi [data]. Change them with `ts-config`.
 
 local wezterm = require 'wezterm'
 local act = wezterm.action
@@ -20,6 +23,41 @@ for _, dom in ipairs(config.ssh_domains) do
   dom.assume_shell = 'Posix'
 end
 
+-- ── Theme palette (light / dark, optional follow-OS) ──────────────────────────
+-- THEME_MODE is injected from the saved terminal-stack config:
+--   'dark'  → Catppuccin Mocha · 'light' → Catppuccin Latte ·
+--   'follow' → track the OS appearance live (WezTerm re-evaluates this file when
+--   the OS light/dark setting changes, so the whole UI flips with no re-apply).
+-- Both palettes carry every colour the tab bar, status line and Claude tints use.
+local THEME_MODE = '{{ if hasKey . "themeMode" }}{{ .themeMode }}{{ else }}dark{{ end }}'
+local PALETTES = {
+  dark = {  -- Catppuccin Mocha
+    scheme = 'Catppuccin Mocha',
+    base = '#1e1e2e', mantle = '#181825', crust = '#11111b', surface0 = '#313244',
+    text = '#cdd6f4', subtext0 = '#a6adc8', overlay0 = '#6c7086', overlay1 = '#585b70',
+    lavender = '#b4befe', peach = '#fab387', green = '#a6e3a1', maroon = '#eba0ac',
+    accent = '#89b4fa', teal = '#94e2d5',
+    cc_working = '#2a2420', cc_done = '#1f2a20', cc_error = '#2e1e24',
+  },
+  light = {  -- Catppuccin Latte
+    scheme = 'Catppuccin Latte',
+    base = '#eff1f5', mantle = '#e6e9ef', crust = '#dce0e8', surface0 = '#ccd0da',
+    text = '#4c4f69', subtext0 = '#6c6f85', overlay0 = '#9ca0b0', overlay1 = '#7c7f93',
+    lavender = '#7287fd', peach = '#fe640b', green = '#40a02b', maroon = '#e64553',
+    accent = '#1e66f5', teal = '#179299',
+    cc_working = '#f3e9df', cc_done = '#e4f0e2', cc_error = '#f6e1e5',
+  },
+}
+local function pick_palette(mode)
+  if mode == 'light' then return PALETTES.light end
+  if mode == 'dark' then return PALETTES.dark end
+  -- follow: track the OS appearance; WezTerm reloads this file when it changes.
+  local ok, appearance = pcall(function() return wezterm.gui.get_appearance() end)
+  if ok and appearance and appearance:find('Light') then return PALETTES.light end
+  return PALETTES.dark
+end
+local P = pick_palette(THEME_MODE)
+
 -- Final fallback is Menlo, not Cascadia Code: Menlo ships with macOS, Cascadia does not.
 config.font = wezterm.font_with_fallback {
   'JetBrainsMono Nerd Font',
@@ -27,7 +65,7 @@ config.font = wezterm.font_with_fallback {
   'Menlo',
 }
 config.font_size = 11.5
-config.color_scheme = 'Catppuccin Mocha'
+config.color_scheme = P.scheme
 config.window_background_opacity = 1.0
 config.use_fancy_tab_bar = true    -- native/fancy tabs (styled via window_frame + colors.tab_bar)
 config.hide_tab_bar_if_only_one_tab = false
@@ -38,21 +76,21 @@ config.tab_max_width = 120
 config.window_frame = {
   font = wezterm.font { family = 'JetBrainsMono Nerd Font', weight = 'Bold' },
   font_size = 11.0,
-  active_titlebar_bg = '#181825',    -- Catppuccin mantle (focused)
-  inactive_titlebar_bg = '#11111b',  -- crust (unfocused)
+  active_titlebar_bg = P.mantle,    -- focused
+  inactive_titlebar_bg = P.crust,   -- unfocused
 }
 -- Strong active-pane signal: heavily dim inactive panes + a bright split line.
 config.inactive_pane_hsb = { brightness = 0.25, saturation = 0.6, hue = 1.0 }
 config.colors = {
-  split = '#b4befe',  -- lavender divider between panes
-  compose_cursor = '#fab387',  -- cursor turns peach while the leader key is pending input
-  tab_bar = {  -- Catppuccin Mocha; per-segment text colour is driven in format-tab-title
-    background = '#11111b',
-    active_tab         = { bg_color = '#313244', fg_color = '#cdd6f4', intensity = 'Bold' },
-    inactive_tab       = { bg_color = '#181825', fg_color = '#6c7086' },
-    inactive_tab_hover = { bg_color = '#313244', fg_color = '#a6adc8', italic = true },
-    new_tab            = { bg_color = '#181825', fg_color = '#6c7086' },
-    new_tab_hover      = { bg_color = '#313244', fg_color = '#cdd6f4' },
+  split = P.lavender,  -- divider between panes
+  compose_cursor = P.peach,  -- cursor turns peach while the leader key is pending input
+  tab_bar = {  -- per-segment text colour is driven in format-tab-title
+    background = P.crust,
+    active_tab         = { bg_color = P.surface0, fg_color = P.text, intensity = 'Bold' },
+    inactive_tab       = { bg_color = P.mantle, fg_color = P.overlay0 },
+    inactive_tab_hover = { bg_color = P.surface0, fg_color = P.subtext0, italic = true },
+    new_tab            = { bg_color = P.mantle, fg_color = P.overlay0 },
+    new_tab_hover      = { bg_color = P.surface0, fg_color = P.text },
   },
 }
 
@@ -62,11 +100,11 @@ config.front_end = 'WebGpu'
 config.scrollback_lines = 10000
 config.status_update_interval = 100  -- ms; keep the LEADER indicator snappy (update-right-status)
 
--- Ctrl+Space leader: left pinky + thumb, frees the right hand for j/k/i/m.
+-- Leader key: injected from the saved config (default Ctrl+Space).
 -- phys:Space matches the physical key (kept identical to the Windows side).
 -- ~24h timeout = effectively no timeout: the leader waits for input. The peach
--- cursor + ⌨ LEADER badge show it's pending; Ctrl+Space then Esc cancels.
-config.leader = { key = 'phys:Space', mods = 'CTRL', timeout_milliseconds = 86400000 }
+-- cursor + ⌨ LEADER badge show it's pending; <leader> then Esc cancels.
+config.leader = { key = '{{ if hasKey . "leaderKey" }}{{ .leaderKey }}{{ else }}phys:Space{{ end }}', mods = '{{ if hasKey . "leaderMods" }}{{ .leaderMods }}{{ else }}CTRL{{ end }}', timeout_milliseconds = 86400000 }
 
 -- Fuzzy-pick a domain (Alt+L style) and split it into the current pane.
 -- direction is a wezterm SplitPane direction ('Right' or 'Down').
@@ -213,9 +251,9 @@ local PROC_ICONS = {
 local ICON_CLAUDE   = wezterm.nerdfonts.md_robot or '*'
 local ICON_FALLBACK = wezterm.nerdfonts.md_console or '>'
 local ICON_ZOOM     = wezterm.nerdfonts.md_fullscreen or 'Z'
-local TAB = {  -- Catppuccin Mocha
-  text = '#cdd6f4', dim = '#6c7086',
-  working = '#fab387', done = '#a6e3a1', error = '#eba0ac',  -- maroon, not the old hot pink
+local TAB = {  -- derived from the active palette
+  text = P.text, dim = P.overlay0,
+  working = P.peach, done = P.green, error = P.maroon,
 }
 
 local function dir_leaf(pane)
@@ -307,8 +345,8 @@ end)
 -- WezTerm's own emulator, bypassing ConPTY entirely. Local panes, every platform;
 -- mux/SSH panes (no inject_output) fall back to the hook's raw OSC 11. macOS/Linux
 -- have no ConPTY so the hook's OSC 11 already works — this re-sets the same colour.
-local CC_BG   = { working = '#2a2420', done = '#1f2a20', error = '#2e1e24' }
-local CC_BASE = '#1e1e2e'  -- Catppuccin Mocha base (matches config.color_scheme)
+local CC_BG   = { working = P.cc_working, done = P.cc_done, error = P.cc_error }
+local CC_BASE = P.base  -- matches config.color_scheme base
 wezterm.on('user-var-changed', function(window, pane, name, value)
   if name ~= 'cc_state' then return end
   local color = CC_BG[value] or CC_BASE          -- '' (cleared on exit) → reset
@@ -338,41 +376,41 @@ end)()
 wezterm.on('update-right-status', function(window, pane)
   local items = {}
   local kt = window:active_key_table()
-  if kt then                                  -- in a repeatable mode: sapphire badge
+  if kt then                                  -- in a repeatable mode: accent badge
     local MODE = {
       resize_pane = '⤢ RESIZE ↑↓←→', activate_pane = '✛ MOVE ↑↓←→',
       rotate_pane = '⟳ ROTATE ↑↓←→', switch_tab = '⇥ TAB ←→', font_size = 'A± FONT ↑↓0',
     }
-    table.insert(items, { Background = { Color = '#89b4fa' } })
-    table.insert(items, { Foreground = { Color = '#1e1e2e' } })
+    table.insert(items, { Background = { Color = P.accent } })
+    table.insert(items, { Foreground = { Color = P.base } })
     table.insert(items, { Attribute = { Intensity = 'Bold' } })
     table.insert(items, { Text = ' ' .. (MODE[kt] or kt) .. ' · Esc ' })
-    table.insert(items, { Background = { Color = '#11111b' } })
-    table.insert(items, { Foreground = { Color = '#585b70' } })
+    table.insert(items, { Background = { Color = P.crust } })
+    table.insert(items, { Foreground = { Color = P.overlay1 } })
     table.insert(items, { Attribute = { Intensity = 'Normal' } })
     table.insert(items, { Text = '  ' })
   elseif window:leader_is_active() then        -- leader pending: bold peach badge
-    table.insert(items, { Background = { Color = '#fab387' } })
-    table.insert(items, { Foreground = { Color = '#1e1e2e' } })
+    table.insert(items, { Background = { Color = P.peach } })
+    table.insert(items, { Foreground = { Color = P.base } })
     table.insert(items, { Attribute = { Intensity = 'Bold' } })
     table.insert(items, { Text = ' ⌨ LEADER ' })
-    table.insert(items, { Background = { Color = '#11111b' } })
-    table.insert(items, { Foreground = { Color = '#585b70' } })
+    table.insert(items, { Background = { Color = P.crust } })
+    table.insert(items, { Foreground = { Color = P.overlay1 } })
     table.insert(items, { Attribute = { Intensity = 'Normal' } })
     table.insert(items, { Text = '  ' })
   end
   local ws = window:active_workspace()
   if ws ~= 'default' then                              -- workspace only when non-default
-    table.insert(items, { Foreground = { Color = '#89b4fa' } })
+    table.insert(items, { Foreground = { Color = P.accent } })
     table.insert(items, { Text = '⬡ ' .. ws })
-    table.insert(items, { Foreground = { Color = '#585b70' } })
+    table.insert(items, { Foreground = { Color = P.overlay1 } })
     table.insert(items, { Text = '  │  ' })
   end
-  table.insert(items, { Foreground = { Color = '#94e2d5' } })   -- identity (teal)
+  table.insert(items, { Foreground = { Color = P.teal } })   -- identity
   table.insert(items, { Text = IDENTITY })
-  table.insert(items, { Foreground = { Color = '#585b70' } })
+  table.insert(items, { Foreground = { Color = P.overlay1 } })
   table.insert(items, { Text = '  │  ' })
-  table.insert(items, { Foreground = { Color = '#a6adc8' } })   -- path (grey)
+  table.insert(items, { Foreground = { Color = P.subtext0 } })   -- path
   table.insert(items, { Text = cwd_path(pane) .. '  ' })
   window:set_right_status(wezterm.format(items))
 end)
@@ -394,7 +432,7 @@ wezterm.on('window-focus-changed', function(window)
   window:set_config_overrides(o)
 end)
 
--- Ctrl+Space, Esc cancels a pending leader (a no-op consumes Esc; with the
+-- Leader, Esc cancels a pending leader (a no-op consumes Esc; with the
 -- ~no-timeout leader this is the deliberate way to back out).
 table.insert(config.keys, { key = 'Escape', mods = 'LEADER', action = wezterm.action_callback(function() end) })
 

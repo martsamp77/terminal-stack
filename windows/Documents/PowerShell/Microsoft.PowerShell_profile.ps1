@@ -193,6 +193,13 @@ function Update-TerminalStack {
     } else {
         Write-Host '==> already up to date'
     }
+    # Re-bake the resolved (light/dark) palette from the live OS theme so a
+    # `follow`-mode user who toggled Windows appearance gets the new palette on
+    # this update. No-op for fixed dark/light; non-fatal if the helper is absent.
+    $cfgHelper = Join-Path $SourceDir 'bootstrap\_config.ps1'
+    if (Test-Path $cfgHelper) {
+        try { . $cfgHelper; Update-TsResolvedTheme } catch { Write-Warning "resolvedTheme refresh skipped: $_" }
+    }
     Invoke-TsSync $SourceDir
 }
 Set-Alias -Name ts-update -Value Update-TerminalStack
@@ -228,6 +235,79 @@ function Restore-TerminalStack {
     Write-Host '==> done. run ts-update to return to latest.'
 }
 Set-Alias -Name ts-rollback -Value Restore-TerminalStack
+
+# Configure the stack: leader key, theme (dark/light/follow), tmux prefix, apps.
+# Bare `ts-config` opens an interactive menu; `ts-config theme follow` etc. set one
+# value. Writes %LOCALAPPDATA%\terminal-stack\config.json and re-syncs the Windows
+# files. NOTE: in a combined WSL+Windows setup, prefer running `ts-config` from WSL
+# (its chezmoi apply is authoritative for the Windows-side files).
+function Set-TerminalStackConfig {
+    [CmdletBinding()]
+    param([Parameter(Position = 0)][string]$Action, [Parameter(Position = 1)][string]$Value)
+
+    $src = Resolve-TsSourceDir
+    if (-not $src) { return }
+    $helper = Join-Path $src 'bootstrap\_config.ps1'
+    if (-not (Test-Path $helper)) { Write-Warning "$helper not found; cannot configure."; return }
+    . $helper
+
+    $c = Get-TsConfig
+    $leader = if ($c.leaderChord) { $c.leaderChord } else { 'ctrl-space' }
+    $theme  = if ($c.themeMode)   { $c.themeMode }   else { 'dark' }
+    $tmux   = if ($c.tmuxPrefix)  { $c.tmuxPrefix }  else { 'ctrl-b' }
+    $apps   = @($c.apps)
+
+    $save = {
+        Save-TsConfig -LeaderChord $leader -ThemeMode $theme -TmuxPrefix $tmux -Apps $apps | Out-Null
+        Invoke-TsSync $src
+        Write-Host '==> done.'
+    }
+
+    switch ($Action) {
+        '' {
+            while ($true) {
+                Write-Host ''
+                Write-Host 'terminal-stack config:'
+                Write-Host "  leader : $leader"
+                Write-Host "  theme  : $theme   (palette $(Get-TsResolvedTheme $theme))"
+                Write-Host "  tmux   : $tmux"
+                Write-Host "  apps   : $($apps -join ', ')"
+                Write-Host ''
+                Write-Host '  1) leader  2) theme  3) tmux prefix  4) apps  5) re-apply  q) quit'
+                switch (Read-Host 'Choose') {
+                    '1' { $leader = Read-TsLeader; & $save }
+                    '2' { $theme  = Read-TsTheme;  & $save }
+                    '3' { $t = Read-Host 'tmux prefix chord (e.g. ctrl-a) [ctrl-b]'; $tmux = if ($t) { $t } else { 'ctrl-b' }; & $save }
+                    '4' { $apps = @(Read-TsApps); Install-TsApps $apps; & $save }
+                    '5' { & $save }
+                    default { return }
+                }
+            }
+        }
+        'show' {
+            Write-Host "leader : $leader"
+            Write-Host "theme  : $theme   (palette $(Get-TsResolvedTheme $theme))"
+            Write-Host "tmux   : $tmux"
+            Write-Host "apps   : $($apps -join ', ')"
+        }
+        'leader' { if (-not $Value) { Write-Warning 'usage: ts-config leader <chord>'; return }; $leader = $Value; & $save }
+        'theme'  { if (-not $Value) { Write-Warning 'usage: ts-config theme <dark|light|follow>'; return }; $theme = $Value; & $save }
+        'tmux'   { if (-not $Value) { Write-Warning 'usage: ts-config tmux <chord>'; return }; $tmux = $Value; & $save }
+        'apps'   {
+            if ($Value) {
+                switch ($Value) {
+                    'recommended' { $apps = $script:TsAppsRecommended }
+                    'all'         { $apps = $script:TsAppsAll }
+                    'none'        { $apps = @() }
+                    default       { $apps = ($Value -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ }) }
+                }
+            } else { $apps = @(Read-TsApps) }
+            Install-TsApps $apps; & $save
+        }
+        default { Write-Warning "ts-config: unknown command '$Action' (show, leader, theme, tmux, apps)" }
+    }
+}
+Set-Alias -Name ts-config -Value Set-TerminalStackConfig
 # ---- terminal-stack-update-end ----
 
 # ---- claude-code-start ----

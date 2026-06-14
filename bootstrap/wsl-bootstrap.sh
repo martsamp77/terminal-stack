@@ -73,6 +73,15 @@ else
     fi
 fi
 
+# Persist the wizard's config choices into chezmoi [data] (regenerates the derived
+# leaderKey/leaderMods/resolvedTheme via `chezmoi init`) and mirror to the Windows
+# side. Requires chezmoi.toml to exist (written just above).
+if [ -f "$TOML" ]; then
+    # shellcheck disable=SC2086
+    ts_save_config "${TS_WIZ_LEADER:-ctrl-space}" "${TS_WIZ_THEME:-dark}" "${TS_WIZ_TMUX:-ctrl-b}" ${TS_WIZ_APPS:-}
+    echo "$INFO Saved terminal-stack config to $TOML [data]"
+fi
+
 echo ""
 echo "$INFO WSL bootstrap done."
 echo "    Next: ~/.local/bin/chezmoi apply -v"
