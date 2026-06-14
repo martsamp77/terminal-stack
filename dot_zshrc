@@ -359,10 +359,34 @@ command -v zoxide >/dev/null && eval "$(zoxide init zsh)"
 # so the source just no-ops on older versions.
 command -v fzf    >/dev/null && source <(fzf --zsh 2>/dev/null)
 command -v eza    >/dev/null && alias ls='eza --icons=always --git --group-directories-first'
-command -v bat    >/dev/null && alias cat='bat --paging=never'
+command -v bat    >/dev/null && alias ccat='bat --paging=never'   # ccat, not cat — don't shadow real cat
 
 # ref — alias into the `doc` knowledge base (replaced the old command-reference file).
 ref() { doc "$@"; }
+
+# Clipboard helpers: copy stdin (or a file via catclip) to the system clipboard.
+clipcopy() {
+  if command -v wl-copy >/dev/null 2>&1; then
+    wl-copy "$@"
+  elif command -v xclip >/dev/null 2>&1; then
+    xclip -selection clipboard "$@"
+  elif command -v clip.exe >/dev/null 2>&1; then
+    clip.exe
+  elif command -v pbcopy >/dev/null 2>&1; then
+    pbcopy
+  else
+    echo "clipcopy: no clipboard tool found: install wl-clipboard, xclip, or use WSL clip.exe" >&2
+    return 1
+  fi
+}
+
+catclip() {
+  if [[ $# -ne 1 ]]; then
+    echo "usage: catclip <file>" >&2
+    return 2
+  fi
+  cat -- "$1" | clipcopy
+}
 # ---- cli-tools-end ----
 
 # ---- doc-start ----

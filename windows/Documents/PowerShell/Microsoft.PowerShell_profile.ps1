@@ -480,6 +480,26 @@ function doc {
 }
 # ---- doc-end ----
 
+# ---- clipboard-start ----
+# ccat — bat without paging (we deliberately don't shadow `cat`/Get-Content).
+function ccat { & bat --paging=never @args }
+
+# clipcopy — pipe input to the clipboard; catclip — a file's contents.
+function clipcopy { $input | Set-Clipboard }
+function catclip {
+    param([Parameter(Mandatory)][string]$Path)
+    Get-Content -LiteralPath $Path -Raw | Set-Clipboard
+}
+
+# hgrep — search PowerShell (PSReadLine) command history.
+function hgrep {
+    param([Parameter(ValueFromRemainingArguments)][string[]]$Pattern)
+    if (-not $Pattern) { Write-Host 'usage: hgrep <pattern>'; return }
+    $h = (Get-PSReadLineOption).HistorySavePath
+    if (Test-Path -LiteralPath $h) { Select-String -LiteralPath $h -Pattern ($Pattern -join ' ') | ForEach-Object { $_.Line } }
+}
+# ---- clipboard-end ----
+
 # ---- local-overrides-start ----
 # Per-machine overrides (not synced by the stack). The Windows counterpart of
 # ~/.zshrc.local — see profile.local.ps1.example. Keep this block last so
