@@ -2,3 +2,9 @@
 # wzr was absorbed into `doc` (docs/kb/wezterm/*); drop its old deployed files.
 .local/bin/wzr
 .wezterm-ref
+# command-reference was replaced by the `doc` knowledge base (docs/kb/). Drop the
+# old deployed cheat-sheet + generated twins. NOTE: command-reference.local.md is
+# the user's untracked personal file — intentionally NOT removed.
+command-reference.md
+command-reference.txt
+command-reference.html

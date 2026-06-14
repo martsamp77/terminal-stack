@@ -121,20 +121,8 @@ if (Get-Command eza -ErrorAction SilentlyContinue) {
     function lt { eza --tree --icons=always --git --group-directories-first @args }
 }
 
-# Open the command reference (synced to %USERPROFILE% by the stack) plus the
-# machine-local supplement (command-reference.local.md, untracked) if present.
-function ref {
-    $files = @((Join-Path $env:USERPROFILE 'command-reference.md'))
-    $local = Join-Path $env:USERPROFILE 'command-reference.local.md'
-    if (Test-Path $local) { $files += $local }
-    if (Get-Command bat -ErrorAction SilentlyContinue) {
-        & bat --paging=always @files
-    } elseif (Get-Command glow -ErrorAction SilentlyContinue) {
-        foreach ($f in $files) { & glow $f }
-    } else {
-        foreach ($f in $files) { Get-Content $f }
-    }
-}
+# ref — alias into the `doc` knowledge base (replaced the old command-reference file).
+function ref { doc @args }
 # ---- cli-tools-end ----
 
 # ---- git-shortcuts-start ----

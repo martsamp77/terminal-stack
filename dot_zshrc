@@ -330,17 +330,8 @@ command -v fzf    >/dev/null && source <(fzf --zsh 2>/dev/null)
 command -v eza    >/dev/null && alias ls='eza --icons=always --git --group-directories-first'
 command -v bat    >/dev/null && alias cat='bat --paging=never'
 
-# Open the command reference (~/command-reference.md, chezmoi-managed) plus the
-# machine-local supplement (~/command-reference.local.md, untracked) if present.
-ref() {
-  local -a files=("$HOME/command-reference.md")
-  [[ -f "$HOME/command-reference.local.md" ]] && files+=("$HOME/command-reference.local.md")
-  if command -v bat >/dev/null; then
-    bat --paging=always "${files[@]}"
-  else
-    less "${files[@]}"
-  fi
-}
+# ref — alias into the `doc` knowledge base (replaced the old command-reference file).
+ref() { doc "$@"; }
 # ---- cli-tools-end ----
 
 # ---- doc-start ----

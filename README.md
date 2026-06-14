@@ -57,7 +57,7 @@ git -C <clone> reset --hard <sha>         # e.g. v1.0.x tags, or any commit
 ~/.local/bin/chezmoi apply                # Windows: <clone>\scripts\sync-windows.ps1
 ```
 
-Two caveats: the clone may double as a dev checkout — commit or stash before any `reset --hard`. And rolling back the *source* doesn't delete files an update introduced (e.g. `~/command-reference.md` or the git include at `~/.config/git/terminal-stack.gitconfig`); chezmoi simply stops managing them. For a full undo, also `rm` the file and/or `git config --global --unset-all include.path <path>`.
+Two caveats: the clone may double as a dev checkout — commit or stash before any `reset --hard`. And rolling back the *source* doesn't delete files an update introduced (e.g. the git include at `~/.config/git/terminal-stack.gitconfig`); chezmoi simply stops managing them. For a full undo, also `git config --global --unset-all include.path <path>`.
 
 ## What you get
 
@@ -68,7 +68,7 @@ Two caveats: the clone may double as a dev checkout — commit or stash before a
 - **Modern CLI tools**: eza, zoxide, fzf, bat, git-delta, ripgrep, the `micro` editor (a friendly nano alternative), and `glow` (terminal markdown renderer) — installed on every target, with delta wired into `git diff` and the stack's `git st/lg/lga/br/co/cm` aliases via a managed gitconfig include.
 - **tmux** configured for Claude Code passthrough, extended keys, and mouse mode.
 - **`ws`/`wsp`/`wspu` workspace navigation** that autodetects the workspace root per machine (`$WORKSPACE_DIR` in `~/.zshrc.local` / `profile.local.ps1` overrides it).
-- **`ref` command reference** — a cheat sheet of everything above at `~/command-reference.md`, tailored per platform at apply time (systemd/docker sections on Linux/WSL; WezTerm keys, Homebrew, and macOS utilities on Macs), plus an untracked `command-reference.local.md` for machine-specific commands. The same content also lands as `command-reference.html` (open in a browser) and `command-reference.txt` (plain text) on every target — generated from the markdown by `scripts/render-command-reference.sh`, never hand-edited, freshness-checked on every apply/sync. The final per-OS renderings (all three formats for Linux/WSL, macOS, and Windows) are browsable in-repo at `docs/command-reference/`.
+- **`doc` knowledge base** — a tree of markdown command runbooks under `docs/kb/` in the clone (`common/` + per-OS `linux/`/`macos/`/`windows/` + `wezterm/`), rendered by `glow`. `doc` fuzzy-finds a topic, `doc <topic>` opens it, `doc -g` greps, `doc cmd` drops a command straight onto your prompt, and `doc sync` commits your edits back (with a changelog bullet). Personal/secret runbooks live in an untracked `~/.doc.local/` layer. `ref` and `wzr` are thin aliases into it.
 
 ## Architecture in 30 seconds
 

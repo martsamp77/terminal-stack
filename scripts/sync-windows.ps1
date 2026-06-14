@@ -28,29 +28,6 @@ if ([string]::IsNullOrWhiteSpace($WinUser)) {
     throw "sync-windows: -WinUser is empty and `$env:USERNAME is unset."
 }
 
-# The command-reference .txt/.html twins are generated from the .md by
-# scripts/render-command-reference.sh and committed; warn (never block) if a
-# stale set was committed. The .txt is a byte copy of the .md; the .html
-# embeds the source hash in a "source-sha256:" head comment.
-$refMd = Join-Path $srcRoot 'command-reference.md'
-if (Test-Path -LiteralPath $refMd -PathType Leaf) {
-    $mdHash = (Get-FileHash -LiteralPath $refMd -Algorithm SHA256).Hash.ToLowerInvariant()
-    $refTxt = Join-Path $srcRoot 'command-reference.txt'
-    $txtFresh = (Test-Path -LiteralPath $refTxt -PathType Leaf) -and
-        ((Get-FileHash -LiteralPath $refTxt -Algorithm SHA256).Hash.ToLowerInvariant() -eq $mdHash)
-    $refHtml = Join-Path $srcRoot 'command-reference.html'
-    $htmlFresh = $false
-    if (Test-Path -LiteralPath $refHtml -PathType Leaf) {
-        $m = Select-String -LiteralPath $refHtml -Pattern 'source-sha256: ([0-9a-f]{64})' |
-            Select-Object -First 1
-        if ($m) { $htmlFresh = ($m.Matches[0].Groups[1].Value -eq $mdHash) }
-    }
-    if (-not ($txtFresh -and $htmlFresh)) {
-        Write-Warning ('sync-windows: windows/command-reference.txt/.html are stale relative to ' +
-            'command-reference.md; run scripts/render-command-reference.sh in the clone and commit.')
-    }
-}
-
 $dstRoot = $env:USERPROFILE
 if (-not $dstRoot -or -not (Test-Path -LiteralPath $dstRoot -PathType Container)) {
     throw "sync-windows: `$env:USERPROFILE ($dstRoot) is not a valid directory."
