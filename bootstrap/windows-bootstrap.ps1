@@ -58,7 +58,9 @@ $corePackages = @(
     'BurntSushi.ripgrep.MSVC',          # Fast grep
     'ajeetdsouza.zoxide',               # Smarter cd
     'charmbracelet.glow',               # Markdown reader (TUI)
-    'zyedidia.micro'                    # nano-like terminal text editor
+    'zyedidia.micro',                   # nano-like terminal text editor
+    'Neovim.Neovim',                    # Neovim editor
+    'Zed.Zed'                           # Zed editor (Windows build is preview)
 )
 
 foreach ($pkg in $corePackages) {

@@ -38,7 +38,7 @@ fi
 echo "$INFO Installing brew formulae and casks"
 brew install \
     zsh git tmux \
-    eza zoxide fzf bat git-delta ripgrep micro glow \
+    eza zoxide fzf bat git-delta ripgrep micro glow neovim \
     starship chezmoi
 
 # 3. WezTerm (cask) — nightly, matching the Windows side.
@@ -49,6 +49,14 @@ if ! brew list --cask wezterm@nightly >/dev/null 2>&1; then
     brew install --cask wezterm@nightly
 else
     echo "$INFO WezTerm nightly cask already installed"
+fi
+
+# 3b. Zed (cask) — GUI editor.
+if ! brew list --cask zed >/dev/null 2>&1; then
+    echo "$INFO Installing Zed cask"
+    brew install --cask zed
+else
+    echo "$INFO Zed cask already installed"
 fi
 
 # 4. JetBrainsMono Nerd Font (cask)
