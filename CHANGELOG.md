@@ -4,6 +4,8 @@ All notable changes captured here. Format loosely follows [Keep a Changelog](htt
 
 ## [Unreleased]
 
+## [1.2.0] — 06/13/2026
+
 ### Added
 
 - **Per-pane Claude Code state, shown in the tab bar and pane background.** The `wez-tab-status` hook now emits two things for the pane Claude runs in: an **OSC 11 background tint** (peach = working, green = done, red = error) and an **OSC 1337 `cc_state` user var**; the `cc`/`ccc`/… wrappers (zsh) and `Set-WezTabTitle` (pwsh) reset both on exit. `format-tab-title` reads `cc_state` to draw one coloured dot per pane (● working/done/error, ○ idle) and tint the whole tab **green** (done) / **red** (error) on its most urgent pane — so a multi-pane tab shows which panes are busy, finished, or need you even when it is inactive. DCS-wrapped for tmux passthrough; works on both WSL/zsh and Windows/pwsh (the latter writes to `CONOUT$` because the hook's stdout is captured by Claude Code).
