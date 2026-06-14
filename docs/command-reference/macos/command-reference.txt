@@ -50,7 +50,7 @@ changes.
 | `Ctrl+Space J/K/I/M` | resize active pane (5 cells) |
 | `Ctrl+Space z` | zoom/unzoom active pane (fullscreen within tab) |
 | `Ctrl+Space x` | close the active pane (asks to confirm) |
-| `F1`…`F6` | build-or-focus a cell of a 3×2 grid — F1 F2 F3 top row, F4 F5 F6 bottom; creates the pane if missing, else focuses it |
+| `F1`…`F6` | 3×2 grid (F1 F2 F3 top row, F4 F5 F6 bottom) — press a cell to focus it, or the next-in-order cell to build it; **F1 also maximizes the window** |
 | `Shift+F1`…`Shift+F6` | build the cell with its new pane opened in a fuzzy-picked domain |
 | `Ctrl+Space 1`…`Ctrl+Space 6` | same as F1–F6 (fallback if F-keys are captured by the OS) |
 | `Ctrl+Space w` | workspace picker (fuzzy) |
@@ -66,7 +66,7 @@ changes.
 | `Alt+L` | launcher menu (includes TABS and WORKSPACES) |
 | `Ctrl+V` | paste |
 
-Tab labels read `<number>: <dir>` and tint **green** when Claude is done / **red** on error; the top-right shows the active workspace and current path.
+Tab labels read ` <number>  <icon> <dir> ` — the icon is the pane's foreground process, or a robot while Claude runs — followed by one coloured dot per pane (peach = working, green = done, red = error, hollow = idle); the label tints **green** when Claude finishes / **red** on error, and each Claude pane's background tints to match. The top-right shows the active workspace and current path.
 
 ---
 

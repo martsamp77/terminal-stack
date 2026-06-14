@@ -22,7 +22,7 @@ file changes.
 | `Ctrl+Space J/K/I/M` | resize active pane (5 cells) |
 | `Ctrl+Space z` | zoom/unzoom active pane (fullscreen within tab) |
 | `Ctrl+Space x` | close the active pane (asks to confirm) |
-| `F1`…`F6` | build-or-focus a cell of a 3×2 grid — F1 F2 F3 top row, F4 F5 F6 bottom; creates the pane if missing, else focuses it |
+| `F1`…`F6` | 3×2 grid (F1 F2 F3 top row, F4 F5 F6 bottom) — press a cell to focus it, or the next-in-order cell to build it; **F1 also maximizes the window** |
 | `Shift+F1`…`Shift+F6` | build the cell with its new pane opened in a fuzzy-picked domain |
 | `Ctrl+Space 1`…`Ctrl+Space 6` | same as F1–F6 (fallback if F-keys are captured by the OS) |
 | `Ctrl+Space w` | workspace picker (fuzzy) |
@@ -38,7 +38,7 @@ file changes.
 | `Alt+L` | launcher menu (includes TABS and WORKSPACES) |
 | `Ctrl+V` | paste |
 
-**Recommended model (one WezTerm OS window):** Use WezTerm *workspaces* (Ctrl+Space, w fuzzy picker, Ctrl+Space, n to create) as the unit of "what I'm working on" (Project-Alpha vs Project-Beta). Inside a workspace use *panes* (Ctrl+Space, h / v to split, j/k/i/m to move, J/K/I/M to resize, z to zoom, F1-F6 / Ctrl+Space 1-6 to build-or-focus a 3×2 grid) for things you want to watch simultaneously. Need a remote shell beside your work? Ctrl+Space, H (below) or V (right) opens a domain picker — choose an SSH or WSL domain and it splits that in. Tabs are cheap full-screen flips within a workspace; jump straight to one with Alt+1…9. Each tab is labelled with its number and directory (e.g. `2: terminal-stack`) and tints green when Claude finishes / red on error; the top-right shows the active workspace and current path. This replaces the need for multiple top-level WezTerm windows.
+**Recommended model (one WezTerm OS window):** Use WezTerm *workspaces* (Ctrl+Space, w fuzzy picker, Ctrl+Space, n to create) as the unit of "what I'm working on" (Project-Alpha vs Project-Beta). Inside a workspace use *panes* (Ctrl+Space, h / v to split, j/k/i/m to move, J/K/I/M to resize, z to zoom, F1-F6 / Ctrl+Space 1-6 to build-or-focus a 3×2 grid) for things you want to watch simultaneously. Need a remote shell beside your work? Ctrl+Space, H (below) or V (right) opens a domain picker — choose an SSH or WSL domain and it splits that in. Tabs are cheap full-screen flips within a workspace; jump straight to one with Alt+1…9. Each tab is labelled with its number, a process icon (a robot while Claude runs) and directory, plus one coloured dot per pane (peach = working, green = done, red = error, hollow = idle), and tints green when Claude finishes / red on error; each Claude pane's background tints to match, and the top-right shows the active workspace and current path. This replaces the need for multiple top-level WezTerm windows.
 
 **Managing workspaces:** rename the current one with `Ctrl+Space R`; "delete" a live one with `Ctrl+Space X` (closes all its panes).
 
