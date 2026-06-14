@@ -434,7 +434,10 @@ _doc_open() {
   local -a m
   m=("${(@f)$(_doc_index all | awk -F'\t' -v q="${(L)q}" 'tolower($1) ~ q {print}')}")
   m=(${m:#})
-  (( ${#m} )) || { echo "doc: no topic matching '$q' (try: doc ls)" >&2; return 1; }
+  if (( ${#m} == 0 )); then
+    command -v fzf >/dev/null && { _doc_finder "$os" "$q"; return; }   # no exact hit -> fuzzy finder
+    echo "doc: no topic matching '$q' (try: doc ls)" >&2; return 1
+  fi
   if (( ${#m} == 1 )); then _doc_view "${m[1]#*$'\t'}"; return; fi
   for line in $m; do
     label="${line%%$'\t'*}"; label="${label% \[local\]}"

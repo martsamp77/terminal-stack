@@ -15,8 +15,9 @@ Personal command runbooks, rendered by **glow**. Browse with the `doc` command:
 
 ## Layout
 
-- `common/` — cross-OS (git, github keys, ssh config, copying files between servers)
-- `linux/` — apt, VeraCrypt, ssh permissions, systemd
+- `common/` — cross-OS (git, ssh keys/config, tmux, copying files between servers, …)
+- `common/tools/` — per-tool cheat-sheets (eza, fzf, bat, ripgrep, zoxide, delta, starship, chezmoi, micro, glow, neovim, zed) — `doc eza`, `doc nvim`, …
+- `linux/` — apt, VeraCrypt, ssh permissions, systemd, docker
 - `macos/` — Homebrew, macOS WezTerm toggles
 - `windows/` — winget, PowerShell
 - `wezterm/` — WezTerm keybindings (all OSes)

@@ -327,7 +327,11 @@ function Invoke-DocView([string]$path) {
 
 function Invoke-DocOpen([string]$query, [string]$os) {
     $m = @(Get-DocIndex 'all' | Where-Object { $_.Label -like "*$query*" })
-    if ($m.Count -eq 0) { Write-Warning "doc: no topic matching '$query' (try: doc ls)"; return }
+    if ($m.Count -eq 0) {
+        if (Get-Command fzf -EA SilentlyContinue) { Invoke-DocFinder $os $query }   # no exact hit -> fuzzy finder
+        else { Write-Warning "doc: no topic matching '$query' (try: doc ls)" }
+        return
+    }
     # If every match is the same topic (tracked + its [local] twin), open the [local] one.
     $bases = $m | Group-Object { $_.Label -replace ' \[local\]$', '' }
     if ($bases.Count -eq 1) {
