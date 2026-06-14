@@ -46,8 +46,15 @@ function wspu {
 # ---- workspace-nav-end ----
 
 function Set-WezTabTitle([string]$title) {
-    if ($env:WEZTERM_PANE) {
-        & wezterm.exe cli set-tab-title $title 2>$null
+    if (-not $env:WEZTERM_PANE) { return }
+    & wezterm.exe cli set-tab-title $title 2>$null
+    # Empty title marks CC exit in this pane -> restore the base background (OSC 11),
+    # undoing the per-pane state tint set by the wez-tab-status hook.
+    if (-not $title) {
+        try {
+            [Console]::Out.Write("$([char]27)]11;#1e1e2e$([char]7)")              # reset background
+            [Console]::Out.Write("$([char]27)]1337;SetUserVar=cc_state=$([char]7)")  # clear tab state
+        } catch {}
     }
 }
 

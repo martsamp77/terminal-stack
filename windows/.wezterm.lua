@@ -33,13 +33,18 @@ config.font = wezterm.font_with_fallback {
 }
 config.font_size = 11.5
 config.color_scheme = 'Catppuccin Mocha'
-config.use_fancy_tab_bar = false   -- flat retro tab bar (see format-tab-title below)
+config.use_fancy_tab_bar = true    -- native/fancy tabs (styled via window_frame + colors.tab_bar)
 config.hide_tab_bar_if_only_one_tab = false
 config.window_decorations = 'INTEGRATED_BUTTONS|RESIZE'
 config.initial_cols = 120
 config.initial_rows = 30
 config.tab_max_width = 120
-config.window_frame = { font_size = 11.0 }
+config.window_frame = {
+  font = wezterm.font { family = 'JetBrainsMono Nerd Font', weight = 'Bold' },
+  font_size = 11.0,
+  active_titlebar_bg = '#181825',    -- Catppuccin mantle (focused)
+  inactive_titlebar_bg = '#11111b',  -- crust (unfocused)
+}
 
 -- WebGpu is WezTerm's modern, fastest backend (set explicitly). If a render
 -- stall on child-process startup reappears, fall back to 'OpenGL'.
@@ -49,7 +54,17 @@ config.audible_bell = 'Disabled'
 config.adjust_window_size_when_changing_font_size = false
 -- Strong active-pane signal: heavily dim inactive panes + a bright split line.
 config.inactive_pane_hsb = { brightness = 0.25, saturation = 0.6, hue = 1.0 }
-config.colors = { split = '#b4befe' }  -- lavender divider between panes
+config.colors = {
+  split = '#b4befe',  -- lavender divider between panes
+  tab_bar = {  -- Catppuccin Mocha; per-segment text colour is driven in format-tab-title
+    background = '#11111b',
+    active_tab         = { bg_color = '#313244', fg_color = '#cdd6f4', intensity = 'Bold' },
+    inactive_tab       = { bg_color = '#181825', fg_color = '#6c7086' },
+    inactive_tab_hover = { bg_color = '#313244', fg_color = '#a6adc8', italic = true },
+    new_tab            = { bg_color = '#181825', fg_color = '#6c7086' },
+    new_tab_hover      = { bg_color = '#313244', fg_color = '#cdd6f4' },
+  },
+}
 
 -- Ctrl+Space leader: left pinky + thumb, frees the right hand for j/k/i/m.
 -- phys:Space matches the physical key — Ctrl+Space emits NUL on Windows, which a
@@ -171,12 +186,29 @@ config.keys = {
   { key = 'Enter', mods = 'SHIFT', action = act.SendString '\n' },
 }
 
--- ── Flat tab labels: "<index>: <dir-leaf>", with a light Claude Code hint ─────
--- The CC hooks set the tab title to "cc <glyph> <project>" (✓ on Stop, ✗ on
--- error). We read only the glyph for colour and always render our own label, so
--- thinking/working tabs stay plain and the colour shows on inactive tabs too.
-local CC_DONE  = '\xe2\x9c\x93'  -- ✓  Stop        → green
-local CC_ERROR = '\xe2\x9c\x97'  -- ✗  StopFailure → red
+-- ── Tab labels: " <idx>  <icon> <dir>  <badge|dots> " ─────────────────────────
+-- Per-pane Claude state comes from the `cc_state` user var the wez-tab-status hook
+-- sets (working/done/error, cleared on exit). We show a coloured dot per pane and
+-- tint the whole label by the most urgent state (error > done; working stays
+-- neutral, shown only by its dot). The process icon is best-effort from the
+-- foreground process; Claude is detected via the user var because Windows/WSL often
+-- report a wrapper process rather than `claude`. Nerd-font lookups are fallback-
+-- guarded (unknown names resolve to nil) so a missing glyph can't break the bar.
+local PROC_ICONS = {
+  pwsh = wezterm.nerdfonts.md_powershell, powershell = wezterm.nerdfonts.md_powershell,
+  zsh = wezterm.nerdfonts.md_console, bash = wezterm.nerdfonts.md_console,
+  sh = wezterm.nerdfonts.md_console, wsl = wezterm.nerdfonts.md_console,
+  nvim = wezterm.nerdfonts.custom_vim, vim = wezterm.nerdfonts.custom_vim,
+  git = wezterm.nerdfonts.dev_git, node = wezterm.nerdfonts.md_nodejs,
+  python = wezterm.nerdfonts.md_language_python, python3 = wezterm.nerdfonts.md_language_python,
+}
+local ICON_CLAUDE   = wezterm.nerdfonts.md_robot or '*'
+local ICON_FALLBACK = wezterm.nerdfonts.md_console or '>'
+local ICON_ZOOM     = wezterm.nerdfonts.md_fullscreen or 'Z'
+local TAB = {  -- Catppuccin Mocha
+  text = '#cdd6f4', dim = '#6c7086',
+  working = '#fab387', done = '#a6e3a1', error = '#eba0ac',  -- maroon, not the old hot pink
+}
 
 local function dir_leaf(pane)
   local cwd = pane.current_working_dir
@@ -186,16 +218,76 @@ local function dir_leaf(pane)
   return p:match('[^/\\]+$')
 end
 
+local function proc_leaf(pane)
+  local name = pane.foreground_process_name
+  if not name or name == '' then return nil end
+  return (name:gsub('[/\\]+$', ''):match('[^/\\]+$') or name):gsub('%.exe$', ''):lower()
+end
+
+-- Claude state from a pane's user var: 'working'|'done'|'error' or nil.
+local function pane_cc(pane)
+  local s = pane.user_vars and pane.user_vars.cc_state
+  if s == nil or s == '' then return nil end
+  return s
+end
+
 wezterm.on('format-tab-title', function(tab, tabs, panes, cfg, hover, max_width)
-  local leaf = dir_leaf(tab.active_pane) or tab.active_pane.title or ''
-  local label = wezterm.truncate_right(' ' .. (tab.tab_index + 1) .. ': ' .. leaf .. ' ', max_width)
-  local ttl = tab.tab_title or ''
-  if ttl:find(CC_ERROR, 1, true) then
-    return { { Foreground = { Color = '#f38ba8' } }, { Text = label } }  -- red
-  elseif ttl:find(CC_DONE, 1, true) then
-    return { { Foreground = { Color = '#a6e3a1' } }, { Text = label } }  -- green
+  local active = tab.active_pane
+  local leaf = wezterm.truncate_right(dir_leaf(active) or active.title or '', 24)
+
+  -- icon: Claude (by user var) else the foreground process, with a fallback glyph.
+  local icon
+  if pane_cc(active) then
+    icon = ICON_CLAUDE
+  else
+    local p = proc_leaf(active)
+    icon = (p and PROC_ICONS[p]) or ICON_FALLBACK
   end
-  return label
+
+  -- per-pane dots + aggregate state; note Claude panes and zoom.
+  local dots, agg, any_cc, zoomed = {}, nil, false, false
+  for _, p in ipairs(tab.panes) do
+    local s = pane_cc(p)
+    if s then
+      any_cc = true
+      table.insert(dots, { c = TAB[s] or TAB.dim, g = '●' })
+      if s == 'error' then agg = 'error'
+      elseif s == 'done' and agg ~= 'error' then agg = 'done'
+      elseif s == 'working' and not agg then agg = 'working' end
+    else
+      table.insert(dots, { c = TAB.dim, g = '○' })
+    end
+    if p.is_zoomed then zoomed = true end
+  end
+
+  -- label colour: error/done tint (calm); else neutral, dimmed when inactive.
+  local fg = TAB.text
+  if agg == 'error' then fg = TAB.error
+  elseif agg == 'done' then fg = TAB.done
+  elseif not tab.is_active then fg = TAB.dim end
+  local bold = tab.is_active or agg == 'error' or agg == 'done'
+
+  local items = {
+    { Attribute = { Intensity = bold and 'Bold' or 'Half' } },
+    { Foreground = { Color = fg } },
+    { Text = ' ' .. (tab.tab_index + 1) .. '  ' .. icon .. ' ' .. leaf .. ' ' },
+  }
+  if any_cc then                         -- dots imply the pane count
+    table.insert(items, { Text = ' ' })
+    for _, d in ipairs(dots) do
+      table.insert(items, { Foreground = { Color = d.c } })
+      table.insert(items, { Text = d.g })
+    end
+  elseif #tab.panes > 1 then
+    table.insert(items, { Foreground = { Color = TAB.dim } })
+    table.insert(items, { Text = ' ' .. #tab.panes })
+  end
+  if zoomed then
+    table.insert(items, { Foreground = { Color = TAB.dim } })
+    table.insert(items, { Text = ' ' .. ICON_ZOOM })
+  end
+  table.insert(items, { Text = ' ' })
+  return items
 end)
 
 -- ── Top-right status: workspace + current path (both always shown) ────────────

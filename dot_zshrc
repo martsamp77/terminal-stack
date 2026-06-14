@@ -116,7 +116,18 @@ alias gl='git log --oneline --graph --decorate -10'
 # Each cc* sets the WezTerm tab title to "cc • <leaf>" while claude runs and
 # clears it on exit, so multiple concurrent Claude panes are visually distinct.
 _wez_tab_title() {
-  [[ -n "$WEZTERM_PANE" ]] && wezterm cli set-tab-title "$1" >/dev/null 2>&1
+  [[ -n "$WEZTERM_PANE" ]] || return
+  wezterm cli set-tab-title "$1" >/dev/null 2>&1
+  # Empty title marks CC exit in this pane -> restore the base background (OSC 11),
+  # undoing the per-pane state tint set by the wez-tab-status hook.
+  if [[ -z "$1" ]]; then
+    local bg=$'\033]11;#1e1e2e\007' uv=$'\033]1337;SetUserVar=cc_state=\007'
+    if [[ -n "$TMUX" ]]; then
+      bg=$'\033Ptmux;\033'"${bg}"$'\033\\'
+      uv=$'\033Ptmux;\033'"${uv}"$'\033\\'
+    fi
+    printf '%s%s' "$bg" "$uv" > /dev/tty 2>/dev/null
+  fi
 }
 cc()    { _wez_tab_title "cc • ${PWD:t}"; claude "$@";                                           local rc=$?; _wez_tab_title ""; return $rc }
 ccc()   { _wez_tab_title "cc • ${PWD:t}"; claude --continue "$@";                                local rc=$?; _wez_tab_title ""; return $rc }
