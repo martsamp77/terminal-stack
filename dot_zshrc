@@ -78,23 +78,54 @@ plugins=(git sudo)
 source $ZSH/oh-my-zsh.sh
 
 # ---- terminal-stack-zsh-start ----
-# History — 50k lines, share between shells, drop entries containing secrets.
+# History — 100k lines, per-shell append + on-demand import, expire dups, drop secrets.
 HISTFILE="$HOME/.zsh_history"
-HISTSIZE=50000
-SAVEHIST=50000
-setopt HIST_IGNORE_DUPS
-setopt HIST_IGNORE_ALL_DUPS
+HISTSIZE=100000
+SAVEHIST=100000
+unsetopt HIST_IGNORE_DUPS         # keep dups in-session; HIST_EXPIRE_DUPS_FIRST trims them
+unsetopt HIST_IGNORE_ALL_DUPS     # only when SAVEHIST is exceeded, oldest dups first
+setopt HIST_EXPIRE_DUPS_FIRST
 setopt HIST_IGNORE_SPACE
 setopt HIST_REDUCE_BLANKS
 setopt HIST_VERIFY
-setopt SHARE_HISTORY
+setopt INC_APPEND_HISTORY          # append each command at once (per-shell; import via `history all`)
 setopt EXTENDED_HISTORY
 
 # Filter secrets from history entirely (return 1 = discard, not just hide from file).
 zshaddhistory() {
+  emulate -L zsh
   local line="${1%%$'\n'}"
-  [[ "$line" =~ '(sk-|Bearer |--token|_KEY=|_SECRET=|_PASSWORD=|_TOKEN=)' ]] && return 1
+
+  [[ "$line" =~ '(sk-[A-Za-z0-9_-]{20,}|Bearer[[:space:]]+[^[:space:]]+|--token[=[:space:]]+[^[:space:]]+|--api-key[=[:space:]]+[^[:space:]]+|OPENAI_API_KEY=|ANTHROPIC_API_KEY=|GITHUB_TOKEN=|GH_TOKEN=|NPM_TOKEN=|_KEY=|_SECRET=|_PASSWORD=|_TOKEN=)' ]] && return 1
+
   return 0
+}
+
+# Show a short history by default (`history`), but keep full history searchable
+# (`history all`, `hgrep <pattern>`). INC_APPEND keeps history per-shell; `fc -RI`
+# imports newer lines other shells appended.
+HISTORY_DEFAULT_LIMIT=200
+
+history() {
+  if [[ $# -eq 0 ]]; then
+    fc -l -$HISTORY_DEFAULT_LIMIT
+  elif [[ "$1" == "all" ]]; then
+    shift
+    fc -RI       # import any newer lines from other shells
+    fc -l 1 "$@"
+  else
+    fc -l "$@"
+  fi
+}
+
+hgrep() {
+  local pattern="$*"
+  if [[ -z "$pattern" ]]; then
+    echo "usage: hgrep <pattern>" >&2
+    return 2
+  fi
+  fc -RI
+  fc -l 1 | grep -i -- "$pattern"
 }
 
 # micro (a nano alternative) is installed by the bootstrap; fall back to nano on
