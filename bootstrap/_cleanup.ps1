@@ -145,11 +145,11 @@ function Test-TsInstall {
         } else { _bad '$PROFILE missing the terminal-stack block (re-run sync-windows.ps1)' }
     } else { _bad '$PROFILE not found (run sync-windows.ps1)' }
 
+    # Leftover clones are advisory, not a health failure — note without counting.
     $others = @(Find-TsClones $SourceDir)
     if ($others.Count -gt 0) {
-        Write-Warning '  other terminal-stack clones present (Repair-TerminalStack can remove them):'
+        Write-Host '  note: other terminal-stack clones present (Repair-TerminalStack can clean them up):'
         $others | ForEach-Object { Write-Host "        $($_.Path)" }
-        $script:_tsIssues++
     }
 
     $issues = $script:_tsIssues
