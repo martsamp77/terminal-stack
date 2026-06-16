@@ -106,6 +106,12 @@ zshaddhistory() {
 # imports newer lines other shells appended.
 HISTORY_DEFAULT_LIMIT=200
 
+# oh-my-zsh's lib/history.zsh sets `alias history='omz_history'`. With that alias
+# live, zsh alias-expands the name in `history() { … }` and raises "defining
+# function based on alias `history'" — a PARSE ERROR that aborts the entire
+# ~/.zshrc (Starship, doc, ws, cc* … none of it loads). Drop the alias first so
+# we can define our own `history`. Must stay before the function definition.
+unalias history 2>/dev/null
 history() {
   if [[ $# -eq 0 ]]; then
     fc -l -$HISTORY_DEFAULT_LIMIT
