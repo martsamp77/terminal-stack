@@ -43,8 +43,9 @@ if [ -n "${TERMINAL_STACK_DIR:-}" ]; then
     echo "$INFO Clone location: $TARGET_DIR (from \$TERMINAL_STACK_DIR)"
 else
     ans=""
-    if { printf 'Where should the terminal-stack repo live? [%s]: ' "$DEFAULT_DIR" > /dev/tty \
-         && read -r ans < /dev/tty; } 2>/dev/null; then :; fi
+    if { true > /dev/tty; } 2>/dev/null; then
+        IFS= read -e -r -p "Where should the terminal-stack repo live? [$DEFAULT_DIR]: " ans < /dev/tty || ans=""
+    fi
     TARGET_DIR="${ans:-$DEFAULT_DIR}"
     case "$TARGET_DIR" in
         "~")   TARGET_DIR="$HOME" ;;

@@ -139,9 +139,11 @@ WS_CHOICE="${WORKSPACE_DIR:-}"
 if [ -n "$WS_CHOICE" ]; then
     echo "$INFO WORKSPACE_DIR=$WS_CHOICE (from env; skipping prompt)"
 else
-    if { printf 'Workspace directory [%s]: ' "${WS_DETECTED:-none}" > /dev/tty \
-         && read -r WS_CHOICE < /dev/tty; } 2>/dev/null; then :; else WS_CHOICE=""; fi
+    if { true > /dev/tty; } 2>/dev/null; then
+        IFS= read -e -r -p "Workspace directory [${WS_DETECTED:-none}]: " WS_CHOICE < /dev/tty || WS_CHOICE=""
+    else WS_CHOICE=""; fi
     WS_CHOICE="${WS_CHOICE:-$WS_DETECTED}"
+    case "$WS_CHOICE" in "~") WS_CHOICE="$HOME" ;; "~/"*) WS_CHOICE="$HOME/${WS_CHOICE#\~/}" ;; esac
 fi
 if [ -z "$WS_CHOICE" ]; then
     echo "$WARN No workspace directory found or chosen."

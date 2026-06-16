@@ -276,9 +276,12 @@ common_nerd_font_jetbrains() {
 # Usage: common_tty_prompt "Question [default]: " → echoes the answer or "".
 common_tty_prompt() {
     local answer=""
-    if { printf '%s' "$1" > /dev/tty && read -r answer < /dev/tty; } 2>/dev/null; then
-        echo "$answer"
+    # Read with readline (-e) so Backspace/arrow keys edit the line instead of
+    # inserting raw control codes; -p shows the prompt. Skip when no tty.
+    if { true > /dev/tty; } 2>/dev/null; then
+        IFS= read -e -r -p "$1" answer < /dev/tty || answer=""
     fi
+    echo "$answer"
 }
 
 # Workspace directory for the ws/wsp/wspu shell functions.
@@ -299,6 +302,9 @@ common_workspace_config() {
     else
         choice="$(common_tty_prompt "Workspace directory [${detected:-none}]: ")"
         choice="${choice:-$detected}"
+        # Expand a leading ~ — it's read as a literal here, so it would land in
+        # ~/.zshrc.local as export WORKSPACE_DIR="~/foo" (unexpanded) and break ws.
+        case "$choice" in "~") choice="$HOME" ;; "~/"*) choice="$HOME/${choice#\~/}" ;; esac
     fi
 
     if [ -z "$choice" ]; then

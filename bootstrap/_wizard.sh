@@ -16,9 +16,13 @@
 # so read from /dev/tty. Returns "" when there is no terminal (CI).
 ts_tty_prompt() {
     local answer=""
-    if { printf '%s' "$1" > /dev/tty && read -r answer < /dev/tty; } 2>/dev/null; then
-        echo "$answer"
+    # Read with readline (-e) so Backspace and the arrow keys edit the line
+    # instead of inserting raw control codes (^?, ^[[D); -p shows the prompt.
+    # Skip cleanly when there is no controlling terminal (CI / non-interactive).
+    if { true > /dev/tty; } 2>/dev/null; then
+        IFS= read -e -r -p "$1" answer < /dev/tty || answer=""
     fi
+    echo "$answer"
 }
 
 ts_prompt_leader() {
