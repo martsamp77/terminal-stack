@@ -174,6 +174,13 @@ function Update-TerminalStack {
     $SourceDir = Resolve-TsSourceDir $SourceDir
     if (-not $SourceDir) { return }
 
+    # Preflight: a resolved dir that isn't a terminal-stack clone means a stale /
+    # moved install. Nudge toward ts-doctor rather than pulling the wrong repo.
+    $remote = & git -C $SourceDir config --get remote.origin.url 2>$null
+    if ($remote -notmatch 'terminal-stack') {
+        Write-Warning "ts-update: '$SourceDir' doesn't look like a terminal-stack clone. Run 'ts-doctor' to check."
+    }
+
     & git -C $SourceDir fetch --quiet
     if ($LASTEXITCODE -ne 0) { Write-Warning 'git fetch failed; not applying.'; return }
 
@@ -308,6 +315,59 @@ function Set-TerminalStackConfig {
     }
 }
 Set-Alias -Name ts-config -Value Set-TerminalStackConfig
+
+# Probe known clone locations for one that actually contains the repo — used so
+# the doctor still runs when $env:TERMINAL_STACK_DIR / the default path is wrong.
+function Find-TsAnyClone {
+    foreach ($d in @(
+        $env:TERMINAL_STACK_DIR,
+        (Join-Path $env:USERPROFILE 'terminal-stack'),
+        'C:\DATA\Workspace\terminal-stack',
+        (Join-Path $env:USERPROFILE 'code\terminal-stack'),
+        (Join-Path $env:USERPROFILE 'Documents\Workspace\terminal-stack')
+    )) {
+        if ($d -and (Test-Path (Join-Path $d 'bootstrap\_cleanup.ps1'))) { return $d }
+    }
+    return $null
+}
+
+# Persist $env:TERMINAL_STACK_DIR to profile.local.ps1 so ts-update / ts-config
+# find a clone that isn't at the default %USERPROFILE%\terminal-stack.
+function Set-TsSourceDirPersisted([string]$SourceDir) {
+    $localProfile = Join-Path ([Environment]::GetFolderPath('MyDocuments')) 'PowerShell\profile.local.ps1'
+    New-Item -ItemType Directory -Force -Path (Split-Path $localProfile) | Out-Null
+    $line = "`$env:TERMINAL_STACK_DIR = '$SourceDir'"
+    if ((Test-Path $localProfile) -and (Get-Content $localProfile | Where-Object { $_ -match '^\s*\$env:TERMINAL_STACK_DIR\s*=' })) {
+        (Get-Content $localProfile) -replace '^\s*\$env:TERMINAL_STACK_DIR\s*=.*', $line | Set-Content $localProfile
+    } else {
+        Add-Content -Path $localProfile -Value $line
+    }
+    $env:TERMINAL_STACK_DIR = $SourceDir
+    Write-Host "==> persisted `$env:TERMINAL_STACK_DIR = $SourceDir to $localProfile"
+}
+
+# Diagnose / repair the Windows install: missing/moved clone, stale config, leftover
+# old clones. `ts-doctor` checks (read-only); `ts-doctor -Repair` fixes (persist the
+# real clone path, re-sync, offer cleanup). Counterpart of the POSIX `ts-doctor`.
+function Invoke-TsDoctor {
+    [CmdletBinding()] param([switch]$Repair, [switch]$Quiet)
+    $clone = Find-TsAnyClone
+    if (-not $clone) { Write-Warning 'No terminal-stack clone found. Re-run install.ps1 (irm ... | iex).'; return }
+    . (Join-Path $clone 'bootstrap\_cleanup.ps1')
+    $src = Resolve-TsSourceDir
+    if (-not $src) { $src = $clone }
+    if ($Repair) {
+        if ((Resolve-Path $clone).Path -ne (Resolve-Path $src).Path) { Set-TsSourceDirPersisted $clone; $src = $clone }
+        Invoke-TsSync $src
+        Invoke-TsCleanupMenu $src
+        Test-TsInstall -SourceDir $src | Out-Null
+    } else {
+        Test-TsInstall -SourceDir $src -Quiet:$Quiet | Out-Null
+    }
+}
+function Test-TerminalStack    { [CmdletBinding()] param([switch]$Quiet) Invoke-TsDoctor -Quiet:$Quiet }
+function Repair-TerminalStack  { Invoke-TsDoctor -Repair }
+Set-Alias -Name ts-doctor -Value Invoke-TsDoctor
 # ---- terminal-stack-update-end ----
 
 # ---- claude-code-start ----

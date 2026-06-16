@@ -272,6 +272,10 @@ ts-update() {
   local cz src
   cz="$(_ts_chezmoi)" || { echo "ts-update: chezmoi not found on PATH." >&2; return 1 }
   src="$(_ts_src "$cz" ts-update)" || return 1
+  # Preflight: a sourceDir pointing at a non-terminal-stack clone means a stale
+  # install. Nudge toward ts-doctor rather than pulling the wrong repo.
+  git -C "$src" config --get remote.origin.url 2>/dev/null | grep -qi terminal-stack \
+    || echo "ts-update: note — '$src' doesn't look like a terminal-stack clone. Run 'ts-doctor' to check." >&2
   git -C "$src" fetch --quiet || return $?
   local incoming
   incoming="$(git -C "$src" log --oneline 'HEAD..@{u}' 2>/dev/null)"
@@ -336,7 +340,32 @@ ts-config() {
   local cz src
   cz="$(_ts_chezmoi)" || { echo "ts-config: chezmoi not found on PATH." >&2; return 1 }
   src="$(_ts_src "$cz" ts-config)" || return 1
+  git -C "$src" config --get remote.origin.url 2>/dev/null | grep -qi terminal-stack \
+    || echo "ts-config: note — '$src' doesn't look like a terminal-stack clone. Run 'ts-doctor' to check." >&2
   TERMINAL_STACK_DIR="$src" TERMINAL_STACK_CHEZMOI="$cz" bash "$src/bootstrap/ts-config.sh" "$@"
+}
+
+# Diagnose / repair the install: stale chezmoi sourceDir, missing `doc`, leftover
+# old clones, tools off PATH. Read-only by default; `ts-doctor --repair` fixes
+# (repoints sourceDir + re-applies + offers cleanup, confirming each step).
+# Resilient to a broken sourceDir — probes known clone paths so the doctor still
+# runs when `chezmoi source-path` is the very thing that's wrong.
+ts-doctor() {
+  local cz src c
+  cz="$(_ts_chezmoi)" || { echo "ts-doctor: chezmoi not found on PATH." >&2; return 1 }
+  src="${TERMINAL_STACK_DIR:-$("$cz" source-path 2>/dev/null)}"
+  if [[ ! -f "$src/bootstrap/ts-doctor.sh" ]]; then
+    for c in "$HOME/code/terminal-stack" "$HOME/terminal-stack" \
+             "$HOME/Workspace/terminal-stack" "$HOME/Documents/Workspace/terminal-stack" \
+             /mnt/c/Users/*/terminal-stack /mnt/c/DATA/Workspace/terminal-stack; do
+      [[ -f "$c/bootstrap/ts-doctor.sh" ]] && { src="$c"; break }
+    done
+  fi
+  if [[ ! -f "$src/bootstrap/ts-doctor.sh" ]]; then
+    echo "ts-doctor: can't locate a terminal-stack clone. Re-run the install one-liner." >&2
+    return 1
+  fi
+  TERMINAL_STACK_DIR="$src" TERMINAL_STACK_CHEZMOI="$cz" bash "$src/bootstrap/ts-doctor.sh" "$@"
 }
 
 # Workspace navigation (mirrors the ws* PowerShell functions).

@@ -35,9 +35,22 @@ if ! command -v git >/dev/null 2>&1 || ! command -v curl >/dev/null 2>&1; then
     sudo apt-get install -y git curl </dev/null >/dev/null
 fi
 
-# 2. Clone
+# 2. Choose clone location ($TERMINAL_STACK_DIR skips the prompt), then clone.
 REPO_URL='https://github.com/martsamp77/terminal-stack.git'
-TARGET_DIR="${TERMINAL_STACK_DIR:-$HOME/code/terminal-stack}"
+DEFAULT_DIR="$HOME/code/terminal-stack"
+if [ -n "${TERMINAL_STACK_DIR:-}" ]; then
+    TARGET_DIR="$TERMINAL_STACK_DIR"
+    echo "$INFO Clone location: $TARGET_DIR (from \$TERMINAL_STACK_DIR)"
+else
+    ans=""
+    if { printf 'Where should the terminal-stack repo live? [%s]: ' "$DEFAULT_DIR" > /dev/tty \
+         && read -r ans < /dev/tty; } 2>/dev/null; then :; fi
+    TARGET_DIR="${ans:-$DEFAULT_DIR}"
+    case "$TARGET_DIR" in
+        "~")   TARGET_DIR="$HOME" ;;
+        "~/"*) TARGET_DIR="$HOME/${TARGET_DIR#\~/}" ;;
+    esac
+fi
 
 if [ -d "$TARGET_DIR/.git" ]; then
     echo "$INFO Repo already at $TARGET_DIR; git pull"
@@ -46,6 +59,17 @@ else
     echo "$INFO Cloning $REPO_URL -> $TARGET_DIR"
     mkdir -p "$(dirname -- "$TARGET_DIR")"
     git clone "$REPO_URL" "$TARGET_DIR"
+fi
+
+# 2b. Offer to clean up old clones + retired leftover files (pre-ticked
+# checklist; confirms before removing anything). Non-fatal; runs before the
+# bootstrap repoints chezmoi.toml at $TARGET_DIR.
+if [ -f "$TARGET_DIR/bootstrap/_cleanup.sh" ]; then
+    set +e
+    # shellcheck source=/dev/null
+    . "$TARGET_DIR/bootstrap/_cleanup.sh"
+    ts_cleanup_menu "$TARGET_DIR"
+    set -e
 fi
 
 # 3. Bootstrap
@@ -88,6 +112,12 @@ if ! grep -q 'terminal-stack-zsh-start' "$HOME/.zshrc" 2>/dev/null; then
     echo "    Either chezmoi apply silently skipped it, or it's reading from the wrong source."
     echo "    Check: ~/.local/bin/chezmoi source-path  (should print $TARGET_DIR)"
     exit 1
+fi
+
+# 7. Health check (non-fatal): sourceDir + zshrc + tools; flags any leftover clones.
+if [ -f "$TARGET_DIR/bootstrap/ts-doctor.sh" ]; then
+    TERMINAL_STACK_DIR="$TARGET_DIR" bash "$TARGET_DIR/bootstrap/ts-doctor.sh" --quiet </dev/null \
+        || echo "$INFO Run 'ts-doctor --repair' to resolve the items above."
 fi
 
 echo ""

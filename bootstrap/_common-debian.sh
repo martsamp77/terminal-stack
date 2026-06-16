@@ -8,11 +8,14 @@
 INFO=$'\033[1;34m==>\033[0m'
 WARN=$'\033[1;33m!!\033[0m'
 
-# Config store + wizard helpers (app catalog, chord/theme mapping, prompts).
+# Config store + wizard helpers (app catalog, chord/theme mapping, prompts) and
+# environment detection (headless vs GUI).
 # shellcheck source=_config.sh
 . "$(dirname -- "${BASH_SOURCE[0]}")/_config.sh"
 # shellcheck source=_wizard.sh
 . "$(dirname -- "${BASH_SOURCE[0]}")/_wizard.sh"
+# shellcheck source=_detect.sh
+. "$(dirname -- "${BASH_SOURCE[0]}")/_detect.sh"
 
 common_require_non_root() {
     if [ "$(id -u)" -eq 0 ]; then
@@ -56,14 +59,31 @@ common_install_selected_apps() {
     done
     if [ -n "$apt_pkgs" ]; then
         # shellcheck disable=SC2086
-        sudo apt-get install -y $apt_pkgs >/dev/null 2>&1 \
-            || { for id in $apt_pkgs; do sudo apt-get install -y "$id" >/dev/null 2>&1 || echo "$WARN apt install $id failed"; done; }
+        if ! sudo apt-get install -y $apt_pkgs >/dev/null 2>&1; then
+            for id in $apt_pkgs; do
+                sudo apt-get install -y "$id" >/dev/null 2>&1 && continue
+                case "$id" in
+                    # eza/git-delta aren't in older Debian/Ubuntu repos by design —
+                    # the GitHub-release fallback below installs them and reports
+                    # the real outcome. Don't cry wolf here.
+                    eza|git-delta) : ;;
+                    *) echo "$WARN apt install $id failed" ;;
+                esac
+            done
+        fi
     fi
     case " $apps " in *" bat "*) common_bat_symlink ;; esac
-    case " $apps " in *" eza "*) command -v eza >/dev/null 2>&1 \
-        || common_install_github_binary "eza-community/eza" "eza" "eza_x86_64-unknown-linux-gnu\\.tar\\.gz$" || true ;; esac
-    case " $apps " in *" delta "*) command -v delta >/dev/null 2>&1 \
-        || common_install_github_binary "dandavison/delta" "delta" "delta-.*-x86_64-unknown-linux-gnu\\.tar\\.gz$" || true ;; esac
+    # eza/delta: prefer apt, else upstream release. Only warn if BOTH fail.
+    case " $apps " in *" eza "*)
+        command -v eza >/dev/null 2>&1 \
+            || common_install_github_binary "eza-community/eza" "eza" "eza_x86_64-unknown-linux-gnu\\.tar\\.gz$" \
+            || echo "$WARN eza unavailable (not in apt and GitHub fallback failed)" ;;
+    esac
+    case " $apps " in *" delta "*)
+        command -v delta >/dev/null 2>&1 \
+            || common_install_github_binary "dandavison/delta" "delta" "delta-.*-x86_64-unknown-linux-gnu\\.tar\\.gz$" \
+            || echo "$WARN delta unavailable (not in apt and GitHub fallback failed)" ;;
+    esac
     case " $apps " in *" glow "*)   common_install_glow ;; esac
     case " $apps " in *" neovim "*) common_install_neovim ;; esac
     case " $apps " in *" lazydocker "*)
@@ -226,6 +246,10 @@ common_starship() {
 }
 
 common_nerd_font_jetbrains() {
+    if ts_is_headless; then
+        echo "$INFO Headless server — skipping Nerd Font download (no GUI terminal renders it here)."
+        return 0
+    fi
     if ! fc-list 2>/dev/null | grep -q "JetBrainsMono Nerd Font"; then
         echo "$INFO Downloading JetBrainsMono Nerd Font zip"
         mkdir -p "$HOME/.local/share/fonts/JetBrainsMonoNerdFont"
@@ -318,6 +342,7 @@ common_git_include() {
 # (ts_save_config) — chezmoi.toml may not exist yet at this point.
 common_install_all() {
     common_apt_prereqs
+    ts_confirm_headless
     ts_wizard_collect
     common_install_selected_apps "$TS_WIZ_APPS"
     common_oh_my_zsh
