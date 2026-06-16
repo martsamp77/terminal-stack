@@ -8,3 +8,10 @@
 command-reference.md
 command-reference.txt
 command-reference.html
+# Installer entry points + sync script were previously deployed to $HOME because
+# they weren't in .chezmoiignore. They belong only in the clone — drop the copies.
+install-linux.sh
+install-mac.sh
+install-wsl.sh
+install.ps1
+scripts/sync-windows.ps1

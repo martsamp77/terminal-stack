@@ -105,8 +105,18 @@ ts_cleanup_menu() {
     while IFS= read -r d; do
         [ -n "$d" ] || continue
         paths+=("$d")
-        labels+=("old clone — $(git -C "$d" log -1 --format='%h %s' 2>/dev/null | cut -c1-56)")
-        ticks+=(1); kinds+=(clone)
+        case "$d" in
+            /mnt/c/*)
+                # A clone under /mnt/c is on the Windows side — quite possibly the
+                # user's active Windows install or a dev checkout. List it but DON'T
+                # pre-tick it: deleting it from WSL would nuke the Windows-side repo.
+                labels+=("old clone (Windows-side — verify it isn't your active install) $(git -C "$d" log -1 --format='%h %s' 2>/dev/null | cut -c1-34)")
+                ticks+=(0) ;;
+            *)
+                labels+=("old clone — $(git -C "$d" log -1 --format='%h %s' 2>/dev/null | cut -c1-56)")
+                ticks+=(1) ;;
+        esac
+        kinds+=(clone)
     done < <(ts_find_old_clones "$current")
 
     while IFS=$'\t' read -r tk pth lbl; do

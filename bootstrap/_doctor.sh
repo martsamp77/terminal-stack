@@ -64,11 +64,12 @@ ts_doctor() {
         if command -v "$t" >/dev/null 2>&1; then _ok "$t on PATH"; else _bad "$t not on PATH"; fi
     done
 
+    # Leftover clones are advisory, not a health failure — note them without
+    # counting an issue, so a working install still reports "all checks passed".
     others="$(ts_find_old_clones "${src:-$HOME/code/terminal-stack}" 2>/dev/null)"
     if [ -n "$others" ]; then
-        echo "  $WARN other terminal-stack clones present (ts-doctor --repair can remove them):"
+        echo "  note: other terminal-stack clones present (ts-doctor --repair can clean them up):"
         echo "$others" | sed 's/^/        /'
-        issues=$((issues + 1))
     fi
 
     unset -f _ok _bad 2>/dev/null || true
