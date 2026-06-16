@@ -43,12 +43,15 @@ if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
     Write-Host "==> git already present ($((Get-Command git).Source))"
 }
 
-# 3. Clone
+# 3. Choose clone location ($env:TERMINAL_STACK_DIR skips the prompt), then clone.
 $repoUrl = 'https://github.com/martsamp77/terminal-stack.git'
-$targetDir = if ($env:TERMINAL_STACK_DIR) {
-    $env:TERMINAL_STACK_DIR
+$defaultDir = Join-Path $env:USERPROFILE 'terminal-stack'
+if ($env:TERMINAL_STACK_DIR) {
+    $targetDir = $env:TERMINAL_STACK_DIR
+    Write-Host "==> Clone location: $targetDir (from `$env:TERMINAL_STACK_DIR)"
 } else {
-    Join-Path $env:USERPROFILE 'terminal-stack'
+    $answer = Read-Host "Where should the terminal-stack repo live? [$defaultDir]"
+    $targetDir = if ($answer) { $answer } else { $defaultDir }
 }
 
 if (Test-Path (Join-Path $targetDir '.git')) {
@@ -57,6 +60,26 @@ if (Test-Path (Join-Path $targetDir '.git')) {
 } else {
     Write-Host "==> Cloning $repoUrl -> $targetDir"
     & git clone $repoUrl $targetDir
+}
+
+# 3b. Offer to clean up old clones + retired leftover files (pre-ticked checklist;
+# confirms before removing). Also persist a non-default clone path so ts-update /
+# ts-config can find it later.
+$cleanup = Join-Path $targetDir 'bootstrap\_cleanup.ps1'
+if (Test-Path $cleanup) {
+    . $cleanup
+    Invoke-TsCleanupMenu $targetDir
+}
+if ($targetDir -ne $defaultDir) {
+    $localProfile = Join-Path ([Environment]::GetFolderPath('MyDocuments')) 'PowerShell\profile.local.ps1'
+    New-Item -ItemType Directory -Force -Path (Split-Path $localProfile) | Out-Null
+    $line = "`$env:TERMINAL_STACK_DIR = '$targetDir'"
+    if ((Test-Path $localProfile) -and (Get-Content $localProfile | Where-Object { $_ -match '^\s*\$env:TERMINAL_STACK_DIR\s*=' })) {
+        (Get-Content $localProfile) -replace '^\s*\$env:TERMINAL_STACK_DIR\s*=.*', $line | Set-Content $localProfile
+    } else {
+        Add-Content -Path $localProfile -Value $line
+    }
+    Write-Host "==> persisted `$env:TERMINAL_STACK_DIR = $targetDir to $localProfile"
 }
 
 # 4. Bootstrap (winget packages + binaries)
@@ -76,6 +99,12 @@ if (Test-Path $sync) {
     & $sync -SourceDir $targetDir
 } else {
     Write-Warning "$sync not found; Windows-side dotfiles were not applied."
+}
+
+# 5b. Health check (non-fatal): clone + config + $PROFILE marker; flags old clones.
+if (Test-Path $cleanup) {
+    . $cleanup
+    Test-TsInstall -SourceDir $targetDir -Quiet | Out-Null
 }
 
 # 6. Next-step hint

@@ -55,6 +55,8 @@ Re-running the original install one-liner from § Quick install does the same th
 
 **`ts-rollback`** undoes the last `ts-update`: it resets the clone to the recorded SHA (refusing if the clone has uncommitted changes) and re-applies. Run `ts-update` again to return to latest. The rollback point lives at `~/.local/state/terminal-stack/rollback-sha` (zsh) / `%LOCALAPPDATA%\terminal-stack\rollback-sha` (pwsh).
 
+**`ts-doctor`** diagnoses a broken install — a chezmoi `sourceDir` pointing at an old/moved clone (the classic "I updated but `doc` says command not found" symptom), a `~/.zshrc`/`$PROFILE` missing the stack block, leftover old clones, or tools off PATH. It's read-only by default; **`ts-doctor --repair`** (pwsh: `ts-doctor -Repair`) repoints `sourceDir`, re-applies, and offers to remove old clones and retired files (pre-ticked checklist, one confirmation, `TS_DRY_RUN=1` to preview). The installers run the same checks automatically and prompt for the clone location.
+
 **Manual rollback** (state file missing, or rolling back further than one update):
 
 ```sh

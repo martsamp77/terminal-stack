@@ -86,7 +86,10 @@ ts_prompt_apps() {
 
 # Gather choices into TS_WIZ_* (no chezmoi writes here).
 ts_wizard_collect() {
+    # The leader key only matters for WezTerm (a GUI app). On a headless server
+    # there's no WezTerm to drive, so skip the question and keep the default.
     if [ -n "${TS_LEADER:-}" ]; then TS_WIZ_LEADER="$TS_LEADER"
+    elif command -v ts_is_headless >/dev/null 2>&1 && ts_is_headless; then TS_WIZ_LEADER=ctrl-space
     else TS_WIZ_LEADER="$(ts_prompt_leader)"; fi
 
     if [ -n "${TS_THEME:-}" ]; then TS_WIZ_THEME="$TS_THEME"

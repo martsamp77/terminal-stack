@@ -24,7 +24,9 @@ curl -fsSL https://raw.githubusercontent.com/martsamp77/terminal-stack/main/inst
 curl -fsSL https://raw.githubusercontent.com/martsamp77/terminal-stack/main/install-mac.sh | bash
 ```
 
-Defaults: Windows clones to `%USERPROFILE%\terminal-stack` (WSL sees it as `/mnt/c/Users/<you>/terminal-stack`); Linux/macOS clone to `~/code/terminal-stack`. Override with `$env:TERMINAL_STACK_DIR` (PowerShell) or `TERMINAL_STACK_DIR=…` (bash). The WSL installer auto-detects your Windows username via `cmd.exe` interop, so it runs without prompts under `curl | bash`.
+**Clone location.** Each installer **prompts** for where to put the repo, pre-filled with the per-platform default (Windows `%USERPROFILE%\terminal-stack`, which WSL sees as `/mnt/c/Users/<you>/terminal-stack`; Linux/macOS `~/code/terminal-stack`). Press Enter to accept, or set `$env:TERMINAL_STACK_DIR` (PowerShell) / `TERMINAL_STACK_DIR=…` (bash) to skip the prompt. The WSL installer auto-detects your Windows username via `cmd.exe` interop, so it runs without prompts under `curl | bash`.
+
+**Cleaning up old installs.** After cloning, the installer scans for **old terminal-stack clones at other paths** and **retired leftover files** (`command-reference.{md,txt,html}`, `~/.local/bin/wzr`, `~/.wezterm-ref`) and offers a checklist — safe items pre-ticked, one confirmation before anything is removed, your per-machine files (`~/.zshrc.local`/`profile.local.ps1`, `~/.doc.local`, `*.local.md`) never touched. Preview without deleting via `TS_DRY_RUN=1`. This is also what prevents the "I re-installed but `doc` still isn't found" trap: a stale `chezmoi sourceDir` pointing at an old clone is repointed automatically.
 
 **Install wizard.** The bootstraps run a short wizard, each prompt skippable via an env var (so scripted installs stay non-interactive — the bash prompts read `/dev/tty` directly and degrade to their defaults when no terminal is attached). Your answers are **saved** (chezmoi `[data]` on WSL/Linux/macOS; `%LOCALAPPDATA%\terminal-stack\config.json` on Windows) so `ts-update` keeps honoring them and `ts-config` can change them later.
 
@@ -33,7 +35,11 @@ Defaults: Windows clones to `%USERPROFILE%\terminal-stack` (WSL sees it as `/mnt
 - **Apps** — accept the recommended set (`eza fzf bat delta ripgrep zoxide glow micro neovim`, plus `tmux` off-Windows) or customize per-app (also offers `zed`, `tldr`, `nvtop`, `lazydocker`). Required tools (WezTerm, the Nerd Font, Starship, chezmoi, git, zsh) are always installed. Skip with `TS_APPS=recommended|all|none|id,id,…`.
 - **Workspace directory** — pre-filled with the autodetected candidate (`C:\DATA\Workspace` / `~/Documents/Workspace` / `~/workspace` / `~/Workspace`). Press Enter to accept. Persisted to `~/.zshrc.local` (zsh) or `Documents\PowerShell\profile.local.ps1` (pwsh) *only* when it differs from the autodetect. Skip with `WORKSPACE_DIR=/path` / `$env:WORKSPACE_DIR`.
 
+**Headless servers.** On a host with no graphical session (a server reached over ssh/PuTTY), the bootstrap auto-detects "headless", tells you so, and lets you confirm or flip it; force it with `TS_HEADLESS=1` (or `=0` for a desktop). Headless mode **skips the Nerd Font download and the WezTerm leader-key prompt** — there's no GUI terminal to use them — while still installing tmux, Starship, zsh, and the CLI tools. (WSL is treated as a desktop: it renders in a Windows GUI terminal.)
+
 Change any of these later with **`ts-config`** (interactive menu) or one-shot — `ts-config theme follow`, `ts-config leader ctrl-a`, `ts-config apps`, `ts-config show`. In a combined Windows+WSL setup, run `ts-config` from WSL (its `chezmoi apply` is authoritative for the Windows-side files).
+
+**If something looks wrong** — `doc: command not found` after an update, a clone you moved, leftover old clones — run **`ts-doctor`** (read-only health check) and **`ts-doctor --repair`** (pwsh: `ts-doctor -Repair`) to repoint chezmoi's `sourceDir`, re-apply, and clean up. The installers run the same check automatically at the end.
 
 If you want to walk through each step instead (recommended for first-time inspection, or when chezmoi would clobber an existing hand-edited dotfile), keep reading.
 
