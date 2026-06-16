@@ -10,6 +10,11 @@
 #
 # This file is sourced, not executed. Do not `exit`; return non-zero instead.
 
+# Log colors — the bootstraps define these before sourcing us, but ts-config and
+# the doctor source this file standalone, so provide a fallback.
+: "${INFO:=$'\033[1;34m==>\033[0m'}"
+: "${WARN:=$'\033[1;33m!!\033[0m'}"
+
 # ── App catalog ────────────────────────────────────────────────────────────────
 # Toggleable apps the wizard/picker offers. Required prerequisites (zsh, git,
 # curl, unzip, fontconfig, the Nerd Font, Starship, chezmoi) are always installed
@@ -84,6 +89,48 @@ ts_chezmoi_bin() {
 }
 
 ts_toml() { echo "${HOME}/.config/chezmoi/chezmoi.toml"; }
+
+# Read the sourceDir currently recorded in chezmoi.toml (empty if unset/absent).
+ts_source_dir_recorded() {
+    local toml; toml="$(ts_toml)"
+    [ -f "$toml" ] || return 0
+    grep -E '^[[:space:]]*sourceDir[[:space:]]*=' "$toml" | head -n1 \
+        | sed -E 's/^[[:space:]]*sourceDir[[:space:]]*=[[:space:]]*"?([^"]*)"?.*/\1/'
+}
+
+# Write/replace the sourceDir line in chezmoi.toml, preserving everything else
+# (the [data] block, windowsUsername, …). Creates the file if missing.
+ts_set_source_dir() {
+    local dir="$1" toml tmp; toml="$(ts_toml)"
+    mkdir -p "$(dirname "$toml")"
+    if [ ! -f "$toml" ]; then printf 'sourceDir = "%s"\n' "$dir" > "$toml"; return 0; fi
+    tmp="$(mktemp)"
+    if grep -qE '^[[:space:]]*sourceDir[[:space:]]*=' "$toml"; then
+        awk -v d="$dir" '/^[[:space:]]*sourceDir[[:space:]]*=/ {print "sourceDir = \"" d "\""; next} {print}' \
+            "$toml" > "$tmp" && mv "$tmp" "$toml"
+    else
+        { printf 'sourceDir = "%s"\n' "$dir"; cat "$toml"; } > "$tmp" && mv "$tmp" "$toml"
+    fi
+    rm -f "$tmp" 2>/dev/null || true
+}
+
+# Ensure chezmoi.toml's sourceDir points at <dir>. Creates the file if missing,
+# repoints (preserving [data]) when it differs, no-ops when already correct.
+# This is the fix for the "stale sourceDir on re-run" bug: a fresh clone at a new
+# path was previously ignored because the bootstrap refused to touch an existing
+# chezmoi.toml, so `chezmoi apply` kept deploying from the old clone.
+ts_ensure_source_dir() {
+    local dir="$1" cur; cur="$(ts_source_dir_recorded)"
+    if [ -z "$cur" ]; then
+        ts_set_source_dir "$dir"
+        echo "$INFO chezmoi sourceDir set to $dir"
+    elif [ "$cur" = "$dir" ]; then
+        echo "$INFO chezmoi sourceDir already = $dir"
+    else
+        echo "$WARN chezmoi sourceDir was '$cur' — repointing to '$dir'"
+        ts_set_source_dir "$dir"
+    fi
+}
 
 # Set a scalar string key under [data], updating in place or appending.
 # Uses awk + temp file (portable across GNU and BSD/macOS; no `sed -i`).

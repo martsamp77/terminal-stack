@@ -21,19 +21,14 @@ echo "    Detected: user $USER, home $HOME"
 common_install_all
 
 # chezmoi.toml — point sourceDir at this repo. No windowsUsername on native Linux.
+# ts_ensure_source_dir (from _config.sh, sourced via _common-debian.sh) creates
+# the toml or repoints a stale sourceDir, preserving any [data] block.
 SOURCE_DIR="${SOURCE_DIR:-$HOME/code/terminal-stack}"
 TOML="$HOME/.config/chezmoi/chezmoi.toml"
-mkdir -p "$(dirname "$TOML")"
-
-if [ ! -f "$TOML" ]; then
-    if [ -d "$SOURCE_DIR" ]; then
-        echo "$INFO Writing $TOML"
-        printf 'sourceDir = "%s"\n' "$SOURCE_DIR" > "$TOML"
-    else
-        echo "$WARN $SOURCE_DIR not found; skipping chezmoi.toml. Set SOURCE_DIR env var and re-run, or edit manually."
-    fi
+if [ -d "$SOURCE_DIR" ]; then
+    ts_ensure_source_dir "$SOURCE_DIR"
 else
-    echo "$INFO $TOML already exists; not overwriting sourceDir."
+    echo "$WARN $SOURCE_DIR not found; skipping chezmoi.toml. Set SOURCE_DIR env var and re-run, or edit manually."
 fi
 
 # Persist the wizard's config choices into chezmoi [data] (regenerates the derived

@@ -21,6 +21,8 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "$0")" && pwd)"
 . "$SCRIPT_DIR/_config.sh"
 # shellcheck source=_wizard.sh
 . "$SCRIPT_DIR/_wizard.sh"
+# shellcheck source=_detect.sh
+. "$SCRIPT_DIR/_detect.sh"
 
 echo "$INFO Terminal stack macOS bootstrap"
 echo "    Detected: user $USER, home $HOME, arch $(uname -m)"
@@ -42,28 +44,32 @@ fi
 
 # 2. Wizard — collect leader/theme/app choices (env vars skip prompts), then
 # install the required formulae plus the selected toggleable apps.
+ts_confirm_headless
 ts_wizard_collect
 echo "$INFO Installing required brew formulae (zsh, git, starship, chezmoi)"
 brew install zsh git starship chezmoi
 ts_brew_install_apps "$TS_WIZ_APPS"
 
-# 3. WezTerm (cask) — nightly, matching the Windows side.
-# The plain `wezterm` cask is pinned to the stale 20240203 stable; this stack
-# expects a current build (see INSTALL.md Phase 0).
-if ! brew list --cask wezterm@nightly >/dev/null 2>&1; then
-    echo "$INFO Installing WezTerm nightly cask"
-    brew install --cask wezterm@nightly
+# 3. WezTerm + Nerd Font (casks) — GUI only. Skip on a headless Mac (e.g. a CI
+# runner or a Mac server reached over ssh): no window server to render either.
+if ts_is_headless; then
+    echo "$INFO Headless Mac — skipping WezTerm + Nerd Font casks (no GUI here)."
 else
-    echo "$INFO WezTerm nightly cask already installed"
-fi
-
-# 4. JetBrainsMono Nerd Font (cask)
-# Font casks moved into homebrew/cask in 2024; the old homebrew/cask-fonts tap is gone.
-if ! brew list --cask font-jetbrains-mono-nerd-font >/dev/null 2>&1; then
-    echo "$INFO Installing JetBrainsMono Nerd Font cask"
-    brew install --cask font-jetbrains-mono-nerd-font
-else
-    echo "$INFO JetBrainsMono Nerd Font cask already installed"
+    # WezTerm nightly, matching the Windows side. The plain `wezterm` cask is
+    # pinned to the stale 20240203 stable; this stack expects a current build.
+    if ! brew list --cask wezterm@nightly >/dev/null 2>&1; then
+        echo "$INFO Installing WezTerm nightly cask"
+        brew install --cask wezterm@nightly
+    else
+        echo "$INFO WezTerm nightly cask already installed"
+    fi
+    # JetBrainsMono Nerd Font cask (font casks moved into homebrew/cask in 2024).
+    if ! brew list --cask font-jetbrains-mono-nerd-font >/dev/null 2>&1; then
+        echo "$INFO Installing JetBrainsMono Nerd Font cask"
+        brew install --cask font-jetbrains-mono-nerd-font
+    else
+        echo "$INFO JetBrainsMono Nerd Font cask already installed"
+    fi
 fi
 
 # 5. oh-my-zsh (unattended) — same as WSL path
@@ -92,20 +98,15 @@ fi
 
 # 7. chezmoi.toml — point sourceDir at this repo.
 # Default: the repo this script lives in (bootstrap/ is one level below the root).
-# Override by exporting SOURCE_DIR before running.
+# Override by exporting SOURCE_DIR before running. ts_ensure_source_dir creates
+# the toml or repoints a stale sourceDir (preserving [data]).
 SCRIPT_DIR="$(cd -- "$(dirname -- "$0")" && pwd)"
 SOURCE_DIR="${SOURCE_DIR:-$(cd -- "$SCRIPT_DIR/.." && pwd)}"
 TOML="$HOME/.config/chezmoi/chezmoi.toml"
-if [ ! -f "$TOML" ]; then
-    if [ -d "$SOURCE_DIR" ]; then
-        echo "$INFO Writing $TOML with sourceDir=$SOURCE_DIR"
-        mkdir -p "$(dirname "$TOML")"
-        printf 'sourceDir = "%s"\n' "$SOURCE_DIR" > "$TOML"
-    else
-        echo "$WARN $SOURCE_DIR not found; set SOURCE_DIR and re-run, or edit $TOML manually."
-    fi
+if [ -d "$SOURCE_DIR" ]; then
+    ts_ensure_source_dir "$SOURCE_DIR"
 else
-    echo "$INFO $TOML already exists; not overwriting sourceDir."
+    echo "$WARN $SOURCE_DIR not found; set SOURCE_DIR and re-run, or edit $TOML manually."
 fi
 
 # 7b. Persist the wizard's config choices into chezmoi [data] (regenerates the

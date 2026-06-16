@@ -43,34 +43,19 @@ if [ -z "$WIN_USER" ]; then
     echo "$WARN No Windows username provided. The sync hook will retry detection at apply time."
 fi
 
-# chezmoi.toml — point sourceDir at this repo and persist windowsUsername under [data].
+# chezmoi.toml — point sourceDir at this repo and persist windowsUsername under
+# [data]. ts_ensure_source_dir creates the toml or repoints a stale sourceDir
+# (preserving [data]); ts_data_set adds/updates windowsUsername idempotently.
 SOURCE_DIR="${SOURCE_DIR:-/mnt/c/DATA/Workspace/terminal-stack}"
 TOML="$HOME/.config/chezmoi/chezmoi.toml"
-mkdir -p "$(dirname "$TOML")"
-
-if [ ! -f "$TOML" ]; then
-    if [ -d "$SOURCE_DIR" ]; then
-        echo "$INFO Writing $TOML"
-        {
-            printf 'sourceDir = "%s"\n' "$SOURCE_DIR"
-            if [ -n "$WIN_USER" ]; then
-                printf '\n[data]\nwindowsUsername = "%s"\n' "$WIN_USER"
-            fi
-        } > "$TOML"
-    else
-        echo "$WARN $SOURCE_DIR not found; skipping chezmoi.toml. Set SOURCE_DIR env var and re-run, or edit manually."
+if [ -d "$SOURCE_DIR" ]; then
+    ts_ensure_source_dir "$SOURCE_DIR"
+    if [ -n "$WIN_USER" ]; then
+        ts_data_set windowsUsername "$WIN_USER"
+        echo "$INFO chezmoi [data].windowsUsername = $WIN_USER"
     fi
 else
-    echo "$INFO $TOML already exists; not overwriting sourceDir."
-    if [ -n "$WIN_USER" ] && ! grep -q 'windowsUsername' "$TOML"; then
-        if grep -q '^\[data\]' "$TOML"; then
-            echo "$WARN $TOML has a [data] section but no windowsUsername key."
-            echo "    Add manually under [data]:  windowsUsername = \"$WIN_USER\""
-        else
-            printf '\n[data]\nwindowsUsername = "%s"\n' "$WIN_USER" >> "$TOML"
-            echo "$INFO Appended [data].windowsUsername = $WIN_USER to $TOML"
-        fi
-    fi
+    echo "$WARN $SOURCE_DIR not found; skipping chezmoi.toml. Set SOURCE_DIR env var and re-run, or edit manually."
 fi
 
 # Persist the wizard's config choices into chezmoi [data] (regenerates the derived
