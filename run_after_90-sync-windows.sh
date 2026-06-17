@@ -15,6 +15,7 @@
 #   __THEME_MODE__      dark|light|follow    (from themeMode)
 #   __THEME_RESOLVED__  baked palette light|dark (from resolvedTheme)
 #   __TMUX_PREFIX__     tmux prefix spec     (from tmuxPrefixResolved)
+#   __CC_TTS_STOP_HOOK__ / __CC_TTS_STOPFAILURE_HOOK__  optional cc-speak hooks (when ccTtsEnabled)
 #
 # Idempotent: only writes targets whose content differs.
 # Backs up any pre-existing target to <path>.bak.YYYYMMDD[.N] before overwrite.
@@ -89,6 +90,22 @@ LEADER_MODS="$(cfg leaderMods 'CTRL')"
 THEME_MODE="$(cfg themeMode 'dark')"
 THEME_RESOLVED="$(cfg resolvedTheme 'dark')"
 TMUX_PREFIX="$(cfg tmuxPrefixResolved 'C-b')"
+CC_TTS_ENABLED="$(cfg ccTtsEnabled false)"
+if [ "$CC_TTS_ENABLED" = true ]; then
+  CC_TTS_STOP_HOOK=$',
+          {
+            "type": "command",
+            "command": "pwsh -NoLogo -NonInteractive -ExecutionPolicy Bypass -File C:/Users/__WIN_USER__/.claude/hooks/cc-speak.ps1 -State waiting"
+          }'
+  CC_TTS_STOPFAILURE_HOOK=$',
+          {
+            "type": "command",
+            "command": "pwsh -NoLogo -NonInteractive -ExecutionPolicy Bypass -File C:/Users/__WIN_USER__/.claude/hooks/cc-speak.ps1 -State error"
+          }'
+else
+  CC_TTS_STOP_HOOK=""
+  CC_TTS_STOPFAILURE_HOOK=""
+fi
 
 dst_home="/mnt/c/Users/$WIN_USER"
 if [ ! -d "$dst_home" ]; then
@@ -115,13 +132,38 @@ sync_tree() {
 
     if [ "$render_tmpl" = 1 ] && [[ "$rel" == *.tmpl ]]; then
       rel_out="${rel%.tmpl}"
-      sed -e "s|__WIN_USER__|$WIN_USER|g" \
-          -e "s|__LEADER_KEY__|$LEADER_KEY|g" \
-          -e "s|__LEADER_MODS__|$LEADER_MODS|g" \
-          -e "s|__THEME_MODE__|$THEME_MODE|g" \
-          -e "s|__THEME_RESOLVED__|$THEME_RESOLVED|g" \
-          -e "s|__TMUX_PREFIX__|$TMUX_PREFIX|g" \
-          "$src" > "$rendered"
+      if command -v python3 >/dev/null 2>&1; then
+        WIN_USER="$WIN_USER" LEADER_KEY="$LEADER_KEY" LEADER_MODS="$LEADER_MODS" \
+        THEME_MODE="$THEME_MODE" THEME_RESOLVED="$THEME_RESOLVED" TMUX_PREFIX="$TMUX_PREFIX" \
+        CC_TTS_STOP_HOOK="$CC_TTS_STOP_HOOK" CC_TTS_STOPFAILURE_HOOK="$CC_TTS_STOPFAILURE_HOOK" \
+        python3 - "$src" <<'PY' > "$rendered"
+import os, sys
+text = open(sys.argv[1], encoding="utf-8").read()
+repl = {
+    "__WIN_USER__": os.environ.get("WIN_USER", ""),
+    "__LEADER_KEY__": os.environ.get("LEADER_KEY", ""),
+    "__LEADER_MODS__": os.environ.get("LEADER_MODS", ""),
+    "__THEME_MODE__": os.environ.get("THEME_MODE", ""),
+    "__THEME_RESOLVED__": os.environ.get("THEME_RESOLVED", ""),
+    "__TMUX_PREFIX__": os.environ.get("TMUX_PREFIX", ""),
+    "__CC_TTS_STOP_HOOK__": os.environ.get("CC_TTS_STOP_HOOK", ""),
+    "__CC_TTS_STOPFAILURE_HOOK__": os.environ.get("CC_TTS_STOPFAILURE_HOOK", ""),
+}
+for k, v in repl.items():
+    text = text.replace(k, v)
+sys.stdout.write(text)
+PY
+      else
+        sed -e "s|__WIN_USER__|$WIN_USER|g" \
+            -e "s|__LEADER_KEY__|$LEADER_KEY|g" \
+            -e "s|__LEADER_MODS__|$LEADER_MODS|g" \
+            -e "s|__THEME_MODE__|$THEME_MODE|g" \
+            -e "s|__THEME_RESOLVED__|$THEME_RESOLVED|g" \
+            -e "s|__TMUX_PREFIX__|$TMUX_PREFIX|g" \
+            -e "s|__CC_TTS_STOP_HOOK__||g" \
+            -e "s|__CC_TTS_STOPFAILURE_HOOK__||g" \
+            "$src" > "$rendered"
+      fi
       effective_src="$rendered"
     else
       rel_out="$rel"
@@ -156,5 +198,14 @@ sync_tree() {
 
 sync_tree "$windows_src" "$dst_home" 1
 sync_tree "$kb_src" "$dst_home/AppData/Local/terminal-stack/docs/kb" 0
+
+# Render ~/.claude/tts.json on the Windows side from chezmoi [data] (same as WSL apply).
+if cz="$(resolve_cz)" && [ -f "$stack_root/dot_claude/tts.json.tmpl" ]; then
+  tts_dst="$dst_home/.claude/tts.json"
+  mkdir -p "$(dirname "$tts_dst")"
+  if "$cz" execute-template "$(cat "$stack_root/dot_claude/tts.json.tmpl")" > "$tts_dst" 2>/dev/null; then
+    printf 'updated  %s  (chezmoi tts.json)\n' "$tts_dst"
+  fi
+fi
 
 printf 'sync-windows: user=%s, %d created, %d updated, %d unchanged\n' "$WIN_USER" "$created" "$updated" "$unchanged"

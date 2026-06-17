@@ -696,6 +696,21 @@ ccnotify() {
                            || echo 'CC toast: OFF (ccnotify on  to enable)' ;;
     esac
 }
+
+cctts() {
+    case "${1:-}" in
+        on)   ts-config tts on ;;
+        off)  ts-config tts off ;;
+        test) ts-config tts test ;;
+        show) ts-config tts show ;;
+        *)
+            if ts_data_get ccTtsEnabled 2>/dev/null | grep -qx true; then
+                echo 'CC TTS: ON  (cctts off to disable; ts-config tts for settings)'
+            else
+                echo 'CC TTS: OFF (cctts on to enable)'
+            fi ;;
+    esac
+}
 # ---- claude-code-end ----
 
 # Per-machine overrides (not tracked by chezmoi). See dot_zshrc.local.example.

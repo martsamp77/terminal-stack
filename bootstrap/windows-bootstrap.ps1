@@ -53,7 +53,9 @@ Write-Host "PowerShell $($PSVersionTable.PSVersion); user $env:USERNAME"
 $leaderChord  = Read-TsLeader
 $themeMode    = Read-TsTheme
 $selectedApps = @(Read-TsApps)
-Write-Host "==> Config: leader=$leaderChord theme=$themeMode"
+$ccTtsChoice  = Read-TsCcTts
+$ccTts        = Set-CcTtsWizardChoice $ccTtsChoice
+Write-Host "==> Config: leader=$leaderChord theme=$themeMode cc-tts=$ccTtsChoice"
 $appsLabel = if ($selectedApps.Count) { $selectedApps -join ', ' } else { '<none>' }
 Write-Host "==> Apps: $appsLabel"
 
@@ -76,7 +78,8 @@ foreach ($id in $selectedApps) {
 # Save the chosen config to %LOCALAPPDATA%\terminal-stack\config.json — read by
 # sync-windows.ps1 (and the WSL hook's mirror) to render the Windows .tmpl files.
 if ($PSCmdlet.ShouldProcess('terminal-stack config.json', 'save config')) {
-    Save-TsConfig -LeaderChord $leaderChord -ThemeMode $themeMode -Apps $selectedApps | Out-Null
+    Save-TsConfig -LeaderChord $leaderChord -ThemeMode $themeMode -Apps $selectedApps -CcTts $ccTts | Out-Null
+    Export-CcTtsJson
     Write-Host "==> Saved config to $(Get-TsConfigPath)"
 }
 

@@ -4,6 +4,10 @@ All notable changes captured here. Format loosely follows [Keep a Changelog](htt
 
 ## [Unreleased]
 
+### Added
+
+- **Claude Code local TTS (Kokoro / Chatterbox / edge-tts).** Optional voice on `Stop` / `StopFailure` through localhost Kokoro (`am_adam`, Hermes-matching defaults) with Chatterbox energy and edge-tts fallback. Off by default; enable at bootstrap or via `ts-config tts` / `cctts`. Async hooks (`cc-speak.sh` / `cc-speak.ps1`); WSL playback routes through Windows. Config in chezmoi `[data]` → `~/.claude/tts.json`; hooks conditionally rendered in `settings.json` so `ts-config tts off` + apply removes them cleanly. See `doc claude-code`.
+
 ### Changed
 
 - **WezTerm right status follows the active pane**, not the GUI host. Top-right `user@host │ path` now reads OSC 7 cwd (with hostname), shell-integration user vars, SSH/WSL domain, then pane title — so an SSH pane to Nova shows `Marty@Nova` and that pane's path instead of the Windows box. **Path falls back to the pane title** (`host: ~/path` from zsh `_set_title`) when OSC 7 is absent — fixes empty paths on Mac/Linux SSH panes. pwsh OSC 7 uses `$env:COMPUTERNAME`; zsh prefers WezTerm's shell-integration script, else emits OSC 7 on precmd. Both `windows/.wezterm.lua.tmpl` and `dot_wezterm.lua.tmpl`.

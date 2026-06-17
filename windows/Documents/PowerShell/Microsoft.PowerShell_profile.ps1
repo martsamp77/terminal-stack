@@ -252,7 +252,11 @@ Set-Alias -Name ts-rollback -Value Restore-TerminalStack
 # (its chezmoi apply is authoritative for the Windows-side files).
 function Set-TerminalStackConfig {
     [CmdletBinding()]
-    param([Parameter(Position = 0)][string]$Action, [Parameter(Position = 1)][string]$Value)
+    param(
+        [Parameter(Position = 0)][string]$Action,
+        [Parameter(Position = 1)][string]$Value,
+        [Parameter(ValueFromRemainingArguments = $true)][string[]]$Rest
+    )
 
     $src = Resolve-TsSourceDir
     if (-not $src) { return }
@@ -265,9 +269,12 @@ function Set-TerminalStackConfig {
     $theme  = if ($c.themeMode)   { $c.themeMode }   else { 'dark' }
     $tmux   = if ($c.tmuxPrefix)  { $c.tmuxPrefix }  else { 'ctrl-b' }
     $apps   = @($c.apps)
+    $ccTts  = if ($c.ccTts) { $c.ccTts } else { Get-CcTtsDefaults }
 
     $save = {
-        Save-TsConfig -LeaderChord $leader -ThemeMode $theme -TmuxPrefix $tmux -Apps $apps | Out-Null
+        param($Tts = $ccTts)
+        Save-TsConfig -LeaderChord $leader -ThemeMode $theme -TmuxPrefix $tmux -Apps $apps -CcTts $Tts | Out-Null
+        Export-CcTtsJson
         Invoke-TsSync $src
         Write-Host '==> done.'
     }
@@ -281,14 +288,23 @@ function Set-TerminalStackConfig {
                 Write-Host "  theme  : $theme   (palette $(Get-TsResolvedTheme $theme))"
                 Write-Host "  tmux   : $tmux"
                 Write-Host "  apps   : $($apps -join ', ')"
+                Write-Host "  cc-tts : $(if ($ccTts.enabled) { 'on' } else { 'off' })"
                 Write-Host ''
-                Write-Host '  1) leader  2) theme  3) tmux prefix  4) apps  5) re-apply  q) quit'
+                Write-Host '  1) leader  2) theme  3) tmux prefix  4) apps  5) re-apply  6) Claude TTS  q) quit'
                 switch (Read-Host 'Choose') {
                     '1' { $leader = Read-TsLeader; & $save }
                     '2' { $theme  = Read-TsTheme;  & $save }
                     '3' { $t = Read-Host 'tmux prefix chord (e.g. ctrl-a) [ctrl-b]'; $tmux = if ($t) { $t } else { 'ctrl-b' }; & $save }
                     '4' { $apps = @(Read-TsApps); Install-TsApps $apps; & $save }
                     '5' { & $save }
+                    '6' {
+                        Show-CcTtsConfig
+                        switch (Read-Host 'TTS: a) on  b) off  c) test  d) back') {
+                            'a' { $ccTts.enabled = $true; & $save $ccTts }
+                            'b' { $ccTts.enabled = $false; & $save $ccTts }
+                            'c' { Invoke-TsConfigTts -Sub test -Apply $save }
+                        }
+                    }
                     default { return }
                 }
             }
@@ -313,7 +329,14 @@ function Set-TerminalStackConfig {
             } else { $apps = @(Read-TsApps) }
             Install-TsApps $apps; & $save
         }
-        default { Write-Warning "ts-config: unknown command '$Action' (show, leader, theme, tmux, apps)" }
+        'tts' {
+            Invoke-TsConfigTts -Sub $Value -Arg $Rest[0] -Arg2 $Rest[1] -Apply {
+                param($Tts)
+                $ccTts = $Tts
+                & $save $Tts
+            }
+        }
+        default { Write-Warning "ts-config: unknown command '$Action' (show, leader, theme, tmux, apps, tts)" }
     }
 }
 Set-Alias -Name ts-config -Value Set-TerminalStackConfig
@@ -382,6 +405,25 @@ function ccnotify {
         default {
             if (Test-Path $f) { Write-Host 'CC toast: ON  (ccnotify off to disable)' }
             else              { Write-Host 'CC toast: OFF (ccnotify on  to enable)'  }
+        }
+    }
+}
+
+function cctts {
+    param([string]$Action, [string]$Extra)
+    switch ($Action) {
+        'on'   { ts-config tts on }
+        'off'  { ts-config tts off }
+        'test' { ts-config tts test }
+        'show' { ts-config tts show }
+        default {
+            $en = $false
+            $cfgPath = Join-Path $env:LOCALAPPDATA 'terminal-stack\config.json'
+            if (Test-Path $cfgPath) {
+                try { $en = [bool](Get-Content $cfgPath -Raw | ConvertFrom-Json).ccTts.enabled } catch {}
+            }
+            if ($en) { Write-Host 'CC TTS: ON  (cctts off to disable; ts-config tts for settings)' }
+            else     { Write-Host 'CC TTS: OFF (cctts on to enable)' }
         }
     }
 }

@@ -113,9 +113,14 @@ function Save-TsConfig {
         [string]$LeaderChord = 'ctrl-space',
         [string]$ThemeMode   = 'dark',
         [string]$TmuxPrefix  = 'ctrl-b',
-        [string[]]$Apps      = @()
+        [string[]]$Apps      = @(),
+        $CcTts                = $null
     )
     $l = ConvertTo-TsLeader $LeaderChord
+    if (-not $CcTts) {
+        $existing = Get-TsConfig
+        if ($existing.ccTts) { $CcTts = $existing.ccTts } else { $CcTts = Get-CcTtsDefaults }
+    }
     $obj = [ordered]@{
         leaderChord        = $LeaderChord
         leaderKey          = $l.key
@@ -125,6 +130,7 @@ function Save-TsConfig {
         tmuxPrefix         = $TmuxPrefix
         tmuxPrefixResolved = (ConvertTo-TsTmuxPrefix $TmuxPrefix)
         apps               = @($Apps)
+        ccTts              = $CcTts
     }
     $p = Get-TsConfigPath
     New-Item -ItemType Directory -Force -Path (Split-Path $p) | Out-Null
@@ -216,5 +222,160 @@ function Install-TsApps([string[]]$Apps) {
 function Update-TsResolvedTheme {
     $c = Get-TsConfig
     Save-TsConfig -LeaderChord $c.leaderChord -ThemeMode $c.themeMode `
-                  -TmuxPrefix $c.tmuxPrefix -Apps @($c.apps) | Out-Null
+                  -TmuxPrefix $c.tmuxPrefix -Apps @($c.apps) -CcTts $c.ccTts | Out-Null
+}
+
+# ── Claude Code TTS (Kokoro / Chatterbox / edge) ────────────────────────────────
+function Get-CcTtsDefaults {
+    [ordered]@{
+        enabled     = $false
+        engine      = 'kokoro'
+        messageMode = 'template'
+        events      = @('waiting', 'error')
+        kokoro      = [ordered]@{
+            url = 'http://127.0.0.1:8880'; voice = 'am_adam'; speed = 1.0
+            format = 'mp3'; timeoutSec = 15
+        }
+        chatterbox  = [ordered]@{
+            url = 'http://127.0.0.1:8881'; voice = 'adam'; energy = 0.25
+            cfgWeight = 0.5; temperature = 0.6; timeoutSec = 60
+        }
+        edge        = [ordered]@{ enabled = $true; voice = 'en-US-AndrewMultilingualNeural' }
+        templates   = [ordered]@{
+            waiting = "Done in {project}. I'm waiting for you."
+            error   = 'Error in {project}. You may want to look.'
+        }
+        maxChars    = 120
+        debounceSec = 5
+        player      = 'auto'
+    }
+}
+
+function Get-CcTtsConfig {
+    $c = Get-TsConfig
+    if ($c.ccTts) { return $c.ccTts }
+    return (Get-CcTtsDefaults)
+}
+
+function Export-CcTtsJson {
+    param([string]$Path = (Join-Path $env:USERPROFILE '.claude\tts.json'))
+    $tts = Get-CcTtsConfig
+    $dir = Split-Path -Parent $Path
+    if (-not (Test-Path -LiteralPath $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
+    ($tts | ConvertTo-Json -Depth 6) | Set-Content -LiteralPath $Path -Encoding UTF8
+}
+
+function Test-CcTtsKokoroProbe {
+    param([string]$Url = 'http://127.0.0.1:8880')
+    foreach ($suffix in @('/health', '/v1/models', '/docs')) {
+        try {
+            $r = Invoke-WebRequest -Uri ($Url.TrimEnd('/') + $suffix) -TimeoutSec 2 -UseBasicParsing
+            if ($r.StatusCode -ge 200 -and $r.StatusCode -lt 500) { return $true }
+        } catch {}
+    }
+    return $false
+}
+
+function Show-CcTtsConfig {
+    $tts = Get-CcTtsConfig
+    Write-Host 'Claude Code TTS:'
+    $tts | ConvertTo-Json -Depth 6 | Write-Host
+    if (Test-CcTtsKokoroProbe -Url $tts.kokoro.url) {
+        Write-Host "kokoro: up ($($tts.kokoro.url))"
+    } else {
+        Write-Host "kokoro: down ($($tts.kokoro.url))"
+    }
+    if (Get-Command edge-tts -ErrorAction SilentlyContinue) { Write-Host 'edge-tts: installed' }
+}
+
+function Read-TsCcTts {
+    if ($env:TS_CC_TTS) { return $env:TS_CC_TTS }
+    Write-Host ''
+    Write-Host 'Claude Code voice notifications (local Kokoro TTS, am_adam)?'
+    Write-Host '  Requires Kokoro on http://127.0.0.1:8880 (Docker). Does not install containers.'
+    if (Test-CcTtsKokoroProbe) {
+        Write-Host '  Kokoro probe: OK'
+        Write-Host '  1) Enable (am_adam, waiting+error)  [recommended]'
+    } else {
+        Write-Host '  Kokoro probe: not reachable'
+        Write-Host '  1) Enable (am_adam, waiting+error)'
+    }
+    Write-Host '  2) Enable anyway (start Kokoro later)'
+    Write-Host '  3) Skip'
+    switch (Read-Host 'Choose [3]') {
+        '1' { 'on' }
+        '2' { 'on' }
+        default { 'off' }
+    }
+}
+
+function Set-CcTtsWizardChoice {
+    param([string]$Choice)
+    $tts = Get-CcTtsDefaults
+    if ($Choice -eq 'on') { $tts.enabled = $true }
+    return $tts
+}
+
+function Invoke-TsConfigTts {
+    param(
+        [string]$Sub,
+        [string]$Arg,
+        [string]$Arg2,
+        [scriptblock]$Apply
+    )
+    $tts = Get-CcTtsConfig
+    switch ($Sub) {
+        'show' { Show-CcTtsConfig; return }
+        'on'   { $tts.enabled = $true }
+        'off'  { $tts.enabled = $false }
+        'engine' {
+            if (-not $Arg) { Write-Warning 'usage: ts-config tts engine kokoro|chatterbox|auto'; return }
+            $tts.engine = $Arg
+        }
+        'message' {
+            if (-not $Arg) { Write-Warning 'usage: ts-config tts message template|hook'; return }
+            $tts.messageMode = $Arg
+        }
+        'voice' {
+            if (-not $Arg) { Write-Warning 'usage: ts-config tts voice <kokoro-voice>'; return }
+            $tts.kokoro.voice = $Arg
+        }
+        'voice-chatter' {
+            if (-not $Arg) { Write-Warning 'usage: ts-config tts voice-chatter <name>'; return }
+            $tts.chatterbox.voice = $Arg
+        }
+        'energy' {
+            if (-not $Arg) { Write-Warning 'usage: ts-config tts energy <0-1>'; return }
+            $tts.chatterbox.energy = [double]$Arg
+        }
+        'url' {
+            if (-not $Arg -or -not $Arg2) { Write-Warning 'usage: ts-config tts url kokoro|chatterbox <url>'; return }
+            switch ($Arg) {
+                'kokoro'     { $tts.kokoro.url = $Arg2 }
+                'chatterbox' { $tts.chatterbox.url = $Arg2 }
+                default      { Write-Warning 'expected kokoro or chatterbox'; return }
+            }
+        }
+        'events' {
+            if (-not $Arg) { Write-Warning 'usage: ts-config tts events waiting,error'; return }
+            $tts.events = @($Arg -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+        }
+        'test' {
+            $hook = Join-Path $env:USERPROFILE '.claude\hooks\cc-speak.ps1'
+            if (-not (Test-Path $hook)) {
+                Write-Warning "hook not found at $hook (run sync-windows / chezmoi apply)"
+                return
+            }
+            & $hook -State waiting -OverrideText 'Terminal stack TTS test.' -Foreground
+            return
+        }
+        'reset' { $tts = Get-CcTtsDefaults }
+        default {
+            Write-Warning "ts-config tts: unknown subcommand '$Sub' (show, on, off, test, reset, ...)"
+            return
+        }
+    }
+    if ($Sub -in 'on','off','engine','message','voice','voice-chatter','energy','url','events','reset') {
+        & $Apply $tts
+    }
 }

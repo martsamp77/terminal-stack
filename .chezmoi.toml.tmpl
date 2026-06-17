@@ -88,3 +88,27 @@ resolvedTheme = {{ $resolvedTheme | quote }}
 {{- if hasKey . "apps" }}
 apps = [{{ range $i, $a := .apps }}{{ if $i }}, {{ end }}{{ $a | quote }}{{ end }}]
 {{- end }}
+{{- $ccTtsEnabled := "false" -}}
+{{- if hasKey . "ccTtsEnabled" -}}{{- $ccTtsEnabled = .ccTtsEnabled -}}{{- end -}}
+ccTtsEnabled = {{ $ccTtsEnabled | quote }}
+ccTtsEngine = {{ index . "ccTtsEngine" | default "kokoro" | quote }}
+ccTtsMessageMode = {{ index . "ccTtsMessageMode" | default "template" | quote }}
+ccTtsEvents = {{ index . "ccTtsEvents" | default "waiting,error" | quote }}
+ccTtsKokoroUrl = {{ index . "ccTtsKokoroUrl" | default "http://127.0.0.1:8880" | quote }}
+ccTtsKokoroVoice = {{ index . "ccTtsKokoroVoice" | default "am_adam" | quote }}
+ccTtsKokoroSpeed = {{ index . "ccTtsKokoroSpeed" | default "1.0" | quote }}
+ccTtsKokoroFormat = {{ index . "ccTtsKokoroFormat" | default "mp3" | quote }}
+ccTtsKokoroTimeout = {{ index . "ccTtsKokoroTimeout" | default "15" | quote }}
+ccTtsChatterboxUrl = {{ index . "ccTtsChatterboxUrl" | default "http://127.0.0.1:8881" | quote }}
+ccTtsChatterboxVoice = {{ index . "ccTtsChatterboxVoice" | default "adam" | quote }}
+ccTtsChatterboxEnergy = {{ index . "ccTtsChatterboxEnergy" | default "0.25" | quote }}
+ccTtsChatterboxCfgWeight = {{ index . "ccTtsChatterboxCfgWeight" | default "0.5" | quote }}
+ccTtsChatterboxTemperature = {{ index . "ccTtsChatterboxTemperature" | default "0.6" | quote }}
+ccTtsChatterboxTimeout = {{ index . "ccTtsChatterboxTimeout" | default "60" | quote }}
+ccTtsEdgeEnabled = {{ index . "ccTtsEdgeEnabled" | default "true" | quote }}
+ccTtsEdgeVoice = {{ index . "ccTtsEdgeVoice" | default "en-US-AndrewMultilingualNeural" | quote }}
+ccTtsTemplateWaiting = {{ index . "ccTtsTemplateWaiting" | default "Done in {project}. I'm waiting for you." | quote }}
+ccTtsTemplateError = {{ index . "ccTtsTemplateError" | default "Error in {project}. You may want to look." | quote }}
+ccTtsMaxChars = {{ index . "ccTtsMaxChars" | default "120" | quote }}
+ccTtsDebounceSec = {{ index . "ccTtsDebounceSec" | default "5" | quote }}
+ccTtsPlayer = {{ index . "ccTtsPlayer" | default "auto" | quote }}

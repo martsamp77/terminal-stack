@@ -39,13 +39,35 @@ if (-not $localApp) {
 $cfgHelper = Join-Path $SourceDir 'bootstrap\_config.ps1'
 if (Test-Path -LiteralPath $cfgHelper) { . $cfgHelper }
 $tsCfg = if (Get-Command Get-TsConfig -ErrorAction SilentlyContinue) { Get-TsConfig } else { $null }
+$ccTtsEnabled = $false
+if ($tsCfg -and $tsCfg.ccTts -and $tsCfg.ccTts.enabled) { $ccTtsEnabled = $true }
+$ccTtsStopHook = if ($ccTtsEnabled) {
+@'
+,
+          {
+            "type": "command",
+            "command": "pwsh -NoLogo -NonInteractive -ExecutionPolicy Bypass -File C:/Users/__WIN_USER__/.claude/hooks/cc-speak.ps1 -State waiting"
+          }
+'@
+} else { '' }
+$ccTtsStopFailureHook = if ($ccTtsEnabled) {
+@'
+,
+          {
+            "type": "command",
+            "command": "pwsh -NoLogo -NonInteractive -ExecutionPolicy Bypass -File C:/Users/__WIN_USER__/.claude/hooks/cc-speak.ps1 -State error"
+          }
+'@
+} else { '' }
 $tok = @{
-    '__WIN_USER__'       = $WinUser
-    '__LEADER_KEY__'     = if ($tsCfg.leaderKey)          { $tsCfg.leaderKey }          else { 'phys:Space' }
-    '__LEADER_MODS__'    = if ($tsCfg.leaderMods)         { $tsCfg.leaderMods }         else { 'CTRL' }
-    '__THEME_MODE__'     = if ($tsCfg.themeMode)          { $tsCfg.themeMode }          else { 'dark' }
-    '__THEME_RESOLVED__' = if ($tsCfg.resolvedTheme)      { $tsCfg.resolvedTheme }      else { 'dark' }
-    '__TMUX_PREFIX__'    = if ($tsCfg.tmuxPrefixResolved) { $tsCfg.tmuxPrefixResolved } else { 'C-b' }
+    '__WIN_USER__'               = $WinUser
+    '__LEADER_KEY__'             = if ($tsCfg.leaderKey)          { $tsCfg.leaderKey }          else { 'phys:Space' }
+    '__LEADER_MODS__'            = if ($tsCfg.leaderMods)         { $tsCfg.leaderMods }         else { 'CTRL' }
+    '__THEME_MODE__'             = if ($tsCfg.themeMode)          { $tsCfg.themeMode }          else { 'dark' }
+    '__THEME_RESOLVED__'         = if ($tsCfg.resolvedTheme)      { $tsCfg.resolvedTheme }      else { 'dark' }
+    '__TMUX_PREFIX__'            = if ($tsCfg.tmuxPrefixResolved) { $tsCfg.tmuxPrefixResolved } else { 'C-b' }
+    '__CC_TTS_STOP_HOOK__'       = $ccTtsStopHook
+    '__CC_TTS_STOPFAILURE_HOOK__'= $ccTtsStopFailureHook
 }
 
 $today = Get-Date -Format 'yyyyMMdd'
@@ -123,5 +145,10 @@ function Sync-MirrorTree {
 
 Sync-MirrorTree -SrcRoot (Join-Path $SourceDir 'windows') -DstRoot $dstHome -RenderTmpl
 Sync-MirrorTree -SrcRoot (Join-Path $SourceDir 'docs\kb') -DstRoot (Join-Path $localApp 'terminal-stack\docs\kb')
+
+if (Get-Command Export-CcTtsJson -ErrorAction SilentlyContinue) {
+    Export-CcTtsJson
+    Write-Host "updated  $(Join-Path $env:USERPROFILE '.claude\tts.json')  (from config ccTts)"
+}
 
 Write-Host "sync-windows: user=$WinUser, $created created, $updated updated, $unchanged unchanged"

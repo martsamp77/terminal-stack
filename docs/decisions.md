@@ -169,9 +169,13 @@ Aliases can't run code around the wrapped command. Setting and clearing the WezT
 
 The `cc • <leaf>` text and the per-prompt clearing behavior are covered separately under "Why per-tab `cc • <project>` instead of one big tab name?" and "Why `wezterm cli set-tab-title` and not OSC 0?" — this entry is just about *why functions, not aliases*.
 
+## Why Claude Code TTS is opt-in chezmoi data (not a sentinel file)
+
+Like tab tinting, TTS is stack infrastructure — but unlike `ccnotify` (a sentinel file users toggle without re-apply), **enabling TTS adds hooks to the managed whole-file `settings.json`**. Conditional chezmoi template blocks keyed on `ccTtsEnabled` mean `ts-config tts off` + apply truly removes the hooks; no orphan processes or stale sentinel files. Runtime knobs (engine, voice, templates) live in rendered `~/.claude/tts.json` so hooks stay dumb shell/pwsh scripts. **Async-only:** the hook spawns a background worker and returns immediately — synthesis can take 15–60s and must never block Claude. **WSL playback goes through Windows interop** (`cc-speak-play.ps1`) because Docker Desktop forwards `:8880` to WSL but audio devices do not; same headphones as the Hermes Discord bridge.
+
 ## Why `settings.json` ships only shared infra — no model, prefs, permissions, or plugins
 
-`~/.claude/settings.json` is managed whole-file (see "Why a whole-file `~/.zshrc` and a marker-block `$PROFILE`?"), so on every `chezmoi apply` the live file is replaced by the tracked template. That makes the template a poor place for anything you'd want to *choose per machine or per session* — the apply silently reverts it. So the tracked templates carry **only** the two things that are genuinely part of this terminal stack: the `statusLine` command and the `wez-tab-status` hooks. Everything that is a personal choice is deliberately kept out:
+`~/.claude/settings.json` is managed whole-file (see "Why a whole-file `~/.zshrc` and a marker-block `$PROFILE`?"), so on every `chezmoi apply` the live file is replaced by the tracked template. That makes the template a poor place for anything you'd want to *choose per machine or per session* — the apply silently reverts it. So the tracked templates carry **only** the things that are genuinely part of this terminal stack: the `statusLine` command, the `wez-tab-status` hooks, and (when `ccTtsEnabled`) the `cc-speak` TTS hooks. Everything that is a personal choice is deliberately kept out:
 
 - **Model, `effortLevel`, `theme`, `tui`, `autoUpdatesChannel`, voice** — per-user preferences set through the Claude UI (`/model`, `/config`). Baking them in meant every apply clobbered whatever you'd picked.
 - **Permission posture** (`permissions.defaultMode`, `skipDangerousModePermissionPrompt`, `skipAutoPermissionPrompt`) — left at Claude Code's safe defaults. A shared dotfiles repo shouldn't silently auto-approve tool calls or strip the dangerous-mode guard on every machine it lands on.

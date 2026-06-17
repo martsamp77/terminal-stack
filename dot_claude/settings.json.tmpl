@@ -33,7 +33,11 @@
           {
             "type": "command",
             "command": "{{ .chezmoi.homeDir }}/.claude/hooks/wez-tab-status.sh waiting"
-          }
+          }{{ if eq (index . "ccTtsEnabled" | default "false") "true" }},
+          {
+            "type": "command",
+            "command": "{{ .chezmoi.homeDir }}/.claude/hooks/cc-speak.sh waiting"
+          }{{ end }}
         ]
       }
     ],
@@ -44,7 +48,11 @@
           {
             "type": "command",
             "command": "{{ .chezmoi.homeDir }}/.claude/hooks/wez-tab-status.sh error"
-          }
+          }{{ if eq (index . "ccTtsEnabled" | default "false") "true" }},
+          {
+            "type": "command",
+            "command": "{{ .chezmoi.homeDir }}/.claude/hooks/cc-speak.sh error"
+          }{{ end }}
         ]
       }
     ]

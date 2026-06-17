@@ -78,7 +78,7 @@ menu() {
         echo
         show
         echo
-        echo "  1) leader key   2) theme   3) tmux prefix   4) apps   5) re-apply   q) quit"
+        echo "  1) leader key   2) theme   3) tmux prefix   4) apps   5) re-apply   6) Claude TTS   q) quit"
         local c; c="$(ts_tty_prompt 'Choose: ')"
         case "$c" in
             1) set_leader "$(ts_prompt_leader)" ;;
@@ -86,6 +86,7 @@ menu() {
             3) local t; t="$(ts_tty_prompt 'tmux prefix chord (e.g. ctrl-a) [ctrl-b]: ')"; set_tmux "${t:-ctrl-b}" ;;
             4) set_apps "$(ts_prompt_apps)" ;;
             5) finish ;;
+            6) ts_config_tts show; echo; ts_config_tts_menu ;;
             q|Q|"") return 0 ;;
             *) echo "?" ;;
         esac
@@ -101,7 +102,12 @@ case "${1:-}" in
     apps)
         if [ -n "${2:-}" ]; then set_apps "$(ts_expand_apps "$2")"
         else set_apps "$(ts_pick_apps)"; fi ;;
+    tts)
+        shift
+        ts_config_tts "$@" ;;
     -h|--help|help)
-        sed -n '2,14p' "$0" | sed 's/^# \{0,1\}//' ;;
-    *) echo "ts-config: unknown command '$1' (try: show, leader, theme, tmux, apps)" >&2; exit 2 ;;
+        sed -n '2,14p' "$0" | sed 's/^# \{0,1\}//'
+        echo "  tts show|on|off|test|reset|engine|message|voice|..."
+        ;;
+    *) echo "ts-config: unknown command '$1' (try: show, leader, theme, tmux, apps, tts)" >&2; exit 2 ;;
 esac

@@ -9,6 +9,7 @@
 # choices with ts_save_config (from _config.sh). Env vars skip each prompt:
 #   TS_LEADER=ctrl-a   TS_THEME=dark|light|follow   TS_TMUX=ctrl-b
 #   TS_APPS=recommended|all|none|id,id,...   (none or menu option 3 = skip all optional apps)
+#   TS_CC_TTS=on|off|skip   Claude Code Kokoro TTS at install
 #
 # This file is sourced, not executed. Do not `exit`; return non-zero instead.
 
@@ -109,7 +110,11 @@ ts_wizard_collect() {
     else TS_WIZ_APPS="$(ts_prompt_apps)"; fi
 
     TS_WIZ_TMUX="${TS_TMUX:-ctrl-b}"
-    export TS_WIZ_LEADER TS_WIZ_THEME TS_WIZ_APPS TS_WIZ_TMUX
-    echo "$INFO Config: leader=$TS_WIZ_LEADER theme=$TS_WIZ_THEME tmux-prefix=$TS_WIZ_TMUX"
+
+    if [ -n "${TS_CC_TTS:-}" ]; then TS_WIZ_CC_TTS="$TS_CC_TTS"
+    else TS_WIZ_CC_TTS="$(ts_prompt_cc_tts)"; fi
+
+    export TS_WIZ_LEADER TS_WIZ_THEME TS_WIZ_APPS TS_WIZ_TMUX TS_WIZ_CC_TTS
+    echo "$INFO Config: leader=$TS_WIZ_LEADER theme=$TS_WIZ_THEME tmux-prefix=$TS_WIZ_TMUX cc-tts=${TS_WIZ_CC_TTS:-off}"
     echo "$INFO Apps: ${TS_WIZ_APPS:-<none>}"
 }

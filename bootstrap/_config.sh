@@ -15,6 +15,9 @@
 : "${INFO:=$'\033[1;34m==>\033[0m'}"
 : "${WARN:=$'\033[1;33m!!\033[0m'}"
 
+# shellcheck source=_cc_tts.sh
+. "$(dirname -- "${BASH_SOURCE[0]}")/_cc_tts.sh"
+
 # ── App catalog ────────────────────────────────────────────────────────────────
 # Toggleable apps the wizard/picker offers. Required prerequisites (zsh, git,
 # curl, unzip, fontconfig, the Nerd Font, Starship, chezmoi) are always installed
@@ -274,7 +277,8 @@ ts_mirror_windows_config() {
   "resolvedTheme": "$rt",
   "tmuxPrefix": "$(ts_data_get tmuxPrefix)",
   "tmuxPrefixResolved": "$tr",
-  "apps": [$jsonapps]
+  "apps": [$jsonapps],
+$(ts_cc_tts_json_for_mirror)
 }
 EOF
 }

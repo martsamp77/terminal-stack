@@ -1,0 +1,32 @@
+{
+  "enabled": {{ if eq (index . "ccTtsEnabled" | default "false") "true" }}true{{ else }}false{{ end }},
+  "engine": {{ index . "ccTtsEngine" | default "kokoro" | quote }},
+  "messageMode": {{ index . "ccTtsMessageMode" | default "template" | quote }},
+  "events": [{{ $ev := index . "ccTtsEvents" | default "waiting,error" }}{{ $parts := splitList "," $ev }}{{ range $i, $e := $parts }}{{ if $i }}, {{ end }}{{ trim $e " " | quote }}{{ end }}],
+  "kokoro": {
+    "url": {{ index . "ccTtsKokoroUrl" | default "http://127.0.0.1:8880" | quote }},
+    "voice": {{ index . "ccTtsKokoroVoice" | default "am_adam" | quote }},
+    "speed": {{ index . "ccTtsKokoroSpeed" | default "1.0" }},
+    "format": {{ index . "ccTtsKokoroFormat" | default "mp3" | quote }},
+    "timeoutSec": {{ index . "ccTtsKokoroTimeout" | default "15" }}
+  },
+  "chatterbox": {
+    "url": {{ index . "ccTtsChatterboxUrl" | default "http://127.0.0.1:8881" | quote }},
+    "voice": {{ index . "ccTtsChatterboxVoice" | default "adam" | quote }},
+    "energy": {{ index . "ccTtsChatterboxEnergy" | default "0.25" }},
+    "cfgWeight": {{ index . "ccTtsChatterboxCfgWeight" | default "0.5" }},
+    "temperature": {{ index . "ccTtsChatterboxTemperature" | default "0.6" }},
+    "timeoutSec": {{ index . "ccTtsChatterboxTimeout" | default "60" }}
+  },
+  "edge": {
+    "enabled": {{ if eq (index . "ccTtsEdgeEnabled" | default "true") "true" }}true{{ else }}false{{ end }},
+    "voice": {{ index . "ccTtsEdgeVoice" | default "en-US-AndrewMultilingualNeural" | quote }}
+  },
+  "templates": {
+    "waiting": {{ index . "ccTtsTemplateWaiting" | default "Done in {project}. I'm waiting for you." | quote }},
+    "error": {{ index . "ccTtsTemplateError" | default "Error in {project}. You may want to look." | quote }}
+  },
+  "maxChars": {{ index . "ccTtsMaxChars" | default "120" }},
+  "debounceSec": {{ index . "ccTtsDebounceSec" | default "5" }},
+  "player": {{ index . "ccTtsPlayer" | default "auto" | quote }}
+}

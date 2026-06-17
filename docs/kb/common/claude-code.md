@@ -14,3 +14,45 @@ zsh aliases / pwsh functions. Each `cc*` sets the WezTerm tab title while Claude
 | `ccs name` | tmux session `cc-name` running `claude --name name` | zsh only — Claude in tmux, survives disconnects; defaults to current dir name |
 
 `ccnotify on` / `off` toggles the done/error toast (zsh + pwsh).
+
+## Local TTS (Kokoro / Chatterbox / edge)
+
+Optional voice notifications when Claude finishes (`Stop`) or errors (`StopFailure`). **Off by default.** Uses the same Hermes-matching Kokoro voice (`am_adam`, mp3, speed 1.0) when Kokoro is running locally.
+
+| Command | What it does |
+|---|---|
+| `cctts on` / `off` | Enable/disable TTS (re-applies config; adds/removes hooks) |
+| `cctts test` | Speak a test phrase (foreground, for debugging) |
+| `cctts show` | Same as `ts-config tts show` |
+| `ts-config tts …` | Full control (engine, voice, templates, URLs, events) |
+
+### Prerequisites
+
+- **Kokoro** (primary): OpenAI-compatible API on `http://127.0.0.1:8880` — e.g. `remsky/kokoro-fastapi-gpu` in Docker. The install wizard probes `/health` or `/v1/models` and offers to enable TTS when reachable.
+- **Chatterbox** (optional energy): `travisvn/chatterbox-tts-api` on `http://127.0.0.1:8881`. Upload a cloned voice (e.g. `adam`) via the API voice library; energy maps to `exaggeration = 0.25 + energy`.
+- **edge-tts** (fallback): `pip install edge-tts` — used when the primary engine fails and edge fallback is enabled in config.
+
+The stack does **not** install Docker or these containers — only wires hooks and config.
+
+### Config files
+
+- `~/.claude/tts.json` — runtime settings (engine, voices, templates, debounce). Rendered from chezmoi `[data]` on apply; Windows mirror written by sync.
+- `ccTtsEnabled` in chezmoi data gates whether `cc-speak` hooks appear in `settings.json`. `ts-config tts off` + apply removes them cleanly.
+
+### Message modes
+
+- **`template`** (default): short phrases like “Done in {project}. I'm waiting for you.”
+- **`hook`**: try to read Claude's last assistant message from hook stdin JSON (truncated to `maxChars`); falls back to templates.
+
+### WSL audio
+
+Synthesis hits `localhost:8880` (Docker Desktop forwards). **Playback routes through Windows** (`pwsh.exe` + `cc-speak-play.ps1` → `ffplay` or WMP COM) so you hear output on the same headphones as Hermes — not WSL `aplay`.
+
+### Verification
+
+1. `ts-config tts on && chezmoi apply -v` — confirm `cc-speak` hooks in live `~/.claude/settings.json`.
+2. `ts-config tts test` — hear `am_adam`.
+3. Run `cc` in WezTerm; on Stop, hear the template phrase.
+4. `ts-config tts off && chezmoi apply` — TTS hooks gone from settings.
+
+Skip at bootstrap: `TS_CC_TTS=off` or `skip`. Enable non-interactively: `TS_CC_TTS=on`.
