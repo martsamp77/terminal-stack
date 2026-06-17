@@ -88,8 +88,8 @@ resolvedTheme = {{ $resolvedTheme | quote }}
 {{- if hasKey . "apps" }}
 apps = [{{ range $i, $a := .apps }}{{ if $i }}, {{ end }}{{ $a | quote }}{{ end }}]
 {{- end }}
-{{- $ccTtsEnabled := "false" -}}
-{{- if hasKey . "ccTtsEnabled" -}}{{- $ccTtsEnabled = .ccTtsEnabled -}}{{- end -}}
+{{- $ccTtsEnabled := "false" }}
+{{- if hasKey . "ccTtsEnabled" }}{{- $ccTtsEnabled = .ccTtsEnabled }}{{- end }}
 ccTtsEnabled = {{ $ccTtsEnabled | quote }}
 ccTtsEngine = {{ index . "ccTtsEngine" | default "kokoro" | quote }}
 ccTtsMessageMode = {{ index . "ccTtsMessageMode" | default "template" | quote }}
