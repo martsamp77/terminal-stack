@@ -3,12 +3,12 @@
 -- Keep in sync with dot_wezterm/pane_grid.lua (macOS chezmoi deploy).
 --
 -- F1..F6 (and Ctrl+Space 1..6) map to cells of a row-major 3-across x 2-down grid:
---     F1 | F2 | F3        F1 also maximizes the window.
+--     F1 | F2 | F3
 --     F4 | F5 | F6
 --
 -- Labels are derived from on-screen geometry EVERY press, so F<n> always lands on
 -- the same pane regardless of build order. Press F<n>:
---   * pane n exists  -> activate it (F1 also maximizes).
+--   * pane n exists  -> activate it.
 --   * n == count+1 and the layout is the canonical one for `count` -> create it
 --     (the next step in the strict build order), then focus it.
 --   * otherwise       -> do nothing (e.g. F4 while only F1/F2 exist).
@@ -124,7 +124,6 @@ function M.go(window, pane, n, leaf_domain)
   local target = g.map[n]
   if target then
     focus(window, pane, tab, target)
-    if n == 1 then window:maximize() end
     return
   end
   local newp = create(tab, n, leaf_domain)

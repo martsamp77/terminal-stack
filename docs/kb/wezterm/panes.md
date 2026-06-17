@@ -41,6 +41,6 @@ grows the pane right 9 cells, then `Esc`.
 | `Ctrl+Space` `x` | close pane (confirms first) |
 
 ## Grid — 3 across × 2 down
-`F1`–`F6` (also `Ctrl+Space` `1`–`6`): press to **build** that cell, or **focus** it if it already exists; `Shift+F#` opens the new cell in a domain. `F1` also maximizes the window. Columns fill to even thirds, rows to even halves as you build.
+`F1`–`F6` (also `Ctrl+Space` `1`–`6`): press to **build** that cell, or **focus** it if it already exists; `Shift+F#` opens the new cell in a domain. Columns fill to even thirds, rows to even halves as you build.
 
 > macOS: free `Ctrl+Space` and the F-row from the OS first — see `doc macos/wezterm`.
