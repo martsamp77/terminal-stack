@@ -95,17 +95,17 @@ if [ "$CC_TTS_ENABLED" = true ]; then
   CC_TTS_STOP_HOOK=$',
           {
             "type": "command",
-            "command": "pwsh -NoLogo -NonInteractive -ExecutionPolicy Bypass -File C:/Users/__WIN_USER__/.claude/hooks/cc-speak.ps1 -State waiting"
+            "command": "pwsh -NoLogo -NonInteractive -ExecutionPolicy Bypass -File C:/Users/'"$WIN_USER"'/.claude/hooks/cc-speak.ps1 -State waiting"
           }'
   CC_TTS_STOPFAILURE_HOOK=$',
           {
             "type": "command",
-            "command": "pwsh -NoLogo -NonInteractive -ExecutionPolicy Bypass -File C:/Users/__WIN_USER__/.claude/hooks/cc-speak.ps1 -State error"
+            "command": "pwsh -NoLogo -NonInteractive -ExecutionPolicy Bypass -File C:/Users/'"$WIN_USER"'/.claude/hooks/cc-speak.ps1 -State error"
           }'
   CC_TTS_CURSOR_HOOKS='{
     "stop": [
       {
-        "command": "pwsh -NoLogo -NonInteractive -ExecutionPolicy Bypass -File C:/Users/__WIN_USER__/.cursor/hooks/cursor-tts.ps1",
+        "command": "pwsh -NoLogo -NonInteractive -ExecutionPolicy Bypass -File C:/Users/'"$WIN_USER"'/.cursor/hooks/cursor-tts.ps1",
         "timeout": 15
       }
     ]

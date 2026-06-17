@@ -42,34 +42,34 @@ $tsCfg = if (Get-Command Get-TsConfig -ErrorAction SilentlyContinue) { Get-TsCon
 $ccTtsEnabled = $false
 if ($tsCfg -and $tsCfg.ccTts -and $tsCfg.ccTts.enabled) { $ccTtsEnabled = $true }
 $ccTtsStopHook = if ($ccTtsEnabled) {
-@'
+@"
 ,
           {
-            "type": "command",
-            "command": "pwsh -NoLogo -NonInteractive -ExecutionPolicy Bypass -File C:/Users/__WIN_USER__/.claude/hooks/cc-speak.ps1 -State waiting"
+            `"type`": `"command`",
+            `"command`": `"pwsh -NoLogo -NonInteractive -ExecutionPolicy Bypass -File C:/Users/$WinUser/.claude/hooks/cc-speak.ps1 -State waiting`"
           }
-'@
+"@
 } else { '' }
 $ccTtsStopFailureHook = if ($ccTtsEnabled) {
-@'
+@"
 ,
           {
-            "type": "command",
-            "command": "pwsh -NoLogo -NonInteractive -ExecutionPolicy Bypass -File C:/Users/__WIN_USER__/.claude/hooks/cc-speak.ps1 -State error"
+            `"type`": `"command`",
+            `"command`": `"pwsh -NoLogo -NonInteractive -ExecutionPolicy Bypass -File C:/Users/$WinUser/.claude/hooks/cc-speak.ps1 -State error`"
           }
-'@
+"@
 } else { '' }
 $ccTtsCursorHooks = if ($ccTtsEnabled) {
-@'
+@"
 {
-    "stop": [
+    `"stop`": [
       {
-        "command": "pwsh -NoLogo -NonInteractive -ExecutionPolicy Bypass -File C:/Users/__WIN_USER__/.cursor/hooks/cursor-tts.ps1",
-        "timeout": 15
+        `"command`": `"pwsh -NoLogo -NonInteractive -ExecutionPolicy Bypass -File C:/Users/$WinUser/.cursor/hooks/cursor-tts.ps1`",
+        `"timeout`": 15
       }
     ]
   }
-'@
+"@
 } else { '{}' }
 $tok = @{
     '__WIN_USER__'               = $WinUser

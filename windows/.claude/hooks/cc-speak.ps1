@@ -4,8 +4,6 @@ param(
     [switch]$Foreground
 )
 
-if (-not $env:WEZTERM_PANE) { return }
-
 $configPath = Join-Path $env:USERPROFILE '.claude\tts.json'
 if (-not (Test-Path -LiteralPath $configPath)) { return }
 
