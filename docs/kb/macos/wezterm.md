@@ -13,3 +13,6 @@ Until `Ctrl+Space` is freed, the `Ctrl+Space 1`–`6` fallback for the F-keys wo
 
 Keybindings themselves are identical across Windows/macOS/Linux — see
 `doc wezterm/panes`, `doc wezterm/tabs`, `doc wezterm/workspace`.
+
+Developing config: edit `dot_wezterm.lua.tmpl` / `dot_wezterm/pane_grid.lua`, then
+`chezmoi apply -v` — see `doc wezterm/dev-config`.

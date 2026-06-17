@@ -67,6 +67,10 @@ git -C <clone> reset --hard <sha>         # e.g. v1.0.x tags, or any commit
 
 Two caveats: the clone may double as a dev checkout — commit or stash before any `reset --hard`. And rolling back the *source* doesn't delete files an update introduced (e.g. the git include at `~/.config/git/terminal-stack.gitconfig`); chezmoi simply stops managing them. For a full undo, also `git config --global --unset-all include.path <path>`.
 
+## Developing WezTerm config
+
+WezTerm loads from your home directory, not the clone. On Windows, run `scripts\sync-windows.ps1 -SourceDir <clone>` after editing `windows/.wezterm.lua.tmpl` or `windows/.wezterm/pane_grid.lua`, then reload (`Ctrl+Space` `r` for module changes). On macOS, `chezmoi apply` deploys `dot_wezterm.lua.tmpl` and `dot_wezterm/pane_grid.lua`. See `docs/developing-wezterm.md` for the full loop, `$env:TERMINAL_STACK_DIR`, and optional auto-sync.
+
 ## What you get
 
 - **WezTerm nightly** with a flat tab bar (each tab labelled `N: <dir>`, tinted green when Claude finishes / red on error; each Claude pane's background tints to match), integrated window buttons, JetBrainsMono Nerd Font at 11.5pt, and a right-status showing `user@host` · workspace · cwd. A **no-timeout leader** (`Ctrl+Space` by default — configurable via `ts-config leader`; peach-cursor "waiting" indicator) drives splits (`h`/`v` local; `H`/`V` into a chosen SSH/WSL domain) and **arrow-key repeatable modes** — `Ctrl+Space`+arrows move focus, `+Shift` resizes, `+Ctrl` rotates panes, plus `t`/`f` for tab-switch / font-size — each shown by an on-screen mode badge. Also `Alt+1…9` tab selection, `Ctrl+V` rebound for synthetic-paste (Wispr Flow, etc.), `Ctrl+Space o` to pop a pane into its own window, the `F1`–`F6` 3×2 grid, and workspace management (`Ctrl+Space R` rename, `Ctrl+Space X` close-all). The colour theme (Catppuccin **Mocha** dark / **Latte** light / **follow** the OS) is set by `ts-config theme` and switches live in follow mode. On macOS, two System Settings toggles free `Ctrl+Space` and the F-row first — see `INSTALL.md` § macOS.
@@ -80,7 +84,7 @@ Two caveats: the clone may double as a dev checkout — commit or stash before a
 
 ## Architecture in 30 seconds
 
-This is a chezmoi repo with a twist: chezmoi natively manages Linux/WSL home (`~/.zshrc`, `~/.tmux.conf`, `~/.config/starship.toml`, `~/.claude/*`), but Windows-side files live in a `windows/` subdirectory excluded from chezmoi's normal apply via `.chezmoiignore`. A `run_after_90-sync-windows.sh` hook then mirrors `windows/` to `/mnt/c/Users/<user>/` on every `chezmoi apply`, with same-day `.bak.YYYYMMDD[.N]` backups for any file it overwrites. On native Linux and macOS the hook self-no-ops (no `/mnt/c/` mount), so the same source tree drives WSL, native Linux, macOS, and Windows from one apply.
+This is a chezmoi repo with a twist: chezmoi natively manages Linux/WSL home (`~/.zshrc`, `~/.tmux.conf`, `~/.config/starship.toml`, `~/.claude/*`), but Windows-side files live in a `windows/` subdirectory excluded from chezmoi's normal apply via `.chezmoiignore`. A `run_after_90-sync-windows.sh` hook then mirrors `windows/` to `/mnt/c/Users/<user>/` and `docs/kb/` to `%LOCALAPPDATA%\terminal-stack\docs\kb\` on every `chezmoi apply` (or `scripts\sync-windows.ps1` on Windows-only), with same-day `.bak.YYYYMMDD[.N]` backups for any file it overwrites. On native Linux and macOS the hook self-no-ops (no `/mnt/c/` mount), so the same source tree drives WSL, native Linux, macOS, and Windows from one apply.
 
 Single source of truth, single `chezmoi apply`, three targets updated. See `ARCHITECTURE.md` for the long version.
 
@@ -116,6 +120,7 @@ terminal-stack/
 │   └── sync-windows.ps1  # Windows-native port of run_after sync (no WSL needed)
 ├── docs/                 # design-decision documentation
 │   ├── cross-side-chezmoi.md
+│   ├── developing-wezterm.md
 │   ├── powershell-quirks.md
 │   └── decisions.md
 ├── dot_zshrc             # ↘ chezmoi-managed (WSL + native Linux + macOS home)

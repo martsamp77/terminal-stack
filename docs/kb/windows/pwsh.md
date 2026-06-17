@@ -22,3 +22,9 @@ beside your work? `Ctrl+Space H`/`V` opens a domain picker (SSH/WSL) and splits 
 Tabs are cheap full-screen flips within a workspace — `Alt+1`…`9` to jump. This
 replaces needing multiple top-level WezTerm windows. Full keys: `doc wezterm/panes`,
 `doc wezterm/tabs`, `doc wezterm/workspace`.
+
+## Developing WezTerm config
+
+WezTerm loads from `%USERPROFILE%`, not the clone. After editing `windows/.wezterm.lua.tmpl`
+or `windows/.wezterm/pane_grid.lua`, run `scripts\sync-windows.ps1 -SourceDir <clone>`,
+then **`Ctrl+Space` `r`** for `pane_grid.lua` changes. Full loop: `doc wezterm/dev-config`.

@@ -11,6 +11,7 @@
 | `chezmoi diff` | preview pending config changes before an apply |
 | `chezmoi apply -v` | apply config (run from inside WSL on Windows) |
 | `chezmoi re-add ~/.zshrc` | capture a hand-edit of a managed file back into the repo |
+| `scripts\sync-windows.ps1 -SourceDir <clone>` | deploy `windows/**` + mirror `docs/kb/**` to `%LOCALAPPDATA%\terminal-stack\docs\kb\` — see `doc wezterm/dev-config` |
 
 ## SSH (stack shortcut)
 | Command | What it does |

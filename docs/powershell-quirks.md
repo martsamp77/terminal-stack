@@ -143,16 +143,17 @@ And WezTerm has **no Lua API to set one pane's background** (`window:set_config_
 **Fix.** Re-drive the tint from the user var that already arrives, using **`pane:inject_output()`** — which feeds the escape sequence directly into WezTerm's own terminal emulator, downstream of ConPTY. Added to both `.wezterm.lua` configs:
 
 ```lua
-local CC_BG   = { working = '#2a2420', done = '#1f2a20', error = '#2e1e24' }
-local CC_BASE = '#1e1e2e'  -- Catppuccin Mocha base
+local CC_BG = { working = '#4a3020', done = '#1e3828', error = '#3a1828' }
+-- sync_pane_backgrounds(window) injects OSC 11 per pane: cc tint when set,
+-- else crust (active) or base (inactive). Called from user-var-changed and
+-- update-right-status so focus switches and cc_state changes both re-apply.
 wezterm.on('user-var-changed', function(window, pane, name, value)
   if name ~= 'cc_state' then return end
-  local color = CC_BG[value] or CC_BASE          -- '' (cleared on exit) → reset
-  pcall(function() pane:inject_output('\x1b]11;' .. color .. '\x07') end)
+  sync_pane_backgrounds(window)
 end)
 ```
 
-OSC 11 only sets the default background colour — it never moves the cursor — so injecting it is safe even while Claude Code's full-screen TUI is drawing. The reset is free: the `cc`/`Set-WezTabTitle` wrappers already clear `cc_state` on exit, which fires `user-var-changed` with an empty value → the handler injects the base colour.
+OSC 11 only sets the default background colour — it never moves the cursor — so injecting it is safe even while Claude Code's full-screen TUI is drawing. On exit the `cc`/`Set-WezTabTitle` wrappers clear `cc_state`; the Lua `sync_pane_backgrounds` handler (driven by `user-var-changed` and `update-right-status`) restores active/inactive idle colours or reapplies cc tints.
 
 The hook's raw `OSC 11` is **left in place on purpose**: it's harmless where ConPTY drops it, and it's the correct path for WezTerm **mux/SSH panes**, where `inject_output` is unsupported but the remote (ConPTY-free) shell's OSC 11 flows through the mux stream.
 

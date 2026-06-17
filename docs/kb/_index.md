@@ -20,7 +20,7 @@ Personal command runbooks, rendered by **glow**. Browse with the `doc` command:
 - `linux/` — apt, VeraCrypt, ssh permissions, systemd, docker
 - `macos/` — Homebrew, macOS WezTerm toggles
 - `windows/` — winget, PowerShell
-- `wezterm/` — WezTerm keybindings (all OSes)
+- `wezterm/` — WezTerm keybindings + dev workflow (all OSes)
 
 The viewer shows `common/` + `wezterm/` + your current OS by default; `doc --os <linux|macos|windows>` browses another.
 

@@ -155,15 +155,13 @@ alias gl='git log --oneline --graph --decorate -10'
 _wez_tab_title() {
   [[ -n "$WEZTERM_PANE" ]] || return
   wezterm cli set-tab-title "$1" >/dev/null 2>&1
-  # Empty title marks CC exit in this pane -> restore the base background (OSC 11),
-  # undoing the per-pane state tint set by the wez-tab-status hook.
+  # Empty title marks CC exit in this pane -> clear cc_state; WezTerm Lua restores bg.
   if [[ -z "$1" ]]; then
-    local bg=$'\033]11;#1e1e2e\007' uv=$'\033]1337;SetUserVar=cc_state=\007'
+    local uv=$'\033]1337;SetUserVar=cc_state=\007'
     if [[ -n "$TMUX" ]]; then
-      bg=$'\033Ptmux;\033'"${bg}"$'\033\\'
       uv=$'\033Ptmux;\033'"${uv}"$'\033\\'
     fi
-    printf '%s%s' "$bg" "$uv" > /dev/tty 2>/dev/null
+    printf '%s' "$uv" > /dev/tty 2>/dev/null
   fi
 }
 cc()    { _wez_tab_title "cc • ${PWD:t}"; claude "$@";                                           local rc=$?; _wez_tab_title ""; return $rc }
@@ -221,6 +219,27 @@ autoload -Uz add-zsh-hook
 # Hostname-aware title — useful when ssh'ing between boxes; composes with other precmd hooks.
 _set_title() { print -Pn "\e]0;%m: %~\a" }
 add-zsh-hook precmd _set_title
+
+# OSC 7: host + cwd for WezTerm's pane-aware status (and other OSC-7 terminals).
+# Prefer WezTerm's own integration script when installed; otherwise emit OSC 7 here.
+if [[ -z "${__WEZTERM_SHELL_INTEGRATION_LOADED:-}" ]]; then
+  for _wsi in \
+    "${WEZTERM_CONFIG_DIR:-}/wezterm-shell-integration.sh" \
+    "$HOME/.config/wezterm/wezterm-shell-integration.sh" \
+    "/opt/homebrew/share/wezterm/wezterm-shell-integration.sh" \
+    "/usr/local/share/wezterm/wezterm-shell-integration.sh" \
+    "/usr/share/wezterm/wezterm-shell-integration.sh"; do
+    if [[ -r "$_wsi" ]]; then source "$_wsi"; break; fi
+  done
+  unset _wsi
+fi
+if [[ -z "${__WEZTERM_SHELL_INTEGRATION_LOADED:-}" ]]; then
+  _wezterm_osc7() {
+    local h="${${$(hostname -s 2>/dev/null):-${HOST:-$(hostname)}}// /}"
+    printf '\033]7;file://%s%s\033\\' "${h:l}" "$PWD"
+  }
+  add-zsh-hook precmd _wezterm_osc7
+fi
 
 # Start/attach a Claude Code tmux session for the current repo or named task.
 ccs() {
@@ -445,7 +464,8 @@ catclip() {
 # ---- doc-start ----
 # `doc` — personal markdown knowledge base. Topics live in <clone>/docs/kb
 # (tracked) + ~/.doc.local (untracked personal layer); rendered by glow, bat
-# fallback. Repo-canonical: the viewer reads straight from the clone, no deploy.
+# fallback. On Windows, sync-windows.ps1 also mirrors docs/kb to
+# %LOCALAPPDATA%/terminal-stack/docs/kb (read fallback; edit/sync use the clone).
 # See docs/kb/_index.md. (`ref`/`wzr` stay as they are for now.)
 _doc_root() {
   local cz="" cm_src="" c
@@ -458,8 +478,23 @@ _doc_root() {
            /mnt/c/DATA/Workspace/terminal-stack/docs/kb \
            "$HOME/terminal-stack/docs/kb" \
            "$HOME/Workspace/terminal-stack/docs/kb" \
-           "$HOME/Documents/Workspace/terminal-stack/docs/kb"; do
+           "$HOME/Documents/Workspace/terminal-stack/docs/kb" \
+           /mnt/c/Users/*/AppData/Local/terminal-stack/docs/kb(N); do
     [[ -n "$c" && -d "$c" ]] && { echo "$c"; return 0; }
+  done
+  return 1
+}
+_doc_repo() {
+  local cz src
+  if cz="$(_ts_chezmoi 2>/dev/null)"; then
+    src="$(_ts_src "$cz" doc 2>/dev/null)" && { echo "$src"; return 0; }
+  fi
+  for src in "${TERMINAL_STACK_DIR:-}" \
+             /mnt/c/DATA/Workspace/terminal-stack \
+             "$HOME/terminal-stack" \
+             "$HOME/Workspace/terminal-stack" \
+             "$HOME/Documents/Workspace/terminal-stack"; do
+    [[ -n "$src" && -d "$src/.git" ]] && { echo "$src"; return 0; }
   done
   return 1
 }
@@ -591,9 +626,8 @@ _doc_changelog() {
 }
 
 _doc_sync() {
-  local msg="$1" root repo changed ans prefill
-  root="$(_doc_root)" || { echo "doc sync: no docs/kb" >&2; return 1; }
-  repo="${root:h:h}"
+  local msg="$1" repo changed ans prefill
+  repo="$(_doc_repo)" || { echo "doc sync: no terminal-stack clone (set \$TERMINAL_STACK_DIR)" >&2; return 1; }
   [[ -d "$repo/.git" ]] || { echo "doc sync: $repo is not a git clone" >&2; return 1; }
   changed="$(git -C "$repo" status --porcelain -- docs/kb)"
   [[ -n "$changed" ]] || { echo "doc sync: no changes under docs/kb."; return 0; }

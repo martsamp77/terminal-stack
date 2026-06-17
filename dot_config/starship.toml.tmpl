@@ -10,8 +10,8 @@
 # are not safe to paste literally because some editors silently strip them.
 #
 # Colours come from the `palette` selected below (Catppuccin Mocha = dark,
-# Latte = light). The palette overrides the standard colour names used in the
-# styles, so the prompt tracks the stack's theme. `palette` is baked at apply
+# VS Code Light Modern = light). The palette overrides the standard colour names
+# used in the styles, so the prompt tracks the stack's theme. `palette` is baked at apply
 # time from the saved config (themeMode/resolvedTheme); change it with
 # `ts-config theme <dark|light|follow>`.
 palette = "{{ if hasKey . "resolvedTheme" }}{{ .resolvedTheme }}{{ else }}dark{{ end }}"
@@ -131,7 +131,8 @@ disabled = true
 
 # ── Palettes ──────────────────────────────────────────────────────────────────
 # These redefine the standard colour names used above, so selecting a palette
-# (top of file) re-themes the whole prompt. dark = Catppuccin Mocha, light = Latte.
+# (top of file) re-themes the whole prompt. dark = Catppuccin Mocha;
+# light = VS Code Light Modern (terminal + light_plus syntax tokens).
 [palettes.dark]
 green  = "#a6e3a1"
 cyan   = "#89dceb"
@@ -140,8 +141,8 @@ red    = "#f38ba8"
 black  = "#585b70"
 
 [palettes.light]
-green  = "#40a02b"
-cyan   = "#04a5e5"
-yellow = "#df8e1d"
-red    = "#d20f39"
-black  = "#acb0be"
+green  = "#098658"
+cyan   = "#0451A5"
+yellow = "#949800"
+red    = "#CD3131"
+black  = "#D3D3D3"

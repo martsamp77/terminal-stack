@@ -48,12 +48,10 @@ function wspu {
 function Set-WezTabTitle([string]$title) {
     if (-not $env:WEZTERM_PANE) { return }
     & wezterm.exe cli set-tab-title $title 2>$null
-    # Empty title marks CC exit in this pane -> restore the base background (OSC 11),
-    # undoing the per-pane state tint set by the wez-tab-status hook.
+    # Empty title marks CC exit -> clear cc_state; WezTerm Lua restores pane bg.
     if (-not $title) {
         try {
-            [Console]::Out.Write("$([char]27)]11;#1e1e2e$([char]7)")              # reset background
-            [Console]::Out.Write("$([char]27)]1337;SetUserVar=cc_state=$([char]7)")  # clear tab state
+            [Console]::Out.Write("$([char]27)]1337;SetUserVar=cc_state=$([char]7)")
         } catch {}
     }
 }
@@ -96,7 +94,9 @@ function Invoke-Starship-PreCommand {
     }
     $loc = $executionContext.SessionState.Path.CurrentLocation
     if ($loc.Provider.Name -eq 'FileSystem') {
-        Write-Host -NoNewline "`e]7;file://localhost/$($loc.Path)`a"
+        $hostName = ($env:COMPUTERNAME).ToLower()
+        $providerPath = $loc.ProviderPath -replace '\\', '/'
+        Write-Host -NoNewline "`e]7;file://${hostName}/${providerPath}`a"
         $leaf = Split-Path -Leaf $loc.Path
         if ([string]::IsNullOrEmpty($leaf)) { $leaf = $loc.Path }
         Write-Host -NoNewline "`e]0;pwsh • $leaf`a"
@@ -425,7 +425,8 @@ function npp {
 # ---- doc-start ----
 # `doc` — personal markdown knowledge base. Topics live in <clone>/docs/kb
 # (tracked) + ~/.doc.local (untracked personal layer); rendered by glow, bat
-# fallback. Repo-canonical: no deploy, the viewer reads straight from the clone.
+# fallback. On Windows, sync-windows.ps1 also mirrors docs/kb to
+# %LOCALAPPDATA%\terminal-stack\docs\kb (read fallback; edit/sync use the clone).
 # See docs/kb/_index.md. (`ref`/`wzr` are separate for now.)
 function Get-DocRoot {
     $cands = @()
@@ -435,7 +436,15 @@ function Get-DocRoot {
                         (Join-Path $env:USERPROFILE 'Documents\Workspace'), $env:USERPROFILE)) {
         $cands += (Join-Path $base 'terminal-stack\docs\kb')
     }
+    if ($env:LOCALAPPDATA) { $cands += (Join-Path $env:LOCALAPPDATA 'terminal-stack\docs\kb') }
     foreach ($c in $cands) { if ($c -and (Test-Path -LiteralPath $c -PathType Container)) { return (Resolve-Path -LiteralPath $c).Path } }
+    return $null
+}
+function Get-DocRepo {
+    $src = Resolve-TsSourceDir
+    if (-not $src) { return $null }
+    $kb = Join-Path $src 'docs\kb'
+    if (Test-Path -LiteralPath $kb -PathType Container) { return (Resolve-Path -LiteralPath $src).Path }
     return $null
 }
 function Get-DocLocal { if ($env:DOC_LOCAL) { $env:DOC_LOCAL } else { Join-Path $env:USERPROFILE '.doc.local' } }
@@ -559,10 +568,8 @@ function Update-DocChangelog([string]$repo, [string[]]$topics) {
 }
 
 function Invoke-DocSync([string]$msg) {
-    $root = Get-DocRoot
-    if (-not $root) { Write-Warning 'doc sync: no docs/kb'; return }
-    $repo = (Resolve-Path -LiteralPath (Join-Path $root '..\..')).Path
-    if (-not (Test-Path (Join-Path $repo '.git'))) { Write-Warning "doc sync: $repo is not a git clone"; return }
+    $repo = Get-DocRepo
+    if (-not $repo) { Write-Warning 'doc sync: no terminal-stack clone (set $env:TERMINAL_STACK_DIR)'; return }
     Push-Location $repo
     try {
         $changed = & git status --porcelain -- docs/kb

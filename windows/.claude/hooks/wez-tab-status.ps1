@@ -15,9 +15,9 @@ $project = if ($env:CLAUDE_PROJECT_DIR) {
 # user-var-changed handler (driven by the cc_state OSC 1337 below), which re-emits
 # this tint via pane:inject_output. This raw OSC 11 is the non-ConPTY/mux fallback.
 $bg = switch ($State) {
-    { $_ -in 'thinking', 'working' } { '#2a2420'; break }  # warm/peach — working
-    'waiting' { '#1f2a20'; break }                          # green — your turn / done
-    'error'   { '#2e1e24'; break }                          # red — failed / attention
+    { $_ -in 'thinking', 'working' } { '#4a3020'; break }  # warm/peach — working
+    'waiting' { '#1e3828'; break }                          # green — your turn / done
+    'error'   { '#3a1828'; break }                          # red — failed / attention
     default   { $null }
 }
 if ($bg) {

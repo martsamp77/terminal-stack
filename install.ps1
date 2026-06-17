@@ -90,8 +90,9 @@ if (-not (Test-Path $bootstrap)) {
 Write-Host "==> Running $bootstrap"
 & $bootstrap
 
-# 5. Sync windows/** to %USERPROFILE% (PowerShell-native equivalent of the WSL
-#    run_after hook). Lands $PROFILE, .wezterm.lua, .claude\settings.json, etc.
+# 5. Sync windows/** to %USERPROFILE% and docs/kb/** to
+#    %LOCALAPPDATA%\terminal-stack\docs\kb\ (PowerShell-native equivalent of the WSL
+#    run_after hook). Lands $PROFILE, .wezterm.lua, .claude\settings.json, doc topics, etc.
 #    without needing WSL.
 $sync = Join-Path $targetDir 'scripts\sync-windows.ps1'
 if (Test-Path $sync) {

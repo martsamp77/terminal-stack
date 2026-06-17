@@ -173,6 +173,16 @@ On macOS, quit and relaunch WezTerm so it sets JetBrainsMono Nerd Font from the 
 
 Then `Ctrl+Space r` in WezTerm to reload, and the bindings in the command reference work.
 
+### Developing WezTerm config
+
+WezTerm reads `%USERPROFILE%\.wezterm.lua` and `%USERPROFILE%\.wezterm\pane_grid.lua`, **not** the git clone. After editing `windows/.wezterm.lua.tmpl` or `windows/.wezterm/pane_grid.lua` in your dev checkout, deploy and reload:
+
+```powershell
+& C:\path\to\terminal-stack\scripts\sync-windows.ps1 -SourceDir C:\path\to\terminal-stack
+```
+
+Set `$env:TERMINAL_STACK_DIR` in `profile.local.ps1` when the dev clone is not `%USERPROFILE%\terminal-stack`. Changes to `.wezterm.lua` usually auto-reload; press **`Ctrl+Space` `r`** after `pane_grid.lua` edits. Full loop, optional file-watcher, macOS path, and symlink trick: `docs/developing-wezterm.md`.
+
 ## Manual
 
 For when you want to understand each step. Every command is annotated; numbered headings just keep the steps ordered.

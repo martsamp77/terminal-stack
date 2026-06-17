@@ -25,27 +25,61 @@ end
 
 -- ── Theme palette (light / dark, optional follow-OS) ──────────────────────────
 -- THEME_MODE is injected from the saved terminal-stack config:
---   'dark'  → Catppuccin Mocha · 'light' → Catppuccin Latte ·
+--   'dark'  → Catppuccin Mocha · 'light' → VS Code Light Modern (official tokens) ·
 --   'follow' → track the OS appearance live (WezTerm re-evaluates this file when
 --   the OS light/dark setting changes, so the whole UI flips with no re-apply).
 -- Both palettes carry every colour the tab bar, status line and Claude tints use.
 local THEME_MODE = '{{ if hasKey . "themeMode" }}{{ .themeMode }}{{ else }}dark{{ end }}'
 local PALETTES = {
   dark = {  -- Catppuccin Mocha
-    scheme = 'Catppuccin Mocha',
+    scheme_name = 'Catppuccin Mocha',
     base = '#1e1e2e', mantle = '#181825', crust = '#11111b', surface0 = '#313244',
     text = '#cdd6f4', subtext0 = '#a6adc8', overlay0 = '#6c7086', overlay1 = '#585b70',
     lavender = '#b4befe', peach = '#fab387', green = '#a6e3a1', maroon = '#eba0ac',
-    accent = '#89b4fa', teal = '#94e2d5',
-    cc_working = '#2a2420', cc_done = '#1f2a20', cc_error = '#2e1e24',
+    accent = '#89b4fa', teal = '#94e2d5', split = '#b4befe',
+    cc_working = '#4a3020', cc_done = '#1e3828', cc_error = '#3a1828',
+    pane_active = '#11111b', pane_inactive = '#1e1e2e', term_bg = '#1e1e2e',
+    tab_active = '#313244',
+    inactive_hsb = { brightness = 0.85, saturation = 0.72, hue = 1.0 },
   },
-  light = {  -- Catppuccin Latte
-    scheme = 'Catppuccin Latte',
-    base = '#eff1f5', mantle = '#e6e9ef', crust = '#dce0e8', surface0 = '#ccd0da',
-    text = '#4c4f69', subtext0 = '#6c6f85', overlay0 = '#9ca0b0', overlay1 = '#7c7f93',
-    lavender = '#7287fd', peach = '#fe640b', green = '#40a02b', maroon = '#e64553',
-    accent = '#1e66f5', teal = '#179299',
-    cc_working = '#f3e9df', cc_done = '#e4f0e2', cc_error = '#f6e1e5',
+  light = {  -- VS Code Light Modern — microsoft/vscode light_modern.json + terminal ANSI
+    scheme_name = 'VS Code Light Modern',
+    base = '#ffffff', mantle = '#f8f8f8', crust = '#f8f8f8', surface0 = '#e8e8e8',
+    text = '#3b3b3b', subtext0 = '#868686', overlay0 = '#6e7681', overlay1 = '#616161',
+    lavender = '#005fb8', peach = '#895503', green = '#098658', maroon = '#cd3131',
+    accent = '#005fb8', teal = '#005fb8', split = '#e5e5e5',
+    cc_working = '#fff4e5', cc_done = '#e8f5e9', cc_error = '#fde7e9',
+    pane_active = '#ffffff', pane_inactive = '#f8f8f8', term_bg = '#ffffff',
+    tab_active = '#ffffff',
+    status_bar_bg = '#007acc', status_bar_fg = '#ffffff', status_bar_dim = '#cce4f7',
+    inactive_hsb = { brightness = 1.0, saturation = 1.0, hue = 1.0 },
+    scheme_def = {
+      foreground = '#3B3B3B',
+      background = '#FFFFFF',
+      cursor_bg = '#005FB8',
+      cursor_fg = '#FFFFFF',
+      cursor_border = '#005FB8',
+      selection_bg = '#ADD6FF',
+      selection_fg = '#3B3B3B',
+      split = '#E5E5E5',
+      compose_cursor = '#895503',
+      ansi = {
+        '#000000', '#CD3131', '#00BC00', '#949800',
+        '#0451A5', '#BC05BC', '#0598BC', '#555555',
+      },
+      brights = {
+        '#666666', '#CD3131', '#14CE14', '#B5BA00',
+        '#0451A5', '#BC05BC', '#0598BC', '#A5A5A5',
+      },
+      tab_bar = {
+        background = '#F8F8F8',
+        active_tab         = { bg_color = '#FFFFFF', fg_color = '#3B3B3B', intensity = 'Bold' },
+        inactive_tab       = { bg_color = '#F8F8F8', fg_color = '#868686' },
+        inactive_tab_hover = { bg_color = '#FFFFFF', fg_color = '#3B3B3B', italic = true },
+        new_tab            = { bg_color = '#F8F8F8', fg_color = '#868686' },
+        new_tab_hover      = { bg_color = '#FFFFFF', fg_color = '#3B3B3B' },
+      },
+    },
   },
 }
 local function pick_palette(mode)
@@ -65,7 +99,12 @@ config.font = wezterm.font_with_fallback {
   'Menlo',
 }
 config.font_size = 11.5
-config.color_scheme = P.scheme
+if P.scheme_def then
+  config.color_schemes = { [P.scheme_name] = P.scheme_def }
+  config.color_scheme = P.scheme_name
+else
+  config.color_scheme = P.scheme_name
+end
 config.window_background_opacity = 1.0
 config.use_fancy_tab_bar = true    -- native/fancy tabs (styled via window_frame + colors.tab_bar)
 config.hide_tab_bar_if_only_one_tab = false
@@ -79,20 +118,27 @@ config.window_frame = {
   active_titlebar_bg = P.mantle,    -- focused
   inactive_titlebar_bg = P.crust,   -- unfocused
 }
--- Strong active-pane signal: heavily dim inactive panes + a bright split line.
-config.inactive_pane_hsb = { brightness = 0.25, saturation = 0.6, hue = 1.0 }
+-- Pane emphasis: dark = black active / lighter inactive; light = #FFFFFF active /
+-- #F8F8F8 inactive (editor.background vs sideBar.background). No HSB on light.
+-- Claude cc_state tints (pane + tab) are applied separately and survive both states.
+config.inactive_pane_hsb = P.inactive_hsb
+-- split must live in config.colors (overrides color_scheme) or borders stay accent-blue.
 config.colors = {
-  split = P.lavender,  -- divider between panes
-  compose_cursor = P.peach,  -- cursor turns peach while the leader key is pending input
-  tab_bar = {  -- per-segment text colour is driven in format-tab-title
-    background = P.crust,
-    active_tab         = { bg_color = P.surface0, fg_color = P.text, intensity = 'Bold' },
-    inactive_tab       = { bg_color = P.mantle, fg_color = P.overlay0 },
-    inactive_tab_hover = { bg_color = P.surface0, fg_color = P.subtext0, italic = true },
-    new_tab            = { bg_color = P.mantle, fg_color = P.overlay0 },
-    new_tab_hover      = { bg_color = P.surface0, fg_color = P.text },
-  },
+  split = P.split,
+  compose_cursor = P.peach,
 }
+if not P.scheme_def then
+  config.colors.foreground = P.text
+  config.colors.background = P.term_bg
+  config.colors.tab_bar = {
+    background = P.crust,
+    active_tab         = { bg_color = P.tab_active, fg_color = P.text, intensity = 'Bold' },
+    inactive_tab       = { bg_color = P.surface0, fg_color = P.subtext0 },
+    inactive_tab_hover = { bg_color = P.mantle, fg_color = P.text, italic = true },
+    new_tab            = { bg_color = P.surface0, fg_color = P.overlay0 },
+    new_tab_hover      = { bg_color = P.base, fg_color = P.text },
+  }
+end
 
 -- WebGpu is WezTerm's modern, fastest backend (set explicitly). If a render
 -- stall on child-process startup reappears, fall back to 'OpenGL'.
@@ -234,12 +280,13 @@ config.keys = {
 
 -- ── Tab labels: " <idx>  <icon> <dir>  <badge|dots> " ─────────────────────────
 -- Per-pane Claude state comes from the `cc_state` user var the wez-tab-status hook
--- sets (working/done/error, cleared on exit). We show a coloured dot per pane and
--- tint the whole label by the most urgent state (error > done; working stays
--- neutral, shown only by its dot). The process icon is best-effort from the
--- foreground process; Claude is detected via the user var because Windows/WSL often
--- report a wrapper process rather than `claude`. Nerd-font lookups are fallback-
--- guarded (unknown names resolve to nil) so a missing glyph can't break the bar.
+-- sets (working/done/error, cleared on exit). We show a coloured dot per pane,
+-- wash the tab background by the most urgent state (error > done > working), and
+-- tint the label to match — active or inactive tab, so a background Claude run
+-- is obvious at a glance. The process icon is best-effort from the foreground
+-- process; Claude is detected via the user var because Windows/WSL often report a
+-- wrapper process rather than `claude`. Nerd-font lookups are fallback-guarded
+-- (unknown names resolve to nil) so a missing glyph can't break the bar.
 local PROC_ICONS = {
   pwsh = wezterm.nerdfonts.md_powershell, powershell = wezterm.nerdfonts.md_powershell,
   zsh = wezterm.nerdfonts.md_console, bash = wezterm.nerdfonts.md_console,
@@ -306,18 +353,21 @@ wezterm.on('format-tab-title', function(tab, tabs, panes, cfg, hover, max_width)
     if p.is_zoomed then zoomed = true end
   end
 
-  -- label colour: error/done tint (calm); else neutral, dimmed when inactive.
+  -- label colour: cc state tints the tab even when it is not focused.
   local fg = TAB.text
   if agg == 'error' then fg = TAB.error
   elseif agg == 'done' then fg = TAB.done
+  elseif agg == 'working' then fg = TAB.working
   elseif not tab.is_active then fg = TAB.dim end
-  local bold = tab.is_active or agg == 'error' or agg == 'done'
+  local bold = tab.is_active or agg ~= nil
 
-  local items = {
-    { Attribute = { Intensity = bold and 'Bold' or 'Half' } },
-    { Foreground = { Color = fg } },
-    { Text = ' ' .. (tab.tab_index + 1) .. '  ' .. icon .. ' ' .. leaf .. ' ' },
-  }
+  local items = {}
+  if agg then
+    table.insert(items, { Background = { Color = P['cc_' .. agg] } })
+  end
+  table.insert(items, { Attribute = { Intensity = bold and 'Bold' or 'Half' } })
+  table.insert(items, { Foreground = { Color = fg } })
+  table.insert(items, { Text = ' ' .. (tab.tab_index + 1) .. '  ' .. icon .. ' ' .. leaf .. ' ' })
   if any_cc then                         -- dots imply the pane count
     table.insert(items, { Text = ' ' })
     for _, d in ipairs(dots) do
@@ -336,95 +386,266 @@ wezterm.on('format-tab-title', function(tab, tabs, panes, cfg, hover, max_width)
   return items
 end)
 
--- ── Per-pane Claude background tint (ConPTY-proof) ────────────────────────────
+-- ── Per-pane background + Claude tint (ConPTY-proof) ────────────────────────
 -- The hook also emits an OSC 11 background tint, but on Windows ConPTY eats OSC
 -- 10/11/12 before they reach WezTerm (the cc_state user var survives because
 -- ConPTY passes the unknown OSC 1337 through verbatim — that's why the tab dots
--- work but the pane never tinted). Re-drive the tint from that user var here:
+-- work but the pane never tinted). Re-drive from cc_state + focus here:
 -- user-var-changed fires reliably, and pane:inject_output feeds the OSC 11 into
 -- WezTerm's own emulator, bypassing ConPTY entirely. Local panes, every platform;
 -- mux/SSH panes (no inject_output) fall back to the hook's raw OSC 11. macOS/Linux
 -- have no ConPTY so the hook's OSC 11 already works — this re-sets the same colour.
-local CC_BG   = { working = P.cc_working, done = P.cc_done, error = P.cc_error }
-local CC_BASE = P.base  -- matches config.color_scheme base
+local CC_BG = { working = P.cc_working, done = P.cc_done, error = P.cc_error }
+local pane_bg_applied = {}
+
+local function pane_cc_state(pane)
+  local s = pane.user_vars and pane.user_vars.cc_state
+  if s == nil or s == '' then return nil end
+  return s
+end
+
+local function pane_bg_color(pane, is_active)
+  local cc = pane_cc_state(pane)
+  if cc and CC_BG[cc] then return CC_BG[cc] end
+  return is_active and P.pane_active or P.pane_inactive
+end
+
+local function clear_pane_bg_cache()
+  for k in pairs(pane_bg_applied) do pane_bg_applied[k] = nil end
+end
+
+local function inject_pane_surface(p, bg, fg)
+  pcall(function()
+    p:inject_output('\x1b]11;' .. bg .. '\x07')
+    p:inject_output('\x1b]10;' .. fg .. '\x07')
+  end)
+end
+
+local function sync_pane_backgrounds(window, force)
+  local mux_win = window:mux_window()
+  if not mux_win then return end
+  for _, tab in ipairs(mux_win:tabs()) do
+    local active = tab:active_pane()
+    local active_id = active and active:pane_id()
+    for _, p in ipairs(tab:panes()) do
+      local pid = p:pane_id()
+      local bg = pane_bg_color(p, pid == active_id)
+      local key = bg .. '|' .. P.text
+      if force or pane_bg_applied[pid] ~= key then
+        pane_bg_applied[pid] = key
+        inject_pane_surface(p, bg, P.text)
+      end
+    end
+  end
+end
+
 wezterm.on('user-var-changed', function(window, pane, name, value)
   if name ~= 'cc_state' then return end
-  local color = CC_BG[value] or CC_BASE          -- '' (cleared on exit) → reset
-  pcall(function() pane:inject_output('\x1b]11;' .. color .. '\x07') end)
+  sync_pane_backgrounds(window, true)
+end)
+
+wezterm.on('window-config-reloaded', function(window)
+  clear_pane_bg_cache()
+  sync_pane_backgrounds(window, true)
 end)
 
 -- ── Top-right status: [⬡ workspace │] user@host │ current path ─────────────────
--- The ⬡ workspace segment shows only when it isn't the default (it's `default` most of
--- the time, so that slot is freed for the identity). user@host is computed once below.
-local function cwd_path(pane)
-  local cwd = pane:get_current_working_dir()
-  if not cwd then return '' end
-  if type(cwd) == 'userdata' then return cwd.file_path or tostring(cwd) end
-  return (tostring(cwd):gsub('^file://[^/]*', ''))
+-- Identity and path follow the *active pane* (OSC 7, shell-integration user vars,
+-- SSH/WSL domain, then pane title), not the WezTerm GUI process.
+local function titlecase(s)
+  if not s or s == '' then return '' end
+  return s:sub(1, 1):upper() .. s:sub(2):lower()
 end
 
--- Local identity for the right status: "User@host" (FQDN domain stripped). os.getenv
--- reads the wezterm GUI process env (USERNAME on Windows, USER on macOS/Linux).
-local function titlecase(s) return #s > 0 and (s:sub(1, 1):upper() .. s:sub(2):lower()) or s end
-local IDENTITY = (function()
-  local user = titlecase(os.getenv('USERNAME') or os.getenv('USER') or '')
-  local host = titlecase((wezterm.hostname() or ''):gsub('%..*$', ''))   -- ORION -> Orion
-  if #user > 0 and #host > 0 then return user .. '@' .. host end
-  return user .. host
-end)()
+local function hostname_short(h)
+  if not h or h == '' or h == 'localhost' then return '' end
+  local dot = h:find('[.]')
+  if dot then h = h:sub(1, dot - 1) end
+  return h
+end
+
+local function identity_from_title(title)
+  if not title or title == '' then return nil, nil end
+  local user, host = title:match('^([%w%-_]+)@([%w%-_]+)')
+  if user and host then return user, host end
+  host = title:match('^([^:%s]+):')
+  if host and host ~= '' and not host:find('[%./\\]') then return nil, host end
+  return nil, nil
+end
+
+local function path_from_title(title)
+  if not title or title == '' then return '' end
+  local path = title:match(':[%s]*(.*)$')
+  if not path then return '' end
+  path = path:gsub('^%s+', ''):gsub('%s+$', '')
+  return path
+end
+
+local function pane_title(pane)
+  local title = pane.title
+  if (not title or title == '') and pane.get_title then title = pane:get_title() end
+  return title or ''
+end
+
+local function identity_from_domain(domain)
+  if not domain or domain == '' then return nil, nil end
+  local label = domain:match('^SSH:(.+)$') or domain:match('^WSL:(.+)$')
+  if not label then return nil, nil end
+  local user, host = label:match('^([^@]+)@([^:]+)')
+  if user and host then return user, host end
+  return nil, label:gsub(':%d+$', '')
+end
+
+local function pane_location(pane)
+  local user, host, path = '', '', ''
+
+  local uv = pane.user_vars
+  if uv then
+    if uv.WEZTERM_USER and uv.WEZTERM_USER ~= '' then user = uv.WEZTERM_USER end
+    if uv.WEZTERM_HOST and uv.WEZTERM_HOST ~= '' then host = uv.WEZTERM_HOST end
+  end
+
+  local cwd_uri = pane:get_current_working_dir()
+  if not cwd_uri and pane.current_working_dir then cwd_uri = pane.current_working_dir end
+  if cwd_uri then
+    if type(cwd_uri) == 'userdata' then
+      path = cwd_uri.file_path or ''
+      if cwd_uri.username and cwd_uri.username ~= '' then user = cwd_uri.username end
+      local h = hostname_short(cwd_uri.host)
+      if h ~= '' then host = h end
+    else
+      local s = tostring(cwd_uri)
+      if s:sub(1, 7) == 'file://' then
+        s = s:sub(8)
+        local slash = s:find('/')
+        if slash then
+          host = hostname_short(s:sub(1, slash - 1))
+          path = s:sub(slash):gsub('%%(%x%x)', function(hex)
+            return string.char(tonumber(hex, 16))
+          end)
+        end
+      else
+        path = s
+      end
+    end
+  end
+
+  if host == '' or user == '' then
+    local du, dh = identity_from_domain(pane:get_domain_name())
+    if dh and host == '' then host = dh end
+    if du and user == '' then user = du end
+  end
+
+  if host == '' or user == '' then
+    local title = pane_title(pane)
+    local tu, th = identity_from_title(title)
+    if th and host == '' then host = th end
+    if tu and user == '' then user = tu end
+  end
+
+  if path == '' then
+    path = path_from_title(pane_title(pane))
+  end
+
+  if host == '' then host = hostname_short(wezterm.hostname() or '') end
+  if user == '' then user = os.getenv('USERNAME') or os.getenv('USER') or '' end
+
+  return titlecase(user), titlecase(host), path
+end
 
 wezterm.on('update-right-status', function(window, pane)
   local items = {}
+  if P.status_bar_bg then
+    table.insert(items, { Background = { Color = P.status_bar_bg } })
+    table.insert(items, { Foreground = { Color = P.status_bar_fg } })
+  end
   local kt = window:active_key_table()
   if kt then                                  -- in a repeatable mode: accent badge
     local MODE = {
       resize_pane = '⤢ RESIZE ↑↓←→', activate_pane = '✛ MOVE ↑↓←→',
       rotate_pane = '⟳ ROTATE ↑↓←→', switch_tab = '⇥ TAB ←→', font_size = 'A± FONT ↑↓0',
     }
-    table.insert(items, { Background = { Color = P.accent } })
-    table.insert(items, { Foreground = { Color = P.base } })
+    if P.status_bar_bg then
+      table.insert(items, { Background = { Color = '#005a9e' } })
+      table.insert(items, { Foreground = { Color = P.status_bar_fg } })
+    else
+      table.insert(items, { Background = { Color = P.accent } })
+      table.insert(items, { Foreground = { Color = P.base } })
+    end
     table.insert(items, { Attribute = { Intensity = 'Bold' } })
     table.insert(items, { Text = ' ' .. (MODE[kt] or kt) .. ' · Esc ' })
-    table.insert(items, { Background = { Color = P.crust } })
-    table.insert(items, { Foreground = { Color = P.overlay1 } })
+    if P.status_bar_bg then
+      table.insert(items, { Background = { Color = P.status_bar_bg } })
+      table.insert(items, { Foreground = { Color = P.status_bar_fg } })
+    else
+      table.insert(items, { Background = { Color = P.crust } })
+      table.insert(items, { Foreground = { Color = P.overlay1 } })
+    end
     table.insert(items, { Attribute = { Intensity = 'Normal' } })
     table.insert(items, { Text = '  ' })
   elseif window:leader_is_active() then        -- leader pending: bold peach badge
-    table.insert(items, { Background = { Color = P.peach } })
-    table.insert(items, { Foreground = { Color = P.base } })
+    if P.status_bar_bg then
+      table.insert(items, { Background = { Color = '#ffffff' } })
+      table.insert(items, { Foreground = { Color = P.status_bar_bg } })
+    else
+      table.insert(items, { Background = { Color = P.peach } })
+      table.insert(items, { Foreground = { Color = P.base } })
+    end
     table.insert(items, { Attribute = { Intensity = 'Bold' } })
     table.insert(items, { Text = ' ⌨ LEADER ' })
-    table.insert(items, { Background = { Color = P.crust } })
-    table.insert(items, { Foreground = { Color = P.overlay1 } })
+    if P.status_bar_bg then
+      table.insert(items, { Background = { Color = P.status_bar_bg } })
+      table.insert(items, { Foreground = { Color = P.status_bar_fg } })
+    else
+      table.insert(items, { Background = { Color = P.crust } })
+      table.insert(items, { Foreground = { Color = P.overlay1 } })
+    end
     table.insert(items, { Attribute = { Intensity = 'Normal' } })
     table.insert(items, { Text = '  ' })
   end
   local ws = window:active_workspace()
   if ws ~= 'default' then                              -- workspace only when non-default
-    table.insert(items, { Foreground = { Color = P.accent } })
+    if not P.status_bar_bg then
+      table.insert(items, { Foreground = { Color = P.accent } })
+    end
     table.insert(items, { Text = '⬡ ' .. ws })
-    table.insert(items, { Foreground = { Color = P.overlay1 } })
+    if P.status_bar_bg then
+      table.insert(items, { Foreground = { Color = P.status_bar_dim } })
+    else
+      table.insert(items, { Foreground = { Color = P.overlay1 } })
+    end
     table.insert(items, { Text = '  │  ' })
   end
-  table.insert(items, { Foreground = { Color = P.teal } })   -- identity
-  table.insert(items, { Text = IDENTITY })
-  table.insert(items, { Foreground = { Color = P.overlay1 } })
+  if not P.status_bar_bg then
+    table.insert(items, { Foreground = { Color = P.teal } })   -- identity (active pane)
+  end
+  local pu, ph, ppath = pane_location(pane)
+  local identity = (#pu > 0 and #ph > 0) and (pu .. '@' .. ph) or (pu .. ph)
+  table.insert(items, { Text = identity })
+  if P.status_bar_bg then
+    table.insert(items, { Foreground = { Color = P.status_bar_dim } })
+  else
+    table.insert(items, { Foreground = { Color = P.overlay1 } })
+  end
   table.insert(items, { Text = '  │  ' })
-  table.insert(items, { Foreground = { Color = P.subtext0 } })   -- path
-  table.insert(items, { Text = cwd_path(pane) .. '  ' })
+  if not P.status_bar_bg then
+    table.insert(items, { Foreground = { Color = P.subtext0 } })
+  end
+  table.insert(items, { Text = ppath .. '  ' })
   window:set_right_status(wezterm.format(items))
+  sync_pane_backgrounds(window)
 end)
 
 -- ── Dim every pane while the window is unfocused ──────────────────────────────
--- inactive_pane_hsb only dims *inactive* panes of the focused window; the active
--- pane stays bright. On blur we want a uniform dim across all panes, so we dim all
--- text (foreground_text_hsb) and cancel the per-pane inactive dim. On focus we drop
--- both overrides → back to active-bright / inactive-dim.
+-- inactive_pane_hsb dims unfocused panes within a focused window; on blur we want
+-- a uniform dim across all panes, so we dim all text (foreground_text_hsb) and
+-- cancel the per-pane inactive dim. On focus we drop both overrides.
 wezterm.on('window-focus-changed', function(window)
   local o = window:get_config_overrides() or {}
   if window:is_focused() then
     o.foreground_text_hsb = nil
     o.inactive_pane_hsb   = nil
+    sync_pane_backgrounds(window, true)
   else
     o.foreground_text_hsb = { brightness = 0.35, saturation = 0.8, hue = 1.0 }
     o.inactive_pane_hsb   = { brightness = 1.0, saturation = 1.0, hue = 1.0 }

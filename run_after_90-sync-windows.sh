@@ -1,12 +1,14 @@
 #!/usr/bin/env bash
-# Sync $CHEZMOI_SOURCE_DIR/windows/ to /mnt/c/Users/<windowsUsername>/, mirroring relative paths.
+# Sync from the chezmoi source tree to the Windows user profile:
+#   $CHEZMOI_SOURCE_DIR/windows/**  → /mnt/c/Users/<windowsUsername>/
+#   $CHEZMOI_SOURCE_DIR/docs/kb/**  → /mnt/c/Users/<windowsUsername>/AppData/Local/terminal-stack/docs/kb/
 #
 # Username resolution order:
 #   1. chezmoi data: `windowsUsername` under the [data] section of chezmoi.toml
 #   2. Fallback: `cmd.exe /c echo %USERNAME%` via WSL interop
 #
-# Files ending in `.tmpl` are rendered before copy: tokens are replaced and the
-# `.tmpl` suffix is stripped on the destination path. Tokens:
+# Files ending in `.tmpl` under windows/ are rendered before copy: tokens are
+# replaced and the `.tmpl` suffix is stripped on the destination path. Tokens:
 #   __WIN_USER__        resolved Windows username
 #   __LEADER_KEY__      WezTerm leader key   (from leaderKey   in chezmoi [data])
 #   __LEADER_MODS__     WezTerm leader mods  (from leaderMods)
@@ -18,16 +20,18 @@
 # Backs up any pre-existing target to <path>.bak.YYYYMMDD[.N] before overwrite.
 set -euo pipefail
 
-src_dir="${CHEZMOI_SOURCE_DIR:-$HOME/.local/share/chezmoi}/windows"
-
-if [ ! -d "$src_dir" ]; then
-  exit 0
-fi
+stack_root="${CHEZMOI_SOURCE_DIR:-$HOME/.local/share/chezmoi}"
+windows_src="$stack_root/windows"
+kb_src="$stack_root/docs/kb"
 
 # Non-WSL / no Windows mount available — no destination to sync to. Bail before
 # we try to resolve a Windows username we can't possibly find. Native Linux and
 # macOS land here.
 if [ ! -d /mnt/c/Users ]; then
+  exit 0
+fi
+
+if [ ! -d "$windows_src" ] && [ ! -d "$kb_src" ]; then
   exit 0
 fi
 
@@ -86,9 +90,8 @@ THEME_MODE="$(cfg themeMode 'dark')"
 THEME_RESOLVED="$(cfg resolvedTheme 'dark')"
 TMUX_PREFIX="$(cfg tmuxPrefixResolved 'C-b')"
 
-dst_dir="/mnt/c/Users/$WIN_USER"
-if [ ! -d "$dst_dir" ]; then
-  # Non-WSL host or non-existent user dir; noop cleanly.
+dst_home="/mnt/c/Users/$WIN_USER"
+if [ ! -d "$dst_home" ]; then
   exit 0
 fi
 
@@ -100,47 +103,58 @@ unchanged=0
 rendered="$(mktemp)"
 trap 'rm -f "$rendered"' EXIT
 
-while IFS= read -r -d '' src; do
-  rel="${src#"$src_dir"/}"
+# sync_tree <src_root> <dst_root> <render_tmpl:0|1>
+sync_tree() {
+  local src_root="$1" dst_root="$2" render_tmpl="${3:-0}"
+  local src rel rel_out effective_src dst bak n
 
-  if [[ "$rel" == *.tmpl ]]; then
-    rel_out="${rel%.tmpl}"
-    sed -e "s|__WIN_USER__|$WIN_USER|g" \
-        -e "s|__LEADER_KEY__|$LEADER_KEY|g" \
-        -e "s|__LEADER_MODS__|$LEADER_MODS|g" \
-        -e "s|__THEME_MODE__|$THEME_MODE|g" \
-        -e "s|__THEME_RESOLVED__|$THEME_RESOLVED|g" \
-        -e "s|__TMUX_PREFIX__|$TMUX_PREFIX|g" \
-        "$src" > "$rendered"
-    effective_src="$rendered"
-  else
-    rel_out="$rel"
-    effective_src="$src"
-  fi
+  [ -d "$src_root" ] || return 0
 
-  dst="$dst_dir/$rel_out"
+  while IFS= read -r -d '' src; do
+    rel="${src#"$src_root"/}"
 
-  if [ -e "$dst" ]; then
-    if cmp -s "$effective_src" "$dst"; then
-      unchanged=$((unchanged + 1))
-      continue
+    if [ "$render_tmpl" = 1 ] && [[ "$rel" == *.tmpl ]]; then
+      rel_out="${rel%.tmpl}"
+      sed -e "s|__WIN_USER__|$WIN_USER|g" \
+          -e "s|__LEADER_KEY__|$LEADER_KEY|g" \
+          -e "s|__LEADER_MODS__|$LEADER_MODS|g" \
+          -e "s|__THEME_MODE__|$THEME_MODE|g" \
+          -e "s|__THEME_RESOLVED__|$THEME_RESOLVED|g" \
+          -e "s|__TMUX_PREFIX__|$TMUX_PREFIX|g" \
+          "$src" > "$rendered"
+      effective_src="$rendered"
+    else
+      rel_out="$rel"
+      effective_src="$src"
     fi
-    bak="$dst.bak.$today"
-    if [ -e "$bak" ]; then
-      n=1
-      while [ -e "$dst.bak.$today.$n" ]; do n=$((n + 1)); done
-      bak="$dst.bak.$today.$n"
+
+    dst="$dst_root/$rel_out"
+
+    if [ -e "$dst" ]; then
+      if cmp -s "$effective_src" "$dst"; then
+        unchanged=$((unchanged + 1))
+        continue
+      fi
+      bak="$dst.bak.$today"
+      if [ -e "$bak" ]; then
+        n=1
+        while [ -e "$dst.bak.$today.$n" ]; do n=$((n + 1)); done
+        bak="$dst.bak.$today.$n"
+      fi
+      cp -p -- "$dst" "$bak"
+      cp -- "$effective_src" "$dst"
+      updated=$((updated + 1))
+      printf 'updated  %s  (backup: %s)\n' "$dst" "$bak"
+    else
+      mkdir -p -- "$(dirname -- "$dst")"
+      cp -- "$effective_src" "$dst"
+      created=$((created + 1))
+      printf 'created  %s\n' "$dst"
     fi
-    cp -p -- "$dst" "$bak"
-    cp -- "$effective_src" "$dst"
-    updated=$((updated + 1))
-    printf 'updated  %s  (backup: %s)\n' "$dst" "$bak"
-  else
-    mkdir -p -- "$(dirname -- "$dst")"
-    cp -- "$effective_src" "$dst"
-    created=$((created + 1))
-    printf 'created  %s\n' "$dst"
-  fi
-done < <(find "$src_dir" -type f -print0)
+  done < <(find "$src_root" -type f -print0)
+}
+
+sync_tree "$windows_src" "$dst_home" 1
+sync_tree "$kb_src" "$dst_home/AppData/Local/terminal-stack/docs/kb" 0
 
 printf 'sync-windows: user=%s, %d created, %d updated, %d unchanged\n' "$WIN_USER" "$created" "$updated" "$unchanged"

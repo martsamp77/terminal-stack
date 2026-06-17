@@ -27,9 +27,9 @@ fi
 # required on Windows, where ConPTY swallows OSC 11. This raw OSC 11 still covers
 # non-ConPTY mux/SSH panes that inject_output can't reach.
 case "$state" in
-    thinking|working) _bg='#2a2420' ;;   # warm/peach — working
-    waiting)          _bg='#1f2a20' ;;   # green — your turn / done
-    error)            _bg='#2e1e24' ;;   # red — failed / needs attention
+    thinking|working) _bg='#4a3020' ;;   # warm/peach — working
+    waiting)          _bg='#1e3828' ;;   # green — your turn / done
+    error)            _bg='#3a1828' ;;   # red — failed / needs attention
     *)                _bg='' ;;
 esac
 if [ -n "$_bg" ]; then

@@ -33,8 +33,9 @@ Files under `windows/` use absolute-path-mirror naming (with `$WIN_USER` resolve
 | `windows/Documents/PowerShell/Microsoft.PowerShell_profile.ps1` | `/mnt/c/Users/$WIN_USER/Documents/PowerShell/Microsoft.PowerShell_profile.ps1` |
 | `windows/.claude/settings.json.tmpl` | `/mnt/c/Users/$WIN_USER/.claude/settings.json` (rendered) |
 | `windows/.claude/hooks/wez-tab-status.ps1` | `/mnt/c/Users/$WIN_USER/.claude/hooks/wez-tab-status.ps1` |
+| `docs/kb/**` | `/mnt/c/Users/$WIN_USER/AppData/Local/terminal-stack/docs/kb/**` (plain copy; `doc` read fallback) |
 
-The destination is computed from the source relative path by joining onto `$dst_dir` (`/mnt/c/Users/$WIN_USER`). Files ending in `.tmpl` are rendered through a `sed` substitution that replaces `__WIN_USER__` with the resolved value, then the `.tmpl` suffix is stripped from the destination path.
+The destination is computed from the source relative path by joining onto `$dst_dir` (`/mnt/c/Users/$WIN_USER`) for `windows/**`, or onto `$dst_dir/AppData/Local/terminal-stack/docs/kb` for the kb mirror. Files ending in `.tmpl` under `windows/` are rendered through a `sed` substitution that replaces `__WIN_USER__` with the resolved value, then the `.tmpl` suffix is stripped from the destination path.
 
 ## Username resolution
 

@@ -64,7 +64,7 @@ Source → destination mapping for the `windows/` subtree is **relative-path-pre
 | `$PROFILE` (Windows pwsh) | whole-file sync, **marker-block edited** | The sync copies the repo file over `$PROFILE` whole (with `.bak`); the `# ---- name-start ----` / `# ---- name-end ----` blocks organize the stack's regions. Personal content belongs in `profile.local.ps1`, never in `$PROFILE` itself |
 | `~/.zshrc.local`, `profile.local.ps1`, `~/.doc.local/**` | **never managed** | Per-machine; `.zshrc.local`/`profile.local.ps1` ship `.example` twins; `~/.doc.local` is the personal `doc` layer |
 
-**The `doc` knowledge base.** Command docs are plain `.md` files under `docs/kb/` in the clone (`common/`, `linux/`, `macos/`, `windows/`, `wezterm/`), **not** deployed anywhere — `docs/**` is chezmoi-ignored, so the `doc` command reads them straight from the clone (resolved via `$TERMINAL_STACK_DIR` / `chezmoi source-path` / probed workspace paths). There is **no** generate-twins pipeline and no staleness check: edit the `.md`, and `doc sync` commits it (+ a `### Docs` CHANGELOG bullet). Per-machine/secret content (real hostnames, key names) lives in the untracked `~/.doc.local/` layer, which the viewer merges in. `ref` and `wzr` are thin aliases into `doc`. This replaced the old `command-reference.md.tmpl` → `.txt`/`.html` + per-OS-preview render pipeline (retired); `docs/decisions.md` § "Why `doc` replaced the command-reference render pipeline" has the rationale.
+**The `doc` knowledge base.** Command docs are plain `.md` files under `docs/kb/` in the clone (`common/`, `linux/`, `macos/`, `windows/`, `wezterm/`). On Windows, `scripts/sync-windows.ps1` (and the WSL `run_after` hook) also mirror `docs/kb/**` to `%LOCALAPPDATA%\terminal-stack\docs\kb\` so `doc`/`wzr` pick up updates after sync/apply; clone paths (`$TERMINAL_STACK_DIR`, workspace probes) still win for `doc edit`/`doc sync`. `docs/**` is chezmoi-ignored — canonical source stays in the clone. Per-machine/secret content lives in the untracked `~/.doc.local/` layer. `ref` and `wzr` are thin aliases into `doc`.
 
 When modifying `$PROFILE`, edit the repo source (`windows/Documents/PowerShell/Microsoft.PowerShell_profile.ps1`) **inside an existing marker block** (`starship-stack-*`, `cli-tools-*`, `git-shortcuts-*`, …) or add a new marker block; keep `local-overrides` last. Anything a user hand-adds to the live `$PROFILE` outside the repo is replaced on the next sync (backed up, but gone from the live file) — per-machine content goes in `profile.local.ps1`. History in `docs/decisions.md` § "Why a whole-file `~/.zshrc` and a marker-block `$PROFILE`?".
 
@@ -88,6 +88,7 @@ Any script in this repo that overwrites a user file must write a backup first as
 - `INSTALL.md` — scripted (Phase 0 → 10) and manual install paths
 - `CHANGELOG.md` — curated change history; `git log` is authoritative
 - `docs/cross-side-chezmoi.md` — deep dive on the chezmoi + run_after mechanism
+- `docs/developing-wezterm.md` — edit → sync/apply → reload loop for WezTerm config (Windows `sync-windows.ps1`, macOS chezmoi)
 - `docs/powershell-quirks.md` — every weird Windows-side workaround with cause and fix
 - `docs/decisions.md` — design choices that aren't obvious from the code
 
