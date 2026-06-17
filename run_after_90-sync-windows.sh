@@ -103,17 +103,65 @@ if [ "$CC_TTS_ENABLED" = true ]; then
             "command": "pwsh -NoLogo -NonInteractive -ExecutionPolicy Bypass -File C:/Users/'"$WIN_USER"'/.claude/hooks/cc-speak.ps1 -State error"
           }'
   CC_TTS_CURSOR_HOOKS='{
+    "afterFileEdit": [
+      {
+        "command": "cat > /dev/null",
+        "timeout": 1
+      }
+    ],
     "stop": [
       {
         "command": "pwsh -NoLogo -NonInteractive -ExecutionPolicy Bypass -File C:/Users/'"$WIN_USER"'/.cursor/hooks/cursor-tts.ps1",
         "timeout": 15
       }
+    ],
+    "postToolUse": [
+      {
+        "matcher": "AskQuestion|AskUserQuestion",
+        "command": "pwsh -NoLogo -NonInteractive -ExecutionPolicy Bypass -File C:/Users/'"$WIN_USER"'/.cursor/hooks/cursor-tts-input.ps1",
+        "timeout": 15
+      }
     ]
   }'
+  CC_TTS_PRETOOLUSE_TTS=$',
+      {
+        "matcher": "AskUserQuestion",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "pwsh -NoLogo -NonInteractive -ExecutionPolicy Bypass -File C:/Users/'"$WIN_USER"'/.claude/hooks/cc-speak-input.ps1 -Event question"
+          }
+        ]
+      }'
+  CC_TTS_INPUT_HOOKS=$',
+    "Notification": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "pwsh -NoLogo -NonInteractive -ExecutionPolicy Bypass -File C:/Users/'"$WIN_USER"'/.claude/hooks/cc-speak-input.ps1 -Event notification"
+          }
+        ]
+      }
+    ],
+    "PermissionRequest": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "pwsh -NoLogo -NonInteractive -ExecutionPolicy Bypass -File C:/Users/'"$WIN_USER"'/.claude/hooks/cc-speak-input.ps1 -Event permission"
+          }
+        ]
+      }
+    ]'
 else
   CC_TTS_STOP_HOOK=""
   CC_TTS_STOPFAILURE_HOOK=""
   CC_TTS_CURSOR_HOOKS='{}'
+  CC_TTS_PRETOOLUSE_TTS=""
+  CC_TTS_INPUT_HOOKS=""
 fi
 
 dst_home="/mnt/c/Users/$WIN_USER"
@@ -145,7 +193,8 @@ sync_tree() {
         WIN_USER="$WIN_USER" LEADER_KEY="$LEADER_KEY" LEADER_MODS="$LEADER_MODS" \
         THEME_MODE="$THEME_MODE" THEME_RESOLVED="$THEME_RESOLVED" TMUX_PREFIX="$TMUX_PREFIX" \
         CC_TTS_STOP_HOOK="$CC_TTS_STOP_HOOK" CC_TTS_STOPFAILURE_HOOK="$CC_TTS_STOPFAILURE_HOOK" \
-        CC_TTS_CURSOR_HOOKS="$CC_TTS_CURSOR_HOOKS" \
+        CC_TTS_CURSOR_HOOKS="$CC_TTS_CURSOR_HOOKS" CC_TTS_PRETOOLUSE_TTS="$CC_TTS_PRETOOLUSE_TTS" \
+        CC_TTS_INPUT_HOOKS="$CC_TTS_INPUT_HOOKS" \
         python3 - "$src" <<'PY' > "$rendered"
 import os, sys
 text = open(sys.argv[1], encoding="utf-8").read()
@@ -159,6 +208,8 @@ repl = {
     "__CC_TTS_STOP_HOOK__": os.environ.get("CC_TTS_STOP_HOOK", ""),
     "__CC_TTS_STOPFAILURE_HOOK__": os.environ.get("CC_TTS_STOPFAILURE_HOOK", ""),
     "__CC_TTS_CURSOR_HOOKS__": os.environ.get("CC_TTS_CURSOR_HOOKS", "{}"),
+    "__CC_TTS_PRETOOLUSE_TTS__": os.environ.get("CC_TTS_PRETOOLUSE_TTS", ""),
+    "__CC_TTS_INPUT_HOOKS__": os.environ.get("CC_TTS_INPUT_HOOKS", ""),
 }
 for k, v in repl.items():
     text = text.replace(k, v)
@@ -210,12 +261,12 @@ PY
 sync_tree "$windows_src" "$dst_home" 1
 sync_tree "$kb_src" "$dst_home/AppData/Local/terminal-stack/docs/kb" 0
 
-# Render ~/.claude/tts.json on the Windows side from chezmoi [data] (same as WSL apply).
-if cz="$(resolve_cz)" && [ -f "$stack_root/dot_claude/tts.json.tmpl" ]; then
-  tts_dst="$dst_home/.claude/tts.json"
+# Render ~/.claude/tts/config.json on the Windows side from chezmoi [data] (same as WSL apply).
+if cz="$(resolve_cz)" && [ -f "$stack_root/dot_claude/tts/config.json.tmpl" ]; then
+  tts_dst="$dst_home/.claude/tts/config.json"
   mkdir -p "$(dirname "$tts_dst")"
-  if "$cz" execute-template "$(cat "$stack_root/dot_claude/tts.json.tmpl")" > "$tts_dst" 2>/dev/null; then
-    printf 'updated  %s  (chezmoi tts.json)\n' "$tts_dst"
+  if "$cz" execute-template "$(cat "$stack_root/dot_claude/tts/config.json.tmpl")" > "$tts_dst" 2>/dev/null; then
+    printf 'updated  %s  (chezmoi tts config)\n' "$tts_dst"
   fi
 fi
 

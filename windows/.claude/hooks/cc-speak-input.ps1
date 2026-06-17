@@ -1,0 +1,23 @@
+param(
+    [Parameter(Mandatory)][ValidateSet('notification', 'permission', 'question')][string]$Event
+)
+
+$inputJson = ''
+try {
+    if ([Console]::IsInputRedirected) {
+        $inputJson = [Console]::In.ReadToEnd()
+    }
+} catch {}
+
+. (Join-Path $PSScriptRoot 'cc-tts-lib.ps1')
+$parsed = Parse-CcTtsInputHook -InputJson $inputJson -Event $Event
+
+$notify = Join-Path $PSScriptRoot 'cc-tts-notify.ps1'
+$args = @(
+    '-NoLogo', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
+    '-File', $notify,
+    '-State', $parsed.State,
+    '-Source', 'claude'
+)
+if ($parsed.Override) { $args += @('-OverrideText', $parsed.Override) }
+Start-Process pwsh.exe -ArgumentList $args -WindowStyle Hidden | Out-Null

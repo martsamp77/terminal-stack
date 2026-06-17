@@ -4,5 +4,5 @@
 set -euo pipefail
 state="${1:-}"
 case "$state" in waiting|error) ;; *) exit 0 ;; esac
-export CC_TTS_PREFIX=Claude
+export CC_TTS_SOURCE=claude
 exec "$(dirname "$0")/cc-tts-notify.sh" "$state" "${2:-}"

@@ -1,4 +1,4 @@
-# cursor-tts.ps1 — Cursor Agent stop hook → local Kokoro TTS.
+# cursor-tts-input.ps1 — Cursor postToolUse when agent asks a question (AskQuestion).
 $inputJson = ''
 try {
     if ([Console]::IsInputRedirected) {
@@ -6,26 +6,32 @@ try {
     }
 } catch {}
 
-$state = 'waiting'
 if ($inputJson) {
     try {
         $data = $inputJson | ConvertFrom-Json
-        switch ($data.status) {
-            'error'   { $state = 'error'; break }
-            'aborted' { Write-Output '{}'; return }
-            default   { $state = 'waiting' }
+        $tool = [string]$data.tool_name
+        if ($tool -notin @('AskQuestion', 'AskUserQuestion')) {
+            Write-Output '{}'
+            return
         }
         if ($data.workspace_roots -and $data.workspace_roots.Count -gt 0) {
             $env:CURSOR_PROJECT_DIR = $data.workspace_roots[0]
         }
-    } catch {}
+    } catch {
+        Write-Output '{}'
+        return
+    }
+} else {
+    Write-Output '{}'
+    return
 }
 
 . (Join-Path (Join-Path $env:USERPROFILE '.claude\hooks') 'cc-tts-lib.ps1')
 $cfg = Initialize-CcTtsConfig
 if (-not $cfg -or -not $cfg.enabled) { Write-Output '{}'; return }
-if (-not (Test-CcTtsEventEnabled $state)) { Write-Output '{}'; return }
+if (-not (Test-CcTtsEventEnabled 'question')) { Write-Output '{}'; return }
 
+$parsed = Parse-CcTtsInputHook -InputJson $inputJson -Event 'cursor_question'
 $notify = Join-Path $env:USERPROFILE '.claude\hooks\cc-tts-notify.ps1'
 if (-not (Test-Path -LiteralPath $notify)) {
     Write-Output '{}'
@@ -35,12 +41,11 @@ if (-not (Test-Path -LiteralPath $notify)) {
 $args = @(
     '-NoLogo', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
     '-File', $notify,
-    '-State', $state,
+    '-State', $parsed.State,
     '-Source', 'cursor'
 )
-if ($env:CURSOR_PROJECT_DIR) {
-    $args += @('-ProjectDir', $env:CURSOR_PROJECT_DIR)
-}
+if ($parsed.Override) { $args += @('-OverrideText', $parsed.Override) }
+if ($env:CURSOR_PROJECT_DIR) { $args += @('-ProjectDir', $env:CURSOR_PROJECT_DIR) }
 
 Start-Process pwsh.exe -ArgumentList $args -WindowStyle Hidden | Out-Null
 Write-Output '{}'

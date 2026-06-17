@@ -1,0 +1,19 @@
+{
+  "_comment": "Copy to ~/.claude/tts/local.json — never overwritten by chezmoi apply.",
+  "kokoro": {
+    "voice": "am_adam",
+    "speed": 1.0
+  },
+  "excitement": 0.35,
+  "sources": {
+    "claude": { "prefix": "Claude", "prefixEnabled": true },
+    "cursor": { "prefix": "Cursor", "prefixEnabled": true }
+  },
+  "announce": {
+    "includeProject": true,
+    "templates": {
+      "question": "I have a question for you.",
+      "permission": "Permission needed in {project}."
+    }
+  }
+}

@@ -233,7 +233,13 @@ function Get-CcTtsDefaults {
         enabled     = $false
         engine      = 'kokoro'
         messageMode = 'template'
-        events      = @('waiting', 'error')
+        events      = @('waiting', 'error', 'question', 'permission')
+        prefixClaude = 'Claude'
+        prefixCursor = 'Cursor'
+        prefixClaudeEnabled = $true
+        prefixCursorEnabled = $true
+        includeProject = $true
+        excitement  = 0.25
         kokoro      = [ordered]@{
             url = 'http://127.0.0.1:8880'; voice = 'am_adam'; speed = 1.0
             format = 'mp3'; timeoutSec = 15
@@ -244,12 +250,45 @@ function Get-CcTtsDefaults {
         }
         edge        = [ordered]@{ enabled = $true; voice = 'en-US-AndrewMultilingualNeural' }
         templates   = [ordered]@{
-            waiting = "Done in {project}. I'm waiting for you."
-            error   = 'Error in {project}. You may want to look.'
+            waiting    = "Done in {project}. I'm waiting for you."
+            error      = 'Error in {project}. You may want to look.'
+            question   = 'I have a question for you.'
+            permission = 'Permission needed in {project}.'
         }
         maxChars    = 120
         debounceSec = 5
         player      = 'auto'
+    }
+}
+
+function ConvertTo-CcTtsRuntimeJson {
+    param($Tts)
+    [ordered]@{
+        enabled = [bool]$Tts.enabled
+        engine = $Tts.engine
+        events = @($Tts.events)
+        sources = [ordered]@{
+            claude = [ordered]@{
+                prefixEnabled = [bool]$Tts.prefixClaudeEnabled
+                prefix = $Tts.prefixClaude
+            }
+            cursor = [ordered]@{
+                prefixEnabled = [bool]$Tts.prefixCursorEnabled
+                prefix = $Tts.prefixCursor
+            }
+        }
+        announce = [ordered]@{
+            includeProject = [bool]$Tts.includeProject
+            messageMode = $Tts.messageMode
+            templates = $Tts.templates
+        }
+        excitement = [double]$Tts.excitement
+        kokoro = $Tts.kokoro
+        chatterbox = $Tts.chatterbox
+        edge = $Tts.edge
+        maxChars = [int]$Tts.maxChars
+        debounceSec = [int]$Tts.debounceSec
+        player = $Tts.player
     }
 }
 
@@ -260,11 +299,12 @@ function Get-CcTtsConfig {
 }
 
 function Export-CcTtsJson {
-    param([string]$Path = (Join-Path $env:USERPROFILE '.claude\tts.json'))
+    param([string]$Path = (Join-Path $env:USERPROFILE '.claude\tts\config.json'))
     $tts = Get-CcTtsConfig
+    $runtime = ConvertTo-CcTtsRuntimeJson $tts
     $dir = Split-Path -Parent $Path
     if (-not (Test-Path -LiteralPath $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
-    ($tts | ConvertTo-Json -Depth 6) | Set-Content -LiteralPath $Path -Encoding UTF8
+    ($runtime | ConvertTo-Json -Depth 8) | Set-Content -LiteralPath $Path -Encoding UTF8
 }
 
 function Test-CcTtsKokoroProbe {
@@ -349,6 +389,47 @@ function Invoke-TsConfigTts {
         'energy' {
             if (-not $Arg) { Write-Warning 'usage: ts-config tts energy <0-1>'; return }
             $tts.chatterbox.energy = [double]$Arg
+            $tts.excitement = [double]$Arg
+        }
+        'excitement' {
+            if (-not $Arg) { Write-Warning 'usage: ts-config tts excitement <0-1>'; return }
+            $tts.excitement = [double]$Arg
+            $tts.chatterbox.energy = [double]$Arg
+        }
+        'prefix' {
+            if (-not $Arg -or -not $Arg2) { Write-Warning 'usage: ts-config tts prefix claude|cursor on|off|<label>'; return }
+            switch ($Arg) {
+                'claude' {
+                    switch ($Arg2) {
+                        'on'  { $tts.prefixClaudeEnabled = $true }
+                        'off' { $tts.prefixClaudeEnabled = $false }
+                        default { $tts.prefixClaude = $Arg2; $tts.prefixClaudeEnabled = $true }
+                    }
+                }
+                'cursor' {
+                    switch ($Arg2) {
+                        'on'  { $tts.prefixCursorEnabled = $true }
+                        'off' { $tts.prefixCursorEnabled = $false }
+                        default { $tts.prefixCursor = $Arg2; $tts.prefixCursorEnabled = $true }
+                    }
+                }
+                default { Write-Warning 'expected claude or cursor'; return }
+            }
+        }
+        'project' {
+            if (-not $Arg) { Write-Warning 'usage: ts-config tts project on|off'; return }
+            $tts.includeProject = ($Arg -eq 'on')
+        }
+        'template' {
+            if (-not $Arg -or -not $Arg2) { Write-Warning 'usage: ts-config tts template waiting|error|question|permission "…"'; return }
+            if (-not $tts.templates) { $tts.templates = @{} }
+            switch ($Arg) {
+                'waiting'    { $tts.templates.waiting = $Arg2 }
+                'error'      { $tts.templates.error = $Arg2 }
+                'question'   { $tts.templates.question = $Arg2 }
+                'permission' { $tts.templates.permission = $Arg2 }
+                default { Write-Warning "unknown template event '$Arg'"; return }
+            }
         }
         'url' {
             if (-not $Arg -or -not $Arg2) { Write-Warning 'usage: ts-config tts url kokoro|chatterbox <url>'; return }
@@ -359,13 +440,14 @@ function Invoke-TsConfigTts {
             }
         }
         'events' {
-            if (-not $Arg) { Write-Warning 'usage: ts-config tts events waiting,error'; return }
+            if (-not $Arg) { Write-Warning 'usage: ts-config tts events waiting,error,question,permission'; return }
             $tts.events = @($Arg -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ })
         }
         'test' {
             $test = Join-Path $env:USERPROFILE '.claude\hooks\cc-tts-test.ps1'
             if (Test-Path -LiteralPath $test) {
-                & $test
+                if ($Arg -eq '--source' -and $Arg2) { & $test -Source $Arg2 }
+                else { & $test }
             } else {
                 Write-Warning "cc-tts-test.ps1 not found at $test (run sync-windows / chezmoi apply)"
             }
@@ -377,7 +459,7 @@ function Invoke-TsConfigTts {
             return
         }
     }
-    if ($Sub -in 'on','off','engine','message','voice','voice-chatter','energy','url','events','reset') {
+    if ($Sub -in 'on','off','engine','message','voice','voice-chatter','energy','excitement','url','events','prefix','project','template','reset') {
         & $Apply $tts
     }
 }

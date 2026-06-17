@@ -1,49 +1,36 @@
-# cc-tts-test.ps1 — end-to-end TTS test (synth + play). No WezTerm guards.
-param([string]$Phrase = 'Terminal stack TTS test.')
+# cc-tts-test.ps1 — end-to-end TTS test (synth + play).
+param(
+    [string]$Source = 'test',
+    [string]$Phrase = ''
+)
 
-$configPath = Join-Path $env:USERPROFILE '.claude\tts.json'
+. (Join-Path $PSScriptRoot 'cc-tts-lib.ps1')
+
+$configPath = Join-Path $env:USERPROFILE '.claude\tts\config.json'
 if (-not (Test-Path -LiteralPath $configPath)) {
-    Write-Error "Missing $configPath — run sync-windows or chezmoi apply"
+    $configPath = Join-Path $env:USERPROFILE '.claude\tts.json'
+}
+if (-not (Test-Path -LiteralPath $configPath)) {
+    Write-Error "Missing TTS config — run sync-windows or chezmoi apply"
     exit 1
 }
 
-$cfg = Get-Content -LiteralPath $configPath -Raw | ConvertFrom-Json
+$cfg = Initialize-CcTtsConfig
 $k = $cfg.kokoro
-Write-Host "cc-tts-test: kokoro $($k.url) voice $($k.voice)"
+Write-Host "cc-tts-test: source=$Source kokoro $($k.url) voice $($k.voice)"
 
 try {
     $r = Invoke-WebRequest -Uri ($k.url.TrimEnd('/') + '/health') -TimeoutSec 2 -UseBasicParsing
     Write-Host "cc-tts-test: kokoro up ($($r.StatusCode))"
 } catch {
-    Write-Warning "cc-tts-test: kokoro not reachable"
+    Write-Warning 'cc-tts-test: kokoro not reachable'
 }
 
-$ext = if ($k.format) { $k.format } else { 'mp3' }
-$out = Join-Path $env:TEMP ("cc-tts-test-{0}.{1}" -f [guid]::NewGuid().ToString('N'), $ext)
-
-try {
-    $body = @{
-        model           = 'kokoro'
-        input           = $Phrase
-        voice           = $k.voice
-        response_format = $k.format
-        speed           = [double]$k.speed
-    } | ConvertTo-Json -Compress
-
-    Write-Host 'cc-tts-test: synthesizing…'
-    Invoke-RestMethod -Uri ($k.url.TrimEnd('/') + '/v1/audio/speech') `
-        -Method Post -ContentType 'application/json' -Body $body `
-        -TimeoutSec $k.timeoutSec -OutFile $out
-
-    if (-not (Test-Path -LiteralPath $out) -or (Get-Item $out).Length -eq 0) {
-        throw 'empty output file'
-    }
-    Write-Host "cc-tts-test: wrote $out ($((Get-Item $out).Length) bytes)"
-
-    Write-Host 'cc-tts-test: playing…'
-    $play = Join-Path $env:USERPROFILE '.claude\hooks\cc-tts-play.ps1'
-    & $play -MediaPath $out
-    Write-Host 'cc-tts-test: done.'
-} finally {
-    Remove-Item $out -ErrorAction SilentlyContinue
+if (-not $Phrase) {
+    $Phrase = Build-CcTtsSpeech -Source $Source -State waiting -Project (Split-Path -Leaf $PWD) -OverrideText ''
 }
+if (-not $Phrase) { $Phrase = 'Terminal stack TTS test.' }
+
+Write-Host "cc-tts-test: phrase=$Phrase"
+& (Join-Path $PSScriptRoot 'cc-tts-notify.ps1') -State waiting -Source $Source -OverrideText $Phrase -Foreground
+Write-Host 'cc-tts-test: done.'

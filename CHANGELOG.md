@@ -6,11 +6,13 @@ All notable changes captured here. Format loosely follows [Keep a Changelog](htt
 
 ### Added
 
-- **Claude Code local TTS (Kokoro / Chatterbox / edge-tts).** Optional voice on `Stop` / `StopFailure` through localhost Kokoro (`am_adam`, Hermes-matching defaults) with Chatterbox energy and edge-tts fallback. Off by default; enable at bootstrap or via `ts-config tts` / `cctts`. Async hooks (`cc-speak.sh` / `cc-speak.ps1`); WSL playback routes through Windows (`cmd.exe ffplay`). **Cursor Agent** `stop` hook (`~/.cursor/hooks.json`, `cursor-tts.ps1`) shares the same `tts.json` and `cc-tts-notify` pipeline. Config in chezmoi `[data]`; hooks drop out on `ts-config tts off` + apply. See `doc claude-code`.
+- **TTS config folder + input notifications.** `~/.claude/tts/config.json` (+ untracked `local.json` override) replaces flat `tts.json`. Configurable **Claude/Cursor prefixes**, `{project}` inclusion, **excitement**, and **question/permission** events. Cursor **`postToolUse`** (AskQuestion) and Claude **Notification / PermissionRequest / AskUserQuestion** hooks speak when input is needed. User-level **`/test-voice`** slash commands. See `doc claude-code`.
+
+- **Claude Code local TTS (Kokoro / Chatterbox / edge-tts).** Optional voice on agent lifecycle events through localhost Kokoro (`am_adam`). Off by default; `ts-config tts` / `cctts`. Cursor + Claude hooks share **`cc-tts-notify`**. See `doc claude-code`.
 
 ### Changed
 
-- **TTS app prefix.** Claude Code hooks speak `Claude. …`; Cursor Agent stop hook speaks `Cursor. …` (prefix added in each hook path, same templates).
+- **TTS app prefix.** Claude Code hooks speak `Claude. …`; Cursor Agent stop hook speaks `Cursor. …` (prefix configurable via `ts-config tts prefix`).
 
 - **WezTerm right status follows the active pane**, not the GUI host. Top-right `user@host │ path` now reads OSC 7 cwd (with hostname), shell-integration user vars, SSH/WSL domain, then pane title — so an SSH pane to Nova shows `Marty@Nova` and that pane's path instead of the Windows box. **Path falls back to the pane title** (`host: ~/path` from zsh `_set_title`) when OSC 7 is absent — fixes empty paths on Mac/Linux SSH panes. pwsh OSC 7 uses `$env:COMPUTERNAME`; zsh prefers WezTerm's shell-integration script, else emits OSC 7 on precmd. Both `windows/.wezterm.lua.tmpl` and `dot_wezterm.lua.tmpl`.
 

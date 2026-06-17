@@ -1,9 +1,73 @@
 #!/usr/bin/env bash
-# cc-tts-lib.sh — shared helpers for Claude Code TTS hooks (sourced, not executed).
-CONFIG="${CC_TTS_CONFIG:-${HOME}/.claude/tts.json}"
+# cc-tts-lib.sh — shared helpers for Claude Code / Cursor TTS hooks (sourced, not executed).
+CC_TTS_CONFIG_DIR="${CC_TTS_CONFIG_DIR:-${HOME}/.claude/tts}"
+CC_TTS_CONFIG_BASE="${CC_TTS_CONFIG_DIR}/config.json"
+CC_TTS_CONFIG_LOCAL="${CC_TTS_CONFIG_DIR}/local.json"
+CC_TTS_LEGACY="${HOME}/.claude/tts.json"
+CONFIG="${CC_TTS_CONFIG:-}"
+
+cc_tts_log() {
+    [ -n "${CC_TTS_VERBOSE:-}" ] && echo "cc-tts: $*" >&2
+}
+
+cc_tts_init_config() {
+    [ -n "$CONFIG" ] && [ -f "$CONFIG" ] && return 0
+
+    local merged="${CC_TTS_CONFIG_DIR}/.merged.json"
+    mkdir -p "$CC_TTS_CONFIG_DIR" 2>/dev/null || true
+
+    if [ ! -f "$CC_TTS_CONFIG_BASE" ] && [ -f "$CC_TTS_LEGACY" ]; then
+        cc_tts_log "migrating $CC_TTS_LEGACY -> $CC_TTS_CONFIG_BASE"
+        cp -p "$CC_TTS_LEGACY" "$CC_TTS_CONFIG_BASE" 2>/dev/null || cp "$CC_TTS_LEGACY" "$CC_TTS_CONFIG_BASE"
+    fi
+
+    if [ ! -f "$CC_TTS_CONFIG_BASE" ]; then
+        CONFIG="$CC_TTS_LEGACY"
+        return 0
+    fi
+
+    if command -v python3 >/dev/null 2>&1; then
+        python3 - "$CC_TTS_CONFIG_BASE" "$CC_TTS_CONFIG_LOCAL" "$merged" <<'PY' 2>/dev/null || cp "$CC_TTS_CONFIG_BASE" "$merged"
+import json, sys
+base_p, local_p, out_p = sys.argv[1], sys.argv[2], sys.argv[3]
+def deep_merge(a, b):
+    if not isinstance(a, dict) or not isinstance(b, dict):
+        return b
+    out = dict(a)
+    for k, v in b.items():
+        if k.startswith('_'):
+            continue
+        out[k] = deep_merge(out.get(k), v) if k in out else v
+    return out
+with open(base_p, encoding='utf-8') as f:
+    cfg = json.load(f)
+if __import__('os').path.isfile(local_p):
+    with open(local_p, encoding='utf-8') as f:
+        loc = json.load(f)
+    cfg = deep_merge(cfg, loc)
+# Legacy flat templates -> announce.templates
+if 'templates' in cfg and 'announce' not in cfg:
+    cfg['announce'] = {'messageMode': cfg.pop('messageMode', 'template'),
+                       'includeProject': True,
+                       'templates': cfg.pop('templates')}
+if 'messageMode' in cfg and isinstance(cfg.get('announce'), dict):
+    cfg['announce'].setdefault('messageMode', cfg.pop('messageMode'))
+with open(out_p, 'w', encoding='utf-8') as f:
+    json.dump(cfg, f, indent=2)
+PY
+        CONFIG="$merged"
+    else
+        CONFIG="$CC_TTS_CONFIG_BASE"
+    fi
+}
 
 cc_tts_json() {
+    cc_tts_init_config
     local key="$1" default="${2:-}"
+    if [ ! -f "$CONFIG" ]; then
+        echo "$default"
+        return
+    fi
     if command -v jq >/dev/null 2>&1; then
         jq -r "$key // empty" "$CONFIG" 2>/dev/null || echo "$default"
         return
@@ -13,7 +77,7 @@ cc_tts_json() {
 import json, sys
 path, key, default = sys.argv[1], sys.argv[2], sys.argv[3]
 try:
-    with open(path) as f:
+    with open(path, encoding='utf-8') as f:
         d = json.load(f)
     for part in key.strip('.').split('.'):
         if isinstance(d, dict):
@@ -38,8 +102,145 @@ PY
     esac
 }
 
-cc_tts_log() {
-    [ -n "${CC_TTS_VERBOSE:-}" ] && echo "cc-tts: $*" >&2
+cc_tts_event_enabled() {
+    local ev="$1"
+    if command -v jq >/dev/null 2>&1 && [ -f "$CONFIG" ]; then
+        jq -e --arg e "$ev" '.events | index($e) != null' "$CONFIG" >/dev/null 2>&1
+        return $?
+    fi
+    grep -q "\"$ev\"" "$CONFIG" 2>/dev/null
+}
+
+cc_tts_effective_excitement() {
+    cc_tts_json .excitement ''
+}
+
+cc_tts_effective_kokoro_speed() {
+    local exc base
+    exc="$(cc_tts_effective_excitement)"
+    if [ -n "$exc" ]; then
+        awk -v e="$exc" 'BEGIN { printf "%.2f", 0.8 + e * 0.4 }'
+        return
+    fi
+    cc_tts_json .kokoro.speed 1.0
+}
+
+cc_tts_effective_chatterbox_energy() {
+    local exc
+    exc="$(cc_tts_effective_excitement)"
+    if [ -n "$exc" ]; then
+        echo "$exc"
+        return
+    fi
+    cc_tts_json .chatterbox.energy 0.25
+}
+
+cc_tts_build_speech() {
+    # cc_tts_build_speech <source> <state> <project> [override_text]
+    local source="$1" state="$2" project="$3" override_text="${4:-}"
+    local text tpl max_chars prefix prefix_enabled include_project message_mode hook_json
+
+    cc_tts_init_config
+    max_chars="$(cc_tts_json .maxChars 120)"
+    include_project="$(cc_tts_json .announce.includeProject true)"
+    message_mode="$(cc_tts_json .announce.messageMode template)"
+    [ "$message_mode" = template ] || message_mode="$(cc_tts_json .messageMode template)"
+
+    if [ "$include_project" != true ]; then
+        project=""
+    fi
+
+    prefix_enabled="$(cc_tts_json ".sources.${source}.prefixEnabled" true)"
+    prefix="$(cc_tts_json ".sources.${source}.prefix" "$source")"
+
+    if [ -n "$override_text" ]; then
+        text="$override_text"
+    elif [ "$message_mode" = hook ] && [ -n "${CC_TTS_HOOK_JSON:-}" ]; then
+        hook_json="${CC_TTS_HOOK_JSON}"
+        if command -v jq >/dev/null 2>&1; then
+            text="$(printf '%s' "$hook_json" | jq -r '
+                [.. | objects
+                 | select(.role? == "assistant" or .type? == "assistant")
+                 | (.content // .message // empty)
+                 | if type == "array" then
+                     [ .[] | select(.type? == "text") | .text ] | join(" ")
+                   elif type == "string" then .
+                   else empty end
+                ] | last // empty' 2>/dev/null || true)"
+        fi
+        [ -z "${text:-}" ] && message_mode=template
+    fi
+
+    if [ "$message_mode" = template ] || [ -z "${text:-}" ]; then
+        tpl="$(cc_tts_json ".announce.templates.$state" "")"
+        [ -z "$tpl" ] && tpl="$(cc_tts_json ".templates.$state" "")"
+        text="${tpl//\{project\}/$project}"
+    fi
+
+    text="${text//$'\n'/ }"
+    text="${text//$'\r'/ }"
+    text="${text#"${text%%[![:space:]]*}"}"
+    text="${text%"${text##*[![:space:]]}"}"
+
+    if [ "$source" != test ] && [ "$prefix_enabled" = true ] && [ -n "$prefix" ]; then
+        case "$text" in
+            "$prefix."*|"$prefix "*) ;;
+            *) text="$prefix. $text" ;;
+        esac
+    fi
+
+    [ "${#text}" -gt "$max_chars" ] && text="${text:0:max_chars}"
+    printf '%s' "$text"
+}
+
+cc_tts_parse_input_state() {
+    # Parse hook stdin JSON -> state + optional override text. Sets CC_TTS_PARSED_STATE / CC_TTS_PARSED_OVERRIDE.
+    local input="${1:-}" event="${2:-}"
+    CC_TTS_PARSED_STATE=""
+    CC_TTS_PARSED_OVERRIDE=""
+
+    case "$event" in
+        question)
+            CC_TTS_PARSED_STATE=question
+            if command -v jq >/dev/null 2>&1 && [ -n "$input" ]; then
+                CC_TTS_PARSED_OVERRIDE="$(printf '%s' "$input" | jq -r '
+                    .message // empty,
+                    (.tool_input.questions[0].question // empty),
+                    (.tool_input.questions[0].header // empty),
+                    (.tool_input.prompt // empty)
+                ' 2>/dev/null | head -1)"
+                [ "$CC_TTS_PARSED_OVERRIDE" = null ] && CC_TTS_PARSED_OVERRIDE=""
+            fi
+            ;;
+        permission)
+            CC_TTS_PARSED_STATE=permission
+            if command -v jq >/dev/null 2>&1 && [ -n "$input" ]; then
+                CC_TTS_PARSED_OVERRIDE="$(printf '%s' "$input" | jq -r '
+                    .tool_name // empty,
+                    .message // empty
+                ' 2>/dev/null | head -1)"
+                [ "$CC_TTS_PARSED_OVERRIDE" = null ] && CC_TTS_PARSED_OVERRIDE=""
+            fi
+            ;;
+        notification)
+            CC_TTS_PARSED_STATE=question
+            if command -v jq >/dev/null 2>&1 && [ -n "$input" ]; then
+                CC_TTS_PARSED_OVERRIDE="$(printf '%s' "$input" | jq -r '.message // empty' 2>/dev/null)"
+                [ "$CC_TTS_PARSED_OVERRIDE" = null ] && CC_TTS_PARSED_OVERRIDE=""
+            fi
+            ;;
+        cursor_question)
+            CC_TTS_PARSED_STATE=question
+            if command -v jq >/dev/null 2>&1 && [ -n "$input" ]; then
+                CC_TTS_PARSED_OVERRIDE="$(printf '%s' "$input" | jq -r '
+                    (.tool_input.questions[0].prompt // empty),
+                    (.tool_input.questions[0].question // empty),
+                    (.tool_input.questions[0].header // empty)
+                ' 2>/dev/null | head -1)"
+                [ "$CC_TTS_PARSED_OVERRIDE" = null ] && CC_TTS_PARSED_OVERRIDE=""
+            fi
+            ;;
+    esac
 }
 
 cc_tts_wsl_win_path() {
@@ -69,7 +270,7 @@ cc_tts_synth_kokoro() {
     local url voice speed fmt timeout payload
     url="$(cc_tts_json .kokoro.url 'http://127.0.0.1:8880')"
     voice="$(cc_tts_json .kokoro.voice am_adam)"
-    speed="$(cc_tts_json .kokoro.speed 1.0)"
+    speed="$(cc_tts_effective_kokoro_speed)"
     fmt="$(cc_tts_json .kokoro.format mp3)"
     timeout="$(cc_tts_json .kokoro.timeoutSec 15)"
     if command -v jq >/dev/null 2>&1; then
@@ -94,7 +295,7 @@ cc_tts_synth_chatterbox() {
     local url voice energy cfg temp timeout exag payload
     url="$(cc_tts_json .chatterbox.url 'http://127.0.0.1:8881')"
     voice="$(cc_tts_json .chatterbox.voice adam)"
-    energy="$(cc_tts_json .chatterbox.energy 0.25)"
+    energy="$(cc_tts_effective_chatterbox_energy)"
     cfg="$(cc_tts_json .chatterbox.cfgWeight 0.5)"
     temp="$(cc_tts_json .chatterbox.temperature 0.6)"
     timeout="$(cc_tts_json .chatterbox.timeoutSec 60)"
@@ -156,7 +357,6 @@ cc_tts_win_play_ps1() {
 }
 
 cc_tts_find_ffplay_win() {
-    # Ask Windows directly (works even when WSL interop PATH is stale after winget install).
     if command -v cmd.exe >/dev/null 2>&1; then
         cmd.exe /c 'where ffplay 2>nul' 2>/dev/null | tr -d '\r' | head -1
     fi
@@ -168,8 +368,6 @@ cc_tts_play_ffplay_windows() {
     ffplay_win="$(cc_tts_find_ffplay_win)"
     [ -n "$ffplay_win" ] || return 1
 
-    # Invoke ffplay.exe directly via wslpath — avoids cmd.exe UNC-cwd failure when
-    # the WSL shell cwd is \\wsl.localhost\... (CMD then can't find the media file).
     if command -v wslpath >/dev/null 2>&1; then
         ffplay_bin="$(wslpath "$ffplay_win" 2>/dev/null || true)"
     fi
@@ -180,7 +378,6 @@ cc_tts_play_ffplay_windows() {
         "$ffplay_bin" -nodisp -autoexit -hide_banner -loglevel error "$path" && return 0
     fi
 
-    # Fallback: cmd.exe with a Windows cwd (never a UNC path).
     local winuser tmp_win
     winuser="$(cmd.exe /c 'echo %USERNAME%' 2>/dev/null | tr -d '\r\n')"
     tmp_win="C:\\Users\\${winuser}\\AppData\\Local\\Temp"
@@ -193,7 +390,6 @@ cc_tts_play() {
     [ -f "$path" ] && [ -s "$path" ] || return 1
     player="$(cc_tts_json .player auto)"
 
-    # WSL: route to Windows speakers (same headphones as Hermes).
     if [ "$player" = windows ] || { [ "$player" = auto ] && [ -d /mnt/c/Users ]; }; then
         if cc_tts_play_ffplay_windows "$path"; then
             return 0
@@ -220,7 +416,7 @@ cc_tts_play() {
         afplay "$path" && return 0
     fi
     if command -v ffplay >/dev/null 2>&1; then
-        cc_tts_log "play ffplay $path (Linux audio — not Windows headphones on WSL)"
+        cc_tts_log "play ffplay $path"
         ffplay -nodisp -autoexit -hide_banner -loglevel quiet "$path" && return 0
     fi
     return 1

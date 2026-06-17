@@ -1,8 +1,28 @@
 {
   "enabled": {{ if eq (index . "ccTtsEnabled" | default "false") "true" }}true{{ else }}false{{ end }},
   "engine": {{ index . "ccTtsEngine" | default "kokoro" | quote }},
-  "messageMode": {{ index . "ccTtsMessageMode" | default "template" | quote }},
-  "events": [{{ $ev := index . "ccTtsEvents" | default "waiting,error" }}{{ $parts := splitList "," $ev }}{{ range $i, $e := $parts }}{{ if $i }}, {{ end }}{{ trim $e | quote }}{{ end }}],
+  "events": [{{ $ev := index . "ccTtsEvents" | default "waiting,error,question,permission" }}{{ $parts := splitList "," $ev }}{{ range $i, $e := $parts }}{{ if $i }}, {{ end }}{{ trim $e | quote }}{{ end }}],
+  "sources": {
+    "claude": {
+      "prefixEnabled": {{ if eq (index . "ccTtsPrefixClaudeEnabled" | default "true") "true" }}true{{ else }}false{{ end }},
+      "prefix": {{ index . "ccTtsPrefixClaude" | default "Claude" | quote }}
+    },
+    "cursor": {
+      "prefixEnabled": {{ if eq (index . "ccTtsPrefixCursorEnabled" | default "true") "true" }}true{{ else }}false{{ end }},
+      "prefix": {{ index . "ccTtsPrefixCursor" | default "Cursor" | quote }}
+    }
+  },
+  "announce": {
+    "includeProject": {{ if eq (index . "ccTtsIncludeProject" | default "true") "true" }}true{{ else }}false{{ end }},
+    "messageMode": {{ index . "ccTtsMessageMode" | default "template" | quote }},
+    "templates": {
+      "waiting": {{ index . "ccTtsTemplateWaiting" | default "Done in {project}. I'm waiting for you." | quote }},
+      "error": {{ index . "ccTtsTemplateError" | default "Error in {project}. You may want to look." | quote }},
+      "question": {{ index . "ccTtsTemplateQuestion" | default "I have a question for you." | quote }},
+      "permission": {{ index . "ccTtsTemplatePermission" | default "Permission needed in {project}." | quote }}
+    }
+  },
+  "excitement": {{ index . "ccTtsExcitement" | default "0.25" }},
   "kokoro": {
     "url": {{ index . "ccTtsKokoroUrl" | default "http://127.0.0.1:8880" | quote }},
     "voice": {{ index . "ccTtsKokoroVoice" | default "am_adam" | quote }},
@@ -21,10 +41,6 @@
   "edge": {
     "enabled": {{ if eq (index . "ccTtsEdgeEnabled" | default "true") "true" }}true{{ else }}false{{ end }},
     "voice": {{ index . "ccTtsEdgeVoice" | default "en-US-AndrewMultilingualNeural" | quote }}
-  },
-  "templates": {
-    "waiting": {{ index . "ccTtsTemplateWaiting" | default "Done in {project}. I'm waiting for you." | quote }},
-    "error": {{ index . "ccTtsTemplateError" | default "Error in {project}. You may want to look." | quote }}
   },
   "maxChars": {{ index . "ccTtsMaxChars" | default "120" }},
   "debounceSec": {{ index . "ccTtsDebounceSec" | default "5" }},

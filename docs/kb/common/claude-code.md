@@ -17,62 +17,61 @@ zsh aliases / pwsh functions. Each `cc*` sets the WezTerm tab title while Claude
 
 ## Local TTS (Kokoro / Chatterbox / edge)
 
-Optional voice when **Claude Code** finishes (`Stop`) / errors (`StopFailure`) or **Cursor Agent** stops (`stop` hook). Same `~/.claude/tts.json`, same Kokoro voice. **Off by default.**
+Optional voice when an agent **finishes**, **errors**, **asks a question**, or **needs permission**. Shared config under `~/.claude/tts/`. **Off by default.**
 
 | Command | What it does |
 |---|---|
 | `cctts on` / `off` | Enable/disable TTS (re-applies; adds/removes hooks in Claude + Cursor) |
-| `cctts test` | End-to-end synth + play test |
-| `ts-config tts …` | Full control (engine, voice, templates, URLs) |
+| `cctts test` | Generic end-to-end synth + play test |
+| `ts-config tts test --source claude` | Test with Claude prefix + template |
+| `ts-config tts test --source cursor` | Test with Cursor prefix + template |
+| `ts-config tts …` | Full control (prefix, project, excitement, templates, events) |
+| `/test-voice` | Slash command in Claude Code or Cursor (user home) |
+
+### Config layout
+
+| Path | Managed? | Purpose |
+|---|---|---|
+| `~/.claude/tts/config.json` | yes (chezmoi) | Engine, voices, templates, prefixes, events |
+| `~/.claude/tts/local.json` | **no** | Per-machine overrides (copy from `local.json.example`) |
+| Legacy `~/.claude/tts.json` | migrated once | Auto-copied to `tts/config.json` on first hook run |
+
+`ts-config tts show` prints chezmoi `[data]`; after apply, hooks read **merged** `config.json` + `local.json`.
+
+Key knobs: `sources.claude|cursor.prefix`, `announce.includeProject`, `announce.templates.{waiting,error,question,permission}`, `excitement` (0–1, drives Kokoro speed / Chatterbox energy).
 
 ### Hook wiring
 
-| App | Config | Hook script |
+| App | Event | When it speaks |
 |---|---|---|
-| Claude Code | `~/.claude/settings.json` | `cc-speak.sh` / `cc-speak.ps1` (WezTerm panes only) |
-| Cursor Agent | `~/.cursor/hooks.json` | `cursor-tts.sh` / `cursor-tts.ps1` (no WezTerm guard) |
+| Claude Code | `Stop` / `StopFailure` | Agent finished / failed |
+| Claude Code | `Notification` / `PermissionRequest` / `PreToolUse` (`AskUserQuestion`) | Needs attention / permission / clarifying question |
+| Cursor Agent | `stop` | Agent loop ended |
+| Cursor Agent | `postToolUse` (`AskQuestion`) | Plan-mode / clarifying question UI |
 
-Both call shared **`cc-tts-notify`** → Kokoro → **`cc-tts-play`** (WSL uses `cmd.exe ffplay` for Windows audio). Spoken text is prefixed **`Claude.`** or **`Cursor.`** so you can tell which app finished.
+All paths call **`cc-tts-notify`** → Kokoro → **`cc-tts-play`** (WSL uses Windows `ffplay`). Prefixes **`Claude.`** / **`Cursor.`** are configurable per source.
 
 ### Prerequisites
 
-- **Kokoro** (primary): OpenAI-compatible API on `http://127.0.0.1:8880` — e.g. `remsky/kokoro-fastapi-gpu` in Docker. The install wizard probes `/health` or `/v1/models` and offers to enable TTS when reachable.
-- **Chatterbox** (optional energy): `travisvn/chatterbox-tts-api` on `http://127.0.0.1:8881`. Upload a cloned voice (e.g. `adam`) via the API voice library; energy maps to `exaggeration = 0.25 + energy`.
-- **edge-tts** (fallback): `pip install edge-tts` — used when the primary engine fails and edge fallback is enabled in config.
+- **Kokoro** (primary): `http://127.0.0.1:8880` — e.g. `remsky/kokoro-fastapi-gpu` in Docker.
+- **Chatterbox** (optional): `http://127.0.0.1:8881`.
+- **edge-tts** (fallback): `pip install edge-tts`.
 
-The stack does **not** install Docker or these containers — only wires hooks and config.
-
-### Config files
-
-- `~/.claude/tts.json` — runtime settings (engine, voices, templates, debounce). Rendered from chezmoi `[data]` on apply; Windows mirror written by sync.
-- `ccTtsEnabled` in chezmoi data gates whether `cc-speak` hooks appear in `settings.json`. `ts-config tts off` + apply removes them cleanly.
-
-### Message modes
-
-- **`template`** (default): short phrases like “Done in {project}. I'm waiting for you.”
-- **`hook`**: try to read Claude's last assistant message from hook stdin JSON (truncated to `maxChars`); falls back to templates.
+The stack does **not** install Docker containers — only hooks and config.
 
 ### WSL audio
 
-Synthesis hits `localhost:8880` (Docker Desktop forwards). **Playback routes through Windows** (`pwsh.exe` + `cc-speak-play.ps1` → `ffplay` or WMP COM) so you hear output on the same headphones as Hermes — not WSL `aplay`.
+Playback routes through **Windows** (`ffplay`) so you hear the same headphones as Hermes.
 
 ### Verification
 
-Test scripts are **separate from the Claude hook** (no `WEZTERM_PANE` guard):
+1. `ts-config tts on && chezmoi apply -v`
+2. `ts-config tts test` — generic phrase
+3. `/test-voice` in Claude Code or Cursor
+4. `/test-voice-question` in Cursor — question template
+5. Trigger AskQuestion in Cursor plan mode — hear **Cursor. I have a question for you.**
+6. Claude permission or AskUserQuestion — hear **Claude.** + template
 
-| Command | Script |
-|---|---|
-| `ts-config tts test` | `~/.claude/hooks/cc-tts-test.sh` (WSL) / `cc-tts-test.ps1` (Windows) |
-| Manual synth | `~/.claude/hooks/cc-tts-synth.sh "hello"` → prints output path |
-| Manual play | `~/.claude/hooks/cc-tts-play.sh /path/to/file.mp3` |
+**Cursor:** confirm `~/.cursor/hooks.json` has `stop` and `postToolUse` entries. Restart Cursor after first deploy. Check **Settings → Hooks** if silent.
 
-On **WSL**, `cc-tts-play.sh` uses **`cmd.exe /c ffplay`** with Windows PATH (works right after `winget install Gyan.FFmpeg` without restarting WSL). Install via `winget install Gyan.FFmpeg` or `ts-config apps ffmpeg` on Windows. Optional in the bootstrap app picker as **ffmpeg**.
-
-1. `ts-config tts on && chezmoi apply -v` — confirm `cc-speak` hooks in live `~/.claude/settings.json`.
-2. `ts-config tts test` — hear `am_adam` (runs `cc-tts-test.sh`, not the hook).
-3. Run `cc` in WezTerm; on Stop, hear the template phrase.
-4. `ts-config tts off && chezmoi apply` — TTS hooks gone from Claude settings and Cursor hooks.
-
-**Cursor:** after apply, confirm `~/.cursor/hooks.json` has a `stop` entry. Run a short Agent task; on stop you should hear the template phrase. Check **Settings → Hooks** or the Hooks output channel if it doesn't fire. Restart Cursor after the first deploy.
-
-Skip at bootstrap: `TS_CC_TTS=off` or `skip`. Enable non-interactively: `TS_CC_TTS=on`.
+Skip at bootstrap: `TS_CC_TTS=off`. Enable: `TS_CC_TTS=on`.

@@ -24,7 +24,16 @@
             "command": "{{ .chezmoi.homeDir }}/.claude/hooks/wez-tab-status.sh working"
           }
         ]
-      }
+      }{{ if eq (index . "ccTtsEnabled" | default "false") "true" }},
+      {
+        "matcher": "AskUserQuestion",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "{{ .chezmoi.homeDir }}/.claude/hooks/cc-speak-input.sh question"
+          }
+        ]
+      }{{ end }}
     ],
     "Stop": [
       {
@@ -55,6 +64,28 @@
           }{{ end }}
         ]
       }
-    ]
+    ]{{ if eq (index . "ccTtsEnabled" | default "false") "true" }},
+    "Notification": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "{{ .chezmoi.homeDir }}/.claude/hooks/cc-speak-input.sh notification"
+          }
+        ]
+      }
+    ],
+    "PermissionRequest": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "{{ .chezmoi.homeDir }}/.claude/hooks/cc-speak-input.sh permission"
+          }
+        ]
+      }
+    ]{{ end }}
   }
 }

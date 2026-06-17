@@ -62,15 +62,69 @@ $ccTtsStopFailureHook = if ($ccTtsEnabled) {
 $ccTtsCursorHooks = if ($ccTtsEnabled) {
 @"
 {
+    `"afterFileEdit`": [
+      {
+        `"command`": `"cat > /dev/null`",
+        `"timeout`": 1
+      }
+    ],
     `"stop`": [
       {
         `"command`": `"pwsh -NoLogo -NonInteractive -ExecutionPolicy Bypass -File C:/Users/$WinUser/.cursor/hooks/cursor-tts.ps1`",
+        `"timeout`": 15
+      }
+    ],
+    `"postToolUse`": [
+      {
+        `"matcher`": `"AskQuestion|AskUserQuestion`",
+        `"command`": `"pwsh -NoLogo -NonInteractive -ExecutionPolicy Bypass -File C:/Users/$WinUser/.cursor/hooks/cursor-tts-input.ps1`",
         `"timeout`": 15
       }
     ]
   }
 "@
 } else { '{}' }
+$ccTtsPreToolUseTts = if ($ccTtsEnabled) {
+@"
+,
+      {
+        `"matcher`": `"AskUserQuestion`",
+        `"hooks`": [
+          {
+            `"type`": `"command`",
+            `"command`": `"pwsh -NoLogo -NonInteractive -ExecutionPolicy Bypass -File C:/Users/$WinUser/.claude/hooks/cc-speak-input.ps1 -Event question`"
+          }
+        ]
+      }
+"@
+} else { '' }
+$ccTtsInputHooks = if ($ccTtsEnabled) {
+@"
+,
+    `"Notification`": [
+      {
+        `"matcher`": `"*`",
+        `"hooks`": [
+          {
+            `"type`": `"command`",
+            `"command`": `"pwsh -NoLogo -NonInteractive -ExecutionPolicy Bypass -File C:/Users/$WinUser/.claude/hooks/cc-speak-input.ps1 -Event notification`"
+          }
+        ]
+      }
+    ],
+    `"PermissionRequest`": [
+      {
+        `"matcher`": `"*`",
+        `"hooks`": [
+          {
+            `"type`": `"command`",
+            `"command`": `"pwsh -NoLogo -NonInteractive -ExecutionPolicy Bypass -File C:/Users/$WinUser/.claude/hooks/cc-speak-input.ps1 -Event permission`"
+          }
+        ]
+      }
+    ]
+"@
+} else { '' }
 $tok = @{
     '__WIN_USER__'               = $WinUser
     '__LEADER_KEY__'             = if ($tsCfg.leaderKey)          { $tsCfg.leaderKey }          else { 'phys:Space' }
@@ -81,6 +135,8 @@ $tok = @{
     '__CC_TTS_STOP_HOOK__'       = $ccTtsStopHook
     '__CC_TTS_STOPFAILURE_HOOK__'= $ccTtsStopFailureHook
     '__CC_TTS_CURSOR_HOOKS__'    = $ccTtsCursorHooks
+    '__CC_TTS_PRETOOLUSE_TTS__'  = $ccTtsPreToolUseTts
+    '__CC_TTS_INPUT_HOOKS__'     = $ccTtsInputHooks
 }
 
 $today = Get-Date -Format 'yyyyMMdd'
@@ -161,7 +217,7 @@ Sync-MirrorTree -SrcRoot (Join-Path $SourceDir 'docs\kb') -DstRoot (Join-Path $l
 
 if (Get-Command Export-CcTtsJson -ErrorAction SilentlyContinue) {
     Export-CcTtsJson
-    Write-Host "updated  $(Join-Path $env:USERPROFILE '.claude\tts.json')  (from config ccTts)"
+    Write-Host "updated  $(Join-Path $env:USERPROFILE '.claude\tts\config.json')  (from config ccTts)"
 }
 
 Write-Host "sync-windows: user=$WinUser, $created created, $updated updated, $unchanged unchanged"

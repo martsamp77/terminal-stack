@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # _cc_tts.sh — Claude Code local TTS config (Kokoro / Chatterbox / edge-tts).
 # Sourced by bootstrap/_config.sh, ts-config.sh, and cc-speak hooks.
-# Persists scalars in chezmoi [data]; chezmoi renders ~/.claude/tts.json from
-# dot_claude/tts.json.tmpl. Do not execute directly.
+# Persists scalars in chezmoi [data]; chezmoi renders ~/.claude/tts/config.json from
+# dot_claude/tts/config.json.tmpl. Do not execute directly.
 
 # Default scalar values (Hermes-matching Kokoro am_adam).
 ts_cc_tts_default() {
@@ -10,7 +10,13 @@ ts_cc_tts_default() {
         ccTtsEnabled)              echo false ;;
         ccTtsEngine)               echo kokoro ;;
         ccTtsMessageMode)          echo template ;;
-        ccTtsEvents)               echo waiting,error ;;
+        ccTtsEvents)               echo waiting,error,question,permission ;;
+        ccTtsPrefixClaude)         echo Claude ;;
+        ccTtsPrefixCursor)         echo Cursor ;;
+        ccTtsPrefixClaudeEnabled)  echo true ;;
+        ccTtsPrefixCursorEnabled)  echo true ;;
+        ccTtsIncludeProject)       echo true ;;
+        ccTtsExcitement)           echo 0.25 ;;
         ccTtsKokoroUrl)            echo http://127.0.0.1:8880 ;;
         ccTtsKokoroVoice)          echo am_adam ;;
         ccTtsKokoroSpeed)          echo 1.0 ;;
@@ -26,6 +32,8 @@ ts_cc_tts_default() {
         ccTtsEdgeVoice)            echo en-US-AndrewMultilingualNeural ;;
         ccTtsTemplateWaiting)      echo "Done in {project}. I'm waiting for you." ;;
         ccTtsTemplateError)        echo "Error in {project}. You may want to look." ;;
+        ccTtsTemplateQuestion)     echo "I have a question for you." ;;
+        ccTtsTemplatePermission)   echo "Permission needed in {project}." ;;
         ccTtsMaxChars)             echo 120 ;;
         ccTtsDebounceSec)          echo 5 ;;
         ccTtsPlayer)               echo auto ;;
@@ -36,11 +44,13 @@ ts_cc_tts_default() {
 ts_cc_tts_keys() {
     printf '%s\n' \
         ccTtsEnabled ccTtsEngine ccTtsMessageMode ccTtsEvents \
+        ccTtsPrefixClaude ccTtsPrefixCursor ccTtsPrefixClaudeEnabled ccTtsPrefixCursorEnabled \
+        ccTtsIncludeProject ccTtsExcitement \
         ccTtsKokoroUrl ccTtsKokoroVoice ccTtsKokoroSpeed ccTtsKokoroFormat ccTtsKokoroTimeout \
         ccTtsChatterboxUrl ccTtsChatterboxVoice ccTtsChatterboxEnergy \
         ccTtsChatterboxCfgWeight ccTtsChatterboxTemperature ccTtsChatterboxTimeout \
         ccTtsEdgeEnabled ccTtsEdgeVoice \
-        ccTtsTemplateWaiting ccTtsTemplateError \
+        ccTtsTemplateWaiting ccTtsTemplateError ccTtsTemplateQuestion ccTtsTemplatePermission \
         ccTtsMaxChars ccTtsDebounceSec ccTtsPlayer
 }
 
@@ -116,8 +126,16 @@ ts_cc_tts_probe() {
 }
 
 ts_cc_tts_show() {
+    local merged="${HOME}/.claude/tts/.merged.json"
+    if [ -f "$merged" ] && command -v jq >/dev/null 2>&1; then
+        echo "Claude Code TTS (effective config — config.json + local.json):"
+        jq . "$merged" 2>/dev/null || cat "$merged"
+        echo ""
+        ts_cc_tts_probe
+        return
+    fi
     local key
-    echo "Claude Code TTS:"
+    echo "Claude Code TTS (chezmoi [data]):"
     while IFS= read -r key; do
         printf '  %-28s %s\n' "$key:" "$(ts_cc_tts_get "$key")"
     done <<EOF
@@ -153,6 +171,12 @@ ts_cc_tts_json_for_mirror() {
     "engine": "$(ts_cc_tts_get ccTtsEngine)",
     "messageMode": "$(ts_cc_tts_get ccTtsMessageMode)",
     "events": [$evjson],
+    "prefixClaude": "$(ts_cc_tts_get ccTtsPrefixClaude)",
+    "prefixCursor": "$(ts_cc_tts_get ccTtsPrefixCursor)",
+    "prefixClaudeEnabled": $([ "$(ts_cc_tts_get ccTtsPrefixClaudeEnabled)" = true ] && echo true || echo false),
+    "prefixCursorEnabled": $([ "$(ts_cc_tts_get ccTtsPrefixCursorEnabled)" = true ] && echo true || echo false),
+    "includeProject": $([ "$(ts_cc_tts_get ccTtsIncludeProject)" = true ] && echo true || echo false),
+    "excitement": $(ts_cc_tts_get ccTtsExcitement),
     "kokoro": {
       "url": "$(ts_cc_tts_get ccTtsKokoroUrl)",
       "voice": "$(ts_cc_tts_get ccTtsKokoroVoice)",
@@ -174,7 +198,9 @@ ts_cc_tts_json_for_mirror() {
     },
     "templates": {
       "waiting": "$(ts_cc_tts_get ccTtsTemplateWaiting | sed 's/\\/\\\\/g; s/"/\\"/g')",
-      "error": "$(ts_cc_tts_get ccTtsTemplateError | sed 's/\\/\\\\/g; s/"/\\"/g')"
+      "error": "$(ts_cc_tts_get ccTtsTemplateError | sed 's/\\/\\\\/g; s/"/\\"/g')",
+      "question": "$(ts_cc_tts_get ccTtsTemplateQuestion | sed 's/\\/\\\\/g; s/"/\\"/g')",
+      "permission": "$(ts_cc_tts_get ccTtsTemplatePermission | sed 's/\\/\\\\/g; s/"/\\"/g')"
     },
     "maxChars": $(ts_cc_tts_get ccTtsMaxChars),
     "debounceSec": $(ts_cc_tts_get ccTtsDebounceSec),
@@ -301,14 +327,67 @@ ts_config_tts() {
             finish
             ;;
         events)
-            [ -n "$arg" ] || { echo "usage: ts-config tts events waiting,error" >&2; return 2; }
+            [ -n "$arg" ] || { echo "usage: ts-config tts events waiting,error,question,permission" >&2; return 2; }
             ts_cc_tts_set ccTtsEvents "$arg"
+            ts_cc_tts_finish
+            finish
+            ;;
+        prefix)
+            [ -n "$arg" ] && [ -n "$arg2" ] || { echo "usage: ts-config tts prefix claude|cursor on|off|<label>" >&2; return 2; }
+            case "$arg" in
+                claude)
+                    case "$arg2" in
+                        on)  ts_cc_tts_set ccTtsPrefixClaudeEnabled true ;;
+                        off) ts_cc_tts_set ccTtsPrefixClaudeEnabled false ;;
+                        *)   ts_cc_tts_set ccTtsPrefixClaude "$arg2"; ts_cc_tts_set ccTtsPrefixClaudeEnabled true ;;
+                    esac ;;
+                cursor)
+                    case "$arg2" in
+                        on)  ts_cc_tts_set ccTtsPrefixCursorEnabled true ;;
+                        off) ts_cc_tts_set ccTtsPrefixCursorEnabled false ;;
+                        *)   ts_cc_tts_set ccTtsPrefixCursor "$arg2"; ts_cc_tts_set ccTtsPrefixCursorEnabled true ;;
+                    esac ;;
+                *) echo "ts-config tts prefix: expected claude or cursor" >&2; return 2 ;;
+            esac
+            ts_cc_tts_finish
+            finish
+            ;;
+        project)
+            [ -n "$arg" ] || { echo "usage: ts-config tts project on|off" >&2; return 2; }
+            case "$arg" in
+                on)  ts_cc_tts_set ccTtsIncludeProject true ;;
+                off) ts_cc_tts_set ccTtsIncludeProject false ;;
+                *) echo "ts-config tts project: expected on or off" >&2; return 2 ;;
+            esac
+            ts_cc_tts_finish
+            finish
+            ;;
+        excitement)
+            [ -n "$arg" ] || { echo "usage: ts-config tts excitement <0-1>" >&2; return 2; }
+            ts_cc_tts_set ccTtsExcitement "$arg"
+            ts_cc_tts_set ccTtsChatterboxEnergy "$arg"
+            ts_cc_tts_finish
+            finish
+            ;;
+        template)
+            [ -n "$arg" ] && [ -n "$arg2" ] || { echo "usage: ts-config tts template waiting|error|question|permission \"…\"" >&2; return 2; }
+            case "$arg" in
+                waiting)    ts_cc_tts_set ccTtsTemplateWaiting "$arg2" ;;
+                error)      ts_cc_tts_set ccTtsTemplateError "$arg2" ;;
+                question)   ts_cc_tts_set ccTtsTemplateQuestion "$arg2" ;;
+                permission) ts_cc_tts_set ccTtsTemplatePermission "$arg2" ;;
+                *) echo "ts-config tts template: unknown event '$arg'" >&2; return 2 ;;
+            esac
             ts_cc_tts_finish
             finish
             ;;
         test)
             if [ -f "${HOME}/.claude/hooks/cc-tts-test.sh" ]; then
-                CC_TTS_VERBOSE=1 "${HOME}/.claude/hooks/cc-tts-test.sh"
+                if [ "$arg" = --source ] && [ -n "$arg2" ]; then
+                    CC_TTS_VERBOSE=1 "${HOME}/.claude/hooks/cc-tts-test.sh" --source "$arg2"
+                else
+                    CC_TTS_VERBOSE=1 "${HOME}/.claude/hooks/cc-tts-test.sh"
+                fi
             else
                 echo "ts-config tts test: cc-tts-test.sh not found (run chezmoi apply)" >&2
                 return 1
@@ -322,12 +401,16 @@ ts_config_tts() {
         -h|--help|help)
             cat <<'EOF'
 ts-config tts — Claude Code local TTS (Kokoro / Chatterbox / edge-tts)
-  show | on | off | test | reset
+  show | on | off | test [--source claude|cursor|test] | reset
   engine kokoro|chatterbox|auto
   message template|hook
   voice <kokoro-voice> | voice-chatter <name>
-  energy <0-1> | url kokoro|chatterbox <url>
-  events waiting,error
+  energy <0-1> | excitement <0-1>
+  url kokoro|chatterbox <url>
+  events waiting,error,question,permission
+  prefix claude|cursor on|off|<label>
+  project on|off
+  template waiting|error|question|permission "…"
 EOF
             ;;
         *)

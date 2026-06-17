@@ -171,7 +171,9 @@ The `cc • <leaf>` text and the per-prompt clearing behavior are covered separa
 
 ## Why Claude Code TTS is opt-in chezmoi data (not a sentinel file)
 
-Like tab tinting, TTS is stack infrastructure — but unlike `ccnotify` (a sentinel file users toggle without re-apply), **enabling TTS adds hooks to the managed whole-file `settings.json`**. Conditional chezmoi template blocks keyed on `ccTtsEnabled` mean `ts-config tts off` + apply truly removes the hooks; no orphan processes or stale sentinel files. Runtime knobs (engine, voice, templates) live in rendered `~/.claude/tts.json` so hooks stay dumb shell/pwsh scripts. **Async-only:** the hook spawns a background worker and returns immediately — synthesis can take 15–60s and must never block Claude. **WSL playback goes through Windows interop** (`cc-speak-play.ps1`) because Docker Desktop forwards `:8880` to WSL but audio devices do not; same headphones as the Hermes Discord bridge.
+Like tab tinting, TTS is stack infrastructure — but unlike `ccnotify` (a sentinel file users toggle without re-apply), **enabling TTS adds hooks to the managed whole-file `settings.json`**. Conditional chezmoi template blocks keyed on `ccTtsEnabled` mean `ts-config tts off` + apply truly removes the hooks; no orphan processes or stale sentinel files. Runtime knobs live in **`~/.claude/tts/config.json`** (chezmoi-rendered) with optional untracked **`local.json`** merged at hook time — not in the template files themselves. **Async-only:** hooks spawn background workers and return immediately. **WSL playback goes through Windows interop** because Docker forwards `:8880` but audio devices do not.
+
+**Hooks vs MCP:** lifecycle alerts (stop, AskQuestion, permission) must stay **hooks** — IDEs fire those events; an MCP server would not hear them unless the model voluntarily called it. A future **terminal-stack-tts MCP** can share the same `cc-tts-lib` for on-demand `speak` from Claude Desktop / Co-work; it complements hooks rather than replacing them.
 
 ## Why `settings.json` ships only shared infra — no model, prefs, permissions, or plugins
 
