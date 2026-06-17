@@ -50,8 +50,18 @@ Synthesis hits `localhost:8880` (Docker Desktop forwards). **Playback routes thr
 
 ### Verification
 
+Test scripts are **separate from the Claude hook** (no `WEZTERM_PANE` guard):
+
+| Command | Script |
+|---|---|
+| `ts-config tts test` | `~/.claude/hooks/cc-tts-test.sh` (WSL) / `cc-tts-test.ps1` (Windows) |
+| Manual synth | `~/.claude/hooks/cc-tts-synth.sh "hello"` → prints output path |
+| Manual play | `~/.claude/hooks/cc-tts-play.sh /path/to/file.mp3` |
+
+On **WSL**, `cc-tts-play.sh` prefers **Windows audio**: `ffplay.exe` (install `Gyan.FFmpeg` via winget on Windows), then `pwsh cc-tts-play.ps1`. WSL `ffplay` alone uses Linux audio and usually won't reach your headphones.
+
 1. `ts-config tts on && chezmoi apply -v` — confirm `cc-speak` hooks in live `~/.claude/settings.json`.
-2. `ts-config tts test` — hear `am_adam`.
+2. `ts-config tts test` — hear `am_adam` (runs `cc-tts-test.sh`, not the hook).
 3. Run `cc` in WezTerm; on Stop, hear the template phrase.
 4. `ts-config tts off && chezmoi apply` — TTS hooks gone from settings.
 

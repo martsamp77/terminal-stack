@@ -361,12 +361,12 @@ function Invoke-TsConfigTts {
             $tts.events = @($Arg -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ })
         }
         'test' {
-            $hook = Join-Path $env:USERPROFILE '.claude\hooks\cc-speak.ps1'
-            if (-not (Test-Path $hook)) {
-                Write-Warning "hook not found at $hook (run sync-windows / chezmoi apply)"
-                return
+            $test = Join-Path $env:USERPROFILE '.claude\hooks\cc-tts-test.ps1'
+            if (Test-Path -LiteralPath $test) {
+                & $test
+            } else {
+                Write-Warning "cc-tts-test.ps1 not found at $test (run sync-windows / chezmoi apply)"
             }
-            & $hook -State waiting -OverrideText 'Terminal stack TTS test.' -Foreground
             return
         }
         'reset' { $tts = Get-CcTtsDefaults }

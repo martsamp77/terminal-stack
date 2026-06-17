@@ -307,12 +307,15 @@ ts_config_tts() {
             finish
             ;;
         test)
-            local hook="${HOME}/.claude/hooks/cc-speak.sh"
-            if [ ! -x "$hook" ]; then
-                hook="${HOME}/.claude/hooks/cc-speak.sh"
-                [ -f "$hook" ] || { echo "ts-config tts test: hook not found at $hook (run chezmoi apply)" >&2; return 1; }
+            if [ -f "${HOME}/.claude/hooks/cc-tts-test.sh" ]; then
+                CC_TTS_VERBOSE=1 "${HOME}/.claude/hooks/cc-tts-test.sh"
+            elif [ -f "${HOME}/.claude/hooks/cc-speak.sh" ]; then
+                echo "cc-tts-test.sh not deployed — run chezmoi apply" >&2
+                return 1
+            else
+                echo "ts-config tts test: hooks not found (run chezmoi apply)" >&2
+                return 1
             fi
-            CC_TTS_FOREGROUND=1 "$hook" waiting "Terminal stack TTS test."
             ;;
         reset)
             ts_cc_tts_reset_defaults

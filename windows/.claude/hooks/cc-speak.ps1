@@ -143,7 +143,10 @@ function Invoke-SynthChain([string]$Text, [string]$OutPath) {
 }
 
 function Invoke-PlayMedia([string]$Path) {
-    $playScript = Join-Path $env:USERPROFILE '.claude\hooks\cc-speak-play.ps1'
+    $playScript = Join-Path $env:USERPROFILE '.claude\hooks\cc-tts-play.ps1'
+    if (-not (Test-Path -LiteralPath $playScript)) {
+        $playScript = Join-Path $env:USERPROFILE '.claude\hooks\cc-speak-play.ps1'
+    }
     if (Test-Path -LiteralPath $playScript) {
         & $playScript -MediaPath $Path
         return

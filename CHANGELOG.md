@@ -6,7 +6,7 @@ All notable changes captured here. Format loosely follows [Keep a Changelog](htt
 
 ### Added
 
-- **Claude Code local TTS (Kokoro / Chatterbox / edge-tts).** Optional voice on `Stop` / `StopFailure` through localhost Kokoro (`am_adam`, Hermes-matching defaults) with Chatterbox energy and edge-tts fallback. Off by default; enable at bootstrap or via `ts-config tts` / `cctts`. Async hooks (`cc-speak.sh` / `cc-speak.ps1`); WSL playback routes through Windows. Config in chezmoi `[data]` → `~/.claude/tts.json`; hooks conditionally rendered in `settings.json` so `ts-config tts off` + apply removes them cleanly. See `doc claude-code`.
+- **Claude Code local TTS (Kokoro / Chatterbox / edge-tts).** Optional voice on `Stop` / `StopFailure` through localhost Kokoro (`am_adam`, Hermes-matching defaults) with Chatterbox energy and edge-tts fallback. Off by default; enable at bootstrap or via `ts-config tts` / `cctts`. Async hooks (`cc-speak.sh` / `cc-speak.ps1`); WSL playback routes through Windows. Config in chezmoi `[data]` → `~/.claude/tts.json`; hooks conditionally rendered in `settings.json` so `ts-config tts off` + apply removes them cleanly. **`cc-tts-test.sh` / `cc-tts-test.ps1`** exercise synth + play outside the hook; **`cc-tts-play.sh`** / **`cc-tts-play.ps1`** are standalone players. See `doc claude-code`.
 
 ### Changed
 
