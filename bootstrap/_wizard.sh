@@ -8,7 +8,7 @@
 # The bootstrap installs the selected apps, writes chezmoi.toml, then persists the
 # choices with ts_save_config (from _config.sh). Env vars skip each prompt:
 #   TS_LEADER=ctrl-a   TS_THEME=dark|light|follow   TS_TMUX=ctrl-b
-#   TS_APPS=recommended|all|none|id,id,...
+#   TS_APPS=recommended|all|none|id,id,...   (none or menu option 3 = skip all optional apps)
 #
 # This file is sourced, not executed. Do not `exit`; return non-zero instead.
 
@@ -80,12 +80,18 @@ ts_pick_apps() {
 
 ts_prompt_apps() {
     {
-        printf '\nApps to install (required tools — WezTerm, font, Starship, chezmoi — always installed):\n'
+        printf '\nOptional CLI tools (WezTerm, font, Starship, chezmoi, zsh — always installed):\n'
+        ts_apps_install_note
         printf '  1) Install recommended set:\n     %s\n' "$TS_APPS_RECOMMENDED"
         printf '  2) Customize (choose each)\n'
+        printf '  3) Skip all optional apps\n'
     } > /dev/tty 2>/dev/null
     local ans; ans="$(ts_tty_prompt 'Choose [1]: ')"
-    if [ "$ans" = "2" ]; then ts_pick_apps; else echo "$TS_APPS_RECOMMENDED"; fi
+    case "$ans" in
+        2) ts_pick_apps ;;
+        3) echo "" ;;
+        *) echo "$TS_APPS_RECOMMENDED" ;;
+    esac
 }
 
 # Gather choices into TS_WIZ_* (no chezmoi writes here).

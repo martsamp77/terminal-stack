@@ -113,6 +113,8 @@ if (Get-Command zoxide -ErrorAction SilentlyContinue) {
 }
 
 if (Get-Command eza -ErrorAction SilentlyContinue) {
+    # Bold blue directories everywhere (matches WezTerm ANSI blue in both themes).
+    $env:EZA_COLORS = 'di=1;34:da=1;34:ln=1;36'
     # Built-in `ls` is an alias to Get-ChildItem; remove before redefining as a function.
     Remove-Item Alias:ls -Force -ErrorAction SilentlyContinue
     function ls { eza --icons=always --git --group-directories-first @args }

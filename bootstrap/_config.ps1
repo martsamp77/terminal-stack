@@ -171,24 +171,33 @@ function Read-TsApps {
         }
     }
     Write-Host ''
-    Write-Host 'Apps to install (required tools — WezTerm, font, Starship, chezmoi — always installed):'
+    Write-Host 'Optional CLI tools (WezTerm, font, Starship, chezmoi — always installed):'
+    Write-Host '  Note: winget may prompt for administrator elevation.'
     Write-Host ('  1) Install recommended set: ' + ($script:TsAppsRecommended -join ', '))
     Write-Host '  2) Customize (choose each)'
-    if ((Read-Host 'Choose [1]') -eq '2') {
-        $sel = @()
-        foreach ($id in $script:TsAppsAll) {
-            $def = if ($script:TsAppsRecommended -contains $id) { 'Y' } else { 'n' }
-            $a = Read-Host ('  install {0} — {1}? [{2}]' -f $id, (Get-TsAppDesc $id), $def)
-            if (-not $a) { $a = $def }
-            if ($a -match '^(y|yes)$') { $sel += $id }
+    Write-Host '  3) Skip all optional apps'
+    switch (Read-Host 'Choose [1]') {
+        '2' {
+            $sel = @()
+            foreach ($id in $script:TsAppsAll) {
+                $def = if ($script:TsAppsRecommended -contains $id) { 'Y' } else { 'n' }
+                $a = Read-Host ('  install {0} — {1}? [{2}]' -f $id, (Get-TsAppDesc $id), $def)
+                if (-not $a) { $a = $def }
+                if ($a -match '^(y|yes)$') { $sel += $id }
+            }
+            return $sel
         }
-        return $sel
+        '3' { return @() }
+        default { return $script:TsAppsRecommended }
     }
-    return $script:TsAppsRecommended
 }
 
 # Install the selected toggleable apps via winget (catalog id -> winget id).
 function Install-TsApps([string[]]$Apps) {
+    if (-not $Apps -or $Apps.Count -eq 0) {
+        Write-Host '==> No optional apps selected; skipping app install'
+        return
+    }
     if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
         Write-Warning 'winget not available; recorded selection only.'
         return

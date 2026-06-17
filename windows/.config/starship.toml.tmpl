@@ -19,29 +19,29 @@ add_newline      = true
 command_timeout  = 1000
 
 format = """
-[╭─ ](bold green)\
+[╭─ ](bold black)\
 $os\
 $directory\
 $git_branch\
 $git_status\
 $fill\
 $username\
-[@](bold green)\
+[@](bold black)\
 $hostname\
 $time\
-[ ─╮](bold green)
-[╰─](bold green)$character"""
+[ ─╮](bold black)
+[╰─](bold blue)$character"""
 
 # ── Prompt arrow (line 2) ─────────────────────────────────────────────────────
 [character]
-success_symbol = "[❯](bold green)"
+success_symbol = "[❯](bold blue)"
 error_symbol   = "[❯](bold red)"
-vimcmd_symbol  = "[❮](bold green)"
+vimcmd_symbol  = "[❮](bold blue)"
 
 # ── OS icon (distro/platform logo, Nerd Font) ─────────────────────────────────
 [os]
 disabled = false
-format   = "[$symbol ](bold cyan)"
+format   = "[$symbol ](bold blue)"
 
 [os.symbols]
 Alpine           = ""
@@ -66,7 +66,7 @@ Windows          = ""
 # ── Current directory (folder glyph + path) ───────────────────────────────────
 [directory]
 format            = "[   $path]($style)"
-style             = "bold cyan"
+style             = "bold blue"
 truncation_length = 4
 truncate_to_repo  = false
 read_only         = "  "
@@ -101,20 +101,20 @@ style  = "bold black"
 [username]
 show_always = true
 format      = "[$user]($style)"
-style_user  = "bold green"
+style_user  = "bold black"
 style_root  = "bold red"
 
 [hostname]
 ssh_only = false
 format   = "[$hostname]($style)"
-style    = "bold green"
+style    = "bold blue"
 
 # ── Clock ─────────────────────────────────────────────────────────────────────
 [time]
 disabled    = false
 format      = " [ $time]($style)"
 time_format = "%r"
-style       = "bold cyan"
+style       = "bold black"
 
 # ── Misc ──────────────────────────────────────────────────────────────────────
 [cmd_duration]
@@ -133,15 +133,17 @@ disabled = true
 # (top of file) re-themes the whole prompt. dark = Catppuccin Mocha;
 # light = VS Code Light Modern (terminal + light_plus syntax tokens).
 [palettes.dark]
+blue   = "#89b4fa"
 green  = "#a6e3a1"
-cyan   = "#89dceb"
+cyan   = "#89b4fa"
 yellow = "#f9e2af"
 red    = "#f38ba8"
 black  = "#585b70"
 
 [palettes.light]
+blue   = "#005fb8"
 green  = "#098658"
-cyan   = "#0451A5"
+cyan   = "#005fb8"
 yellow = "#949800"
 red    = "#CD3131"
-black  = "#D3D3D3"
+black  = "#616161"

@@ -36,11 +36,19 @@ common_apt_prereqs() {
         >/dev/null
 }
 
-# Install the user-selected toggleable apps (catalog ids; default: recommended).
+# Install the user-selected toggleable apps (catalog ids). No-op when the list is
+# empty — the wizard's "customize / decline all" path must not fall back to recommended.
 # apt where it has them; the bespoke installers (glow/neovim/eza/delta/zed/…)
 # otherwise. GPU/docker-gated ids no-op when the host lacks the hardware/tool.
 common_install_selected_apps() {
-    local apps="$*"; [ -n "$apps" ] || apps="$TS_APPS_RECOMMENDED"
+    local apps="$*"
+    if [ -z "$apps" ]; then
+        echo "$INFO No optional apps selected; skipping app install"
+        return 0
+    fi
+    if command -v apt-get >/dev/null 2>&1; then
+        echo "$INFO Optional apps install via sudo apt — you may be prompted for your password"
+    fi
     echo "$INFO Installing selected apps: $apps"
     local apt_pkgs="" id
     for id in $apps; do

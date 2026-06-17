@@ -430,6 +430,8 @@ command -v zoxide >/dev/null && eval "$(zoxide init zsh)"
 # `unknown option: --zsh` on stderr. Redirect inside the process substitution
 # so the source just no-ops on older versions.
 command -v fzf    >/dev/null && source <(fzf --zsh 2>/dev/null)
+# Bold blue directories in eza listings (consistent across WezTerm panes/domains).
+export EZA_COLORS='di=1;34:da=1;34:ln=1;36'
 command -v eza    >/dev/null && alias ls='eza --icons=always --git --group-directories-first'
 command -v bat    >/dev/null && alias ccat='bat --paging=never'   # ccat, not cat — don't shadow real cat
 

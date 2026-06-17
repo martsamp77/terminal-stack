@@ -26,12 +26,45 @@ TS_APPS_OPTIONAL="zed tldr nvtop lazydocker"
 TS_APPS_ALL="$TS_APPS_RECOMMENDED $TS_APPS_OPTIONAL"
 
 # Human-readable one-liners for the picker.
+ts_app_desc() {
+    case "$1" in
+        tmux)       echo "terminal multiplexer (ssht, persistent sessions)";;
+        eza)        echo "modern ls (icons, git status)";;
+        fzf)        echo "fuzzy finder (Ctrl+R, Ctrl+T)";;
+        bat)        echo "cat with syntax highlighting";;
+        delta)      echo "git diff pager";;
+        ripgrep)    echo "fast recursive grep (rg)";;
+        zoxide)     echo "smarter cd (z)";;
+        glow)       echo "terminal markdown renderer";;
+        micro)      echo "nano-like terminal editor";;
+        neovim)     echo "neovim editor (nvim)";;
+        zed)        echo "Zed GUI editor";;
+        tldr)       echo "concise command examples";;
+        nvtop)      echo "GPU process monitor (NVIDIA hosts)";;
+        lazydocker) echo "docker TUI (docker hosts)";;
+        *)          echo "";;
+    esac
+}
+
+# Shown in the apps wizard when optional installs may need elevation.
+ts_apps_install_note() {
+    if command -v apt-get >/dev/null 2>&1; then
+        printf '  Optional apps install via sudo apt (and may add PPAs). Your user must be able to run sudo.\n\n'
+    elif [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
+        printf '  Optional apps install via Homebrew (user-space; no sudo for formulae).\n\n'
+    fi
+}
+
 # Install the selected toggleable apps via Homebrew (macOS). Idempotent: brew
 # skips already-installed formulae. Debian/WSL uses common_install_selected_apps
 # in _common-debian.sh instead (it needs the bespoke glow/neovim/… installers).
 ts_brew_install_apps() {
     command -v brew >/dev/null 2>&1 || { echo "ts: brew not found; cannot install apps"; return 1; }
-    local apps="$*"; [ -n "$apps" ] || apps="$TS_APPS_RECOMMENDED"
+    local apps="$*"
+    if [ -z "$apps" ]; then
+        echo "==> No optional apps selected; skipping app install"
+        return 0
+    fi
     echo "==> Installing selected apps: $apps"
     local formulae="" id
     for id in $apps; do
@@ -55,26 +88,6 @@ ts_brew_install_apps() {
     [ -n "$formulae" ] && brew install $formulae
     case " $apps " in *" zed "*)
         brew list --cask zed >/dev/null 2>&1 || brew install --cask zed ;;
-    esac
-}
-
-ts_app_desc() {
-    case "$1" in
-        tmux)       echo "terminal multiplexer (ssht, persistent sessions)";;
-        eza)        echo "modern ls (icons, git status)";;
-        fzf)        echo "fuzzy finder (Ctrl+R, Ctrl+T)";;
-        bat)        echo "cat with syntax highlighting";;
-        delta)      echo "git diff pager";;
-        ripgrep)    echo "fast recursive grep (rg)";;
-        zoxide)     echo "smarter cd (z)";;
-        glow)       echo "terminal markdown renderer";;
-        micro)      echo "nano-like terminal editor";;
-        neovim)     echo "neovim editor (nvim)";;
-        zed)        echo "Zed GUI editor";;
-        tldr)       echo "concise command examples";;
-        nvtop)      echo "GPU process monitor (NVIDIA hosts)";;
-        lazydocker) echo "docker TUI (docker hosts)";;
-        *)          echo "";;
     esac
 }
 
@@ -221,7 +234,7 @@ ts_save_config() {
     ts_data_set themeMode "$theme"
     ts_data_set tmuxPrefix "$tprefix"
     ts_data_set resolvedTheme "$(resolve_os_theme "$theme")"
-    if [ "$#" -gt 0 ]; then ts_data_set_apps "$@"; fi
+    ts_data_set_apps "$@"
     local cz; if cz="$(ts_chezmoi_bin)"; then "$cz" init >/dev/null 2>&1 || true; fi
     ts_mirror_windows_config
 }

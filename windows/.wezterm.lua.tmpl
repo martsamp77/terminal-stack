@@ -44,48 +44,55 @@ local PALETTES = {
     base = '#1e1e2e', mantle = '#181825', crust = '#11111b', surface0 = '#313244',
     text = '#cdd6f4', subtext0 = '#a6adc8', overlay0 = '#6c7086', overlay1 = '#585b70',
     lavender = '#b4befe', peach = '#fab387', green = '#a6e3a1', maroon = '#eba0ac',
-    accent = '#89b4fa', teal = '#94e2d5', split = '#b4befe',
+    accent = '#89b4fa', teal = '#94e2d5', split = '#45475a',
     cc_working = '#4a3020', cc_done = '#1e3828', cc_error = '#3a1828',
     pane_active = '#11111b', pane_inactive = '#1e1e2e', term_bg = '#1e1e2e',
     tab_active = '#313244',
     inactive_hsb = { brightness = 0.85, saturation = 0.72, hue = 1.0 },
+    tab_bar = {
+      background = '#11111b',
+      active_tab         = { bg_color = '#313244', fg_color = '#cdd6f4', intensity = 'Bold' },
+      inactive_tab       = { bg_color = '#181825', fg_color = '#a6adc8' },
+      inactive_tab_hover = { bg_color = '#313244', fg_color = '#cdd6f4', italic = true },
+      new_tab            = { bg_color = '#181825', fg_color = '#6c7086' },
+      new_tab_hover      = { bg_color = '#313244', fg_color = '#cdd6f4' },
+    },
   },
   light = {  -- VS Code Light Modern — microsoft/vscode light_modern.json + terminal ANSI
     scheme_name = 'VS Code Light Modern',
-    base = '#ffffff', mantle = '#f8f8f8', crust = '#f8f8f8', surface0 = '#e8e8e8',
-    text = '#3b3b3b', subtext0 = '#868686', overlay0 = '#6e7681', overlay1 = '#616161',
+    base = '#ffffff', mantle = '#f3f3f3', crust = '#ececec', surface0 = '#e8e8e8',
+    text = '#1e1e1e', subtext0 = '#616161', overlay0 = '#6e7681', overlay1 = '#616161',
     lavender = '#005fb8', peach = '#895503', green = '#098658', maroon = '#cd3131',
     accent = '#005fb8', teal = '#005fb8', split = '#e5e5e5',
     cc_working = '#fff4e5', cc_done = '#e8f5e9', cc_error = '#fde7e9',
-    pane_active = '#ffffff', pane_inactive = '#f8f8f8', term_bg = '#ffffff',
+    pane_active = '#ffffff', pane_inactive = '#f3f3f3', term_bg = '#ffffff',
     tab_active = '#ffffff',
-    status_bar_bg = '#007acc', status_bar_fg = '#ffffff', status_bar_dim = '#cce4f7',
     inactive_hsb = { brightness = 1.0, saturation = 1.0, hue = 1.0 },
+    tab_bar = {
+      background = '#ececec',
+      active_tab         = { bg_color = '#ffffff', fg_color = '#1e1e1e', intensity = 'Bold' },
+      inactive_tab       = { bg_color = '#ececec', fg_color = '#616161' },
+      inactive_tab_hover = { bg_color = '#ffffff', fg_color = '#1e1e1e', italic = true },
+      new_tab            = { bg_color = '#ececec', fg_color = '#616161' },
+      new_tab_hover      = { bg_color = '#ffffff', fg_color = '#1e1e1e' },
+    },
     scheme_def = {
-      foreground = '#3B3B3B',
+      foreground = '#1E1E1E',
       background = '#FFFFFF',
       cursor_bg = '#005FB8',
       cursor_fg = '#FFFFFF',
       cursor_border = '#005FB8',
       selection_bg = '#ADD6FF',
-      selection_fg = '#3B3B3B',
+      selection_fg = '#1E1E1E',
       split = '#E5E5E5',
       compose_cursor = '#895503',
       ansi = {
         '#000000', '#CD3131', '#00BC00', '#949800',
-        '#0451A5', '#BC05BC', '#0598BC', '#555555',
+        '#005FB8', '#BC05BC', '#0598BC', '#555555',
       },
       brights = {
         '#666666', '#CD3131', '#14CE14', '#B5BA00',
-        '#0451A5', '#BC05BC', '#0598BC', '#A5A5A5',
-      },
-      tab_bar = {
-        background = '#F8F8F8',
-        active_tab         = { bg_color = '#FFFFFF', fg_color = '#3B3B3B', intensity = 'Bold' },
-        inactive_tab       = { bg_color = '#F8F8F8', fg_color = '#868686' },
-        inactive_tab_hover = { bg_color = '#FFFFFF', fg_color = '#3B3B3B', italic = true },
-        new_tab            = { bg_color = '#F8F8F8', fg_color = '#868686' },
-        new_tab_hover      = { bg_color = '#FFFFFF', fg_color = '#3B3B3B' },
+        '#005FB8', '#BC05BC', '#0598BC', '#A5A5A5',
       },
     },
   },
@@ -136,22 +143,15 @@ config.status_update_interval = 100  -- ms; keep the LEADER indicator snappy (up
 -- #F8F8F8 inactive (editor.background vs sideBar.background). No HSB on light.
 -- Claude cc_state tints (pane + tab) are applied separately and survive both states.
 config.inactive_pane_hsb = P.inactive_hsb
--- split must live in config.colors (overrides color_scheme) or borders stay accent-blue.
+-- split/tab_bar must live in config.colors (overrides color_scheme).
 config.colors = {
   split = P.split,
   compose_cursor = P.peach,
+  tab_bar = P.tab_bar,
 }
 if not P.scheme_def then
   config.colors.foreground = P.text
   config.colors.background = P.term_bg
-  config.colors.tab_bar = {
-    background = P.crust,
-    active_tab         = { bg_color = P.tab_active, fg_color = P.text, intensity = 'Bold' },
-    inactive_tab       = { bg_color = P.surface0, fg_color = P.subtext0 },
-    inactive_tab_hover = { bg_color = P.mantle, fg_color = P.text, italic = true },
-    new_tab            = { bg_color = P.surface0, fg_color = P.overlay0 },
-    new_tab_hover      = { bg_color = P.base, fg_color = P.text },
-  }
 end
 
 -- Leader key: injected from the saved config (default Ctrl+Space).
@@ -309,7 +309,7 @@ local ICON_CLAUDE   = wezterm.nerdfonts.md_robot or '*'
 local ICON_FALLBACK = wezterm.nerdfonts.md_console or '>'
 local ICON_ZOOM     = wezterm.nerdfonts.md_fullscreen or 'Z'
 local TAB = {  -- derived from the active palette
-  text = P.text, dim = P.overlay0,
+  text = P.text, inactive = P.subtext0, dim = P.overlay1,
   working = P.peach, done = P.green, error = P.maroon,
 }
 
@@ -368,14 +368,14 @@ wezterm.on('format-tab-title', function(tab, tabs, panes, cfg, hover, max_width)
   if agg == 'error' then fg = TAB.error
   elseif agg == 'done' then fg = TAB.done
   elseif agg == 'working' then fg = TAB.working
-  elseif not tab.is_active then fg = TAB.dim end
+  elseif not tab.is_active then fg = TAB.inactive end
   local bold = tab.is_active or agg ~= nil
 
   local items = {}
   if agg then
     table.insert(items, { Background = { Color = P['cc_' .. agg] } })
   end
-  table.insert(items, { Attribute = { Intensity = bold and 'Bold' or 'Half' } })
+  table.insert(items, { Attribute = { Intensity = bold and 'Bold' or 'Normal' } })
   table.insert(items, { Foreground = { Color = fg } })
   table.insert(items, { Text = ' ' .. (tab.tab_index + 1) .. '  ' .. icon .. ' ' .. leaf .. ' ' })
   if any_cc then                         -- dots imply the pane count
@@ -424,10 +424,11 @@ local function clear_pane_bg_cache()
   for k in pairs(pane_bg_applied) do pane_bg_applied[k] = nil end
 end
 
-local function inject_pane_surface(p, bg, fg)
+local function inject_pane_surface(p, bg)
+  -- Background only (OSC 11). Do not inject OSC 10 — it fights ANSI/eza colours and
+  -- makes listing colours diverge between panes/domains.
   pcall(function()
     p:inject_output('\x1b]11;' .. bg .. '\x07')
-    p:inject_output('\x1b]10;' .. fg .. '\x07')
   end)
 end
 
@@ -440,10 +441,9 @@ local function sync_pane_backgrounds(window, force)
     for _, p in ipairs(tab:panes()) do
       local pid = p:pane_id()
       local bg = pane_bg_color(p, pid == active_id)
-      local key = bg .. '|' .. P.text
-      if force or pane_bg_applied[pid] ~= key then
-        pane_bg_applied[pid] = key
-        inject_pane_surface(p, bg, P.text)
+      if force or pane_bg_applied[pid] ~= bg then
+        pane_bg_applied[pid] = bg
+        inject_pane_surface(p, bg)
       end
     end
   end
@@ -565,82 +565,44 @@ end
 
 wezterm.on('update-right-status', function(window, pane)
   local items = {}
-  if P.status_bar_bg then
-    table.insert(items, { Background = { Color = P.status_bar_bg } })
-    table.insert(items, { Foreground = { Color = P.status_bar_fg } })
-  end
   local kt = window:active_key_table()
   if kt then                                  -- in a repeatable mode: accent badge
     local MODE = {
       resize_pane = '⤢ RESIZE ↑↓←→', activate_pane = '✛ MOVE ↑↓←→',
       rotate_pane = '⟳ ROTATE ↑↓←→', switch_tab = '⇥ TAB ←→', font_size = 'A± FONT ↑↓0',
     }
-    if P.status_bar_bg then
-      table.insert(items, { Background = { Color = '#005a9e' } })
-      table.insert(items, { Foreground = { Color = P.status_bar_fg } })
-    else
-      table.insert(items, { Background = { Color = P.accent } })
-      table.insert(items, { Foreground = { Color = P.base } })
-    end
+    table.insert(items, { Background = { Color = P.accent } })
+    table.insert(items, { Foreground = { Color = P.base } })
     table.insert(items, { Attribute = { Intensity = 'Bold' } })
     table.insert(items, { Text = ' ' .. (MODE[kt] or kt) .. ' · Esc ' })
-    if P.status_bar_bg then
-      table.insert(items, { Background = { Color = P.status_bar_bg } })
-      table.insert(items, { Foreground = { Color = P.status_bar_fg } })
-    else
-      table.insert(items, { Background = { Color = P.crust } })
-      table.insert(items, { Foreground = { Color = P.overlay1 } })
-    end
+    table.insert(items, { Background = { Color = P.crust } })
+    table.insert(items, { Foreground = { Color = P.overlay1 } })
     table.insert(items, { Attribute = { Intensity = 'Normal' } })
     table.insert(items, { Text = '  ' })
   elseif window:leader_is_active() then        -- leader pending: bold peach badge
-    if P.status_bar_bg then
-      table.insert(items, { Background = { Color = '#ffffff' } })
-      table.insert(items, { Foreground = { Color = P.status_bar_bg } })
-    else
-      table.insert(items, { Background = { Color = P.peach } })
-      table.insert(items, { Foreground = { Color = P.base } })
-    end
+    table.insert(items, { Background = { Color = P.peach } })
+    table.insert(items, { Foreground = { Color = P.base } })
     table.insert(items, { Attribute = { Intensity = 'Bold' } })
     table.insert(items, { Text = ' ⌨ LEADER ' })
-    if P.status_bar_bg then
-      table.insert(items, { Background = { Color = P.status_bar_bg } })
-      table.insert(items, { Foreground = { Color = P.status_bar_fg } })
-    else
-      table.insert(items, { Background = { Color = P.crust } })
-      table.insert(items, { Foreground = { Color = P.overlay1 } })
-    end
+    table.insert(items, { Background = { Color = P.crust } })
+    table.insert(items, { Foreground = { Color = P.overlay1 } })
     table.insert(items, { Attribute = { Intensity = 'Normal' } })
     table.insert(items, { Text = '  ' })
   end
   local ws = window:active_workspace()
   if ws ~= 'default' then                              -- workspace only when non-default
-    if not P.status_bar_bg then
-      table.insert(items, { Foreground = { Color = P.accent } })
-    end
+    table.insert(items, { Foreground = { Color = P.accent } })
     table.insert(items, { Text = '⬡ ' .. ws })
-    if P.status_bar_bg then
-      table.insert(items, { Foreground = { Color = P.status_bar_dim } })
-    else
-      table.insert(items, { Foreground = { Color = P.overlay1 } })
-    end
+    table.insert(items, { Foreground = { Color = P.overlay1 } })
     table.insert(items, { Text = '  │  ' })
   end
-  if not P.status_bar_bg then
-    table.insert(items, { Foreground = { Color = P.teal } })   -- identity (active pane)
-  end
+  table.insert(items, { Foreground = { Color = P.teal } })   -- identity (active pane)
   local pu, ph, ppath = pane_location(pane)
   local identity = (#pu > 0 and #ph > 0) and (pu .. '@' .. ph) or (pu .. ph)
   table.insert(items, { Text = identity })
-  if P.status_bar_bg then
-    table.insert(items, { Foreground = { Color = P.status_bar_dim } })
-  else
-    table.insert(items, { Foreground = { Color = P.overlay1 } })
-  end
+  table.insert(items, { Foreground = { Color = P.overlay1 } })
   table.insert(items, { Text = '  │  ' })
-  if not P.status_bar_bg then
-    table.insert(items, { Foreground = { Color = P.subtext0 } })
-  end
+  table.insert(items, { Foreground = { Color = P.subtext0 } })
   table.insert(items, { Text = ppath .. '  ' })
   window:set_right_status(wezterm.format(items))
   sync_pane_backgrounds(window)
