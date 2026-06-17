@@ -309,11 +309,8 @@ ts_config_tts() {
         test)
             if [ -f "${HOME}/.claude/hooks/cc-tts-test.sh" ]; then
                 CC_TTS_VERBOSE=1 "${HOME}/.claude/hooks/cc-tts-test.sh"
-            elif [ -f "${HOME}/.claude/hooks/cc-speak.sh" ]; then
-                echo "cc-tts-test.sh not deployed — run chezmoi apply" >&2
-                return 1
             else
-                echo "ts-config tts test: hooks not found (run chezmoi apply)" >&2
+                echo "ts-config tts test: cc-tts-test.sh not found (run chezmoi apply)" >&2
                 return 1
             fi
             ;;

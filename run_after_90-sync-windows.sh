@@ -102,9 +102,18 @@ if [ "$CC_TTS_ENABLED" = true ]; then
             "type": "command",
             "command": "pwsh -NoLogo -NonInteractive -ExecutionPolicy Bypass -File C:/Users/__WIN_USER__/.claude/hooks/cc-speak.ps1 -State error"
           }'
+  CC_TTS_CURSOR_HOOKS='{
+    "stop": [
+      {
+        "command": "pwsh -NoLogo -NonInteractive -ExecutionPolicy Bypass -File C:/Users/__WIN_USER__/.cursor/hooks/cursor-tts.ps1",
+        "timeout": 15
+      }
+    ]
+  }'
 else
   CC_TTS_STOP_HOOK=""
   CC_TTS_STOPFAILURE_HOOK=""
+  CC_TTS_CURSOR_HOOKS='{}'
 fi
 
 dst_home="/mnt/c/Users/$WIN_USER"
@@ -136,6 +145,7 @@ sync_tree() {
         WIN_USER="$WIN_USER" LEADER_KEY="$LEADER_KEY" LEADER_MODS="$LEADER_MODS" \
         THEME_MODE="$THEME_MODE" THEME_RESOLVED="$THEME_RESOLVED" TMUX_PREFIX="$TMUX_PREFIX" \
         CC_TTS_STOP_HOOK="$CC_TTS_STOP_HOOK" CC_TTS_STOPFAILURE_HOOK="$CC_TTS_STOPFAILURE_HOOK" \
+        CC_TTS_CURSOR_HOOKS="$CC_TTS_CURSOR_HOOKS" \
         python3 - "$src" <<'PY' > "$rendered"
 import os, sys
 text = open(sys.argv[1], encoding="utf-8").read()
@@ -148,6 +158,7 @@ repl = {
     "__TMUX_PREFIX__": os.environ.get("TMUX_PREFIX", ""),
     "__CC_TTS_STOP_HOOK__": os.environ.get("CC_TTS_STOP_HOOK", ""),
     "__CC_TTS_STOPFAILURE_HOOK__": os.environ.get("CC_TTS_STOPFAILURE_HOOK", ""),
+    "__CC_TTS_CURSOR_HOOKS__": os.environ.get("CC_TTS_CURSOR_HOOKS", "{}"),
 }
 for k, v in repl.items():
     text = text.replace(k, v)

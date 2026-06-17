@@ -21,9 +21,10 @@ $script:TsWingetIds = @{
     micro   = 'zyedidia.micro'
     neovim  = 'Neovim.Neovim'
     zed     = 'Zed.Zed'
+    ffmpeg  = 'Gyan.FFmpeg'
 }
 $script:TsAppsRecommended = @('eza','fzf','bat','delta','ripgrep','zoxide','glow','micro','neovim')
-$script:TsAppsOptional    = @('zed')
+$script:TsAppsOptional    = @('zed','ffmpeg')
 $script:TsAppsAll         = $script:TsAppsRecommended + $script:TsAppsOptional
 
 function Get-TsAppDesc([string]$id) {
@@ -38,6 +39,7 @@ function Get-TsAppDesc([string]$id) {
         'micro'   { 'nano-like terminal editor' }
         'neovim'  { 'neovim editor (nvim)' }
         'zed'     { 'Zed GUI editor' }
+        'ffmpeg'  { 'ffplay for Claude TTS on Windows (Gyan.FFmpeg)' }
         default   { '' }
     }
 }

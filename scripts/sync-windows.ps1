@@ -59,6 +59,18 @@ $ccTtsStopFailureHook = if ($ccTtsEnabled) {
           }
 '@
 } else { '' }
+$ccTtsCursorHooks = if ($ccTtsEnabled) {
+@'
+{
+    "stop": [
+      {
+        "command": "pwsh -NoLogo -NonInteractive -ExecutionPolicy Bypass -File C:/Users/__WIN_USER__/.cursor/hooks/cursor-tts.ps1",
+        "timeout": 15
+      }
+    ]
+  }
+'@
+} else { '{}' }
 $tok = @{
     '__WIN_USER__'               = $WinUser
     '__LEADER_KEY__'             = if ($tsCfg.leaderKey)          { $tsCfg.leaderKey }          else { 'phys:Space' }
@@ -68,6 +80,7 @@ $tok = @{
     '__TMUX_PREFIX__'            = if ($tsCfg.tmuxPrefixResolved) { $tsCfg.tmuxPrefixResolved } else { 'C-b' }
     '__CC_TTS_STOP_HOOK__'       = $ccTtsStopHook
     '__CC_TTS_STOPFAILURE_HOOK__'= $ccTtsStopFailureHook
+    '__CC_TTS_CURSOR_HOOKS__'    = $ccTtsCursorHooks
 }
 
 $today = Get-Date -Format 'yyyyMMdd'

@@ -17,14 +17,22 @@ zsh aliases / pwsh functions. Each `cc*` sets the WezTerm tab title while Claude
 
 ## Local TTS (Kokoro / Chatterbox / edge)
 
-Optional voice notifications when Claude finishes (`Stop`) or errors (`StopFailure`). **Off by default.** Uses the same Hermes-matching Kokoro voice (`am_adam`, mp3, speed 1.0) when Kokoro is running locally.
+Optional voice when **Claude Code** finishes (`Stop`) / errors (`StopFailure`) or **Cursor Agent** stops (`stop` hook). Same `~/.claude/tts.json`, same Kokoro voice. **Off by default.**
 
 | Command | What it does |
 |---|---|
-| `cctts on` / `off` | Enable/disable TTS (re-applies config; adds/removes hooks) |
-| `cctts test` | Speak a test phrase (foreground, for debugging) |
-| `cctts show` | Same as `ts-config tts show` |
-| `ts-config tts …` | Full control (engine, voice, templates, URLs, events) |
+| `cctts on` / `off` | Enable/disable TTS (re-applies; adds/removes hooks in Claude + Cursor) |
+| `cctts test` | End-to-end synth + play test |
+| `ts-config tts …` | Full control (engine, voice, templates, URLs) |
+
+### Hook wiring
+
+| App | Config | Hook script |
+|---|---|---|
+| Claude Code | `~/.claude/settings.json` | `cc-speak.sh` / `cc-speak.ps1` (WezTerm panes only) |
+| Cursor Agent | `~/.cursor/hooks.json` | `cursor-tts.sh` / `cursor-tts.ps1` (no WezTerm guard) |
+
+Both call shared **`cc-tts-notify`** → Kokoro → **`cc-tts-play`** (WSL uses `cmd.exe ffplay` for Windows audio).
 
 ### Prerequisites
 
@@ -58,11 +66,13 @@ Test scripts are **separate from the Claude hook** (no `WEZTERM_PANE` guard):
 | Manual synth | `~/.claude/hooks/cc-tts-synth.sh "hello"` → prints output path |
 | Manual play | `~/.claude/hooks/cc-tts-play.sh /path/to/file.mp3` |
 
-On **WSL**, `cc-tts-play.sh` prefers **Windows audio**: `ffplay.exe` (install `Gyan.FFmpeg` via winget on Windows), then `pwsh cc-tts-play.ps1`. WSL `ffplay` alone uses Linux audio and usually won't reach your headphones.
+On **WSL**, `cc-tts-play.sh` uses **`cmd.exe /c ffplay`** with Windows PATH (works right after `winget install Gyan.FFmpeg` without restarting WSL). Install via `winget install Gyan.FFmpeg` or `ts-config apps ffmpeg` on Windows. Optional in the bootstrap app picker as **ffmpeg**.
 
 1. `ts-config tts on && chezmoi apply -v` — confirm `cc-speak` hooks in live `~/.claude/settings.json`.
 2. `ts-config tts test` — hear `am_adam` (runs `cc-tts-test.sh`, not the hook).
 3. Run `cc` in WezTerm; on Stop, hear the template phrase.
-4. `ts-config tts off && chezmoi apply` — TTS hooks gone from settings.
+4. `ts-config tts off && chezmoi apply` — TTS hooks gone from Claude settings and Cursor hooks.
+
+**Cursor:** after apply, confirm `~/.cursor/hooks.json` has a `stop` entry. Run a short Agent task; on stop you should hear the template phrase. Check **Settings → Hooks** or the Hooks output channel if it doesn't fire. Restart Cursor after the first deploy.
 
 Skip at bootstrap: `TS_CC_TTS=off` or `skip`. Enable non-interactively: `TS_CC_TTS=on`.
