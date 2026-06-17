@@ -162,41 +162,56 @@ cc_tts_find_ffplay_win() {
     fi
 }
 
+cc_tts_play_ffplay_windows() {
+    local path="$1" media_win ffplay_win ffplay_bin
+    media_win="$(cc_tts_wsl_win_path "$path")"
+    ffplay_win="$(cc_tts_find_ffplay_win)"
+    [ -n "$ffplay_win" ] || return 1
+
+    # Invoke ffplay.exe directly via wslpath — avoids cmd.exe UNC-cwd failure when
+    # the WSL shell cwd is \\wsl.localhost\... (CMD then can't find the media file).
+    if command -v wslpath >/dev/null 2>&1; then
+        ffplay_bin="$(wslpath "$ffplay_win" 2>/dev/null || true)"
+    fi
+    if [ -n "$ffplay_bin" ] && [ -x "$ffplay_bin" ]; then
+        cc_tts_log "play $ffplay_bin (media $path)"
+        "$ffplay_bin" -nodisp -autoexit -hide_banner -loglevel error "$media_win" && return 0
+        cc_tts_log "play retry with WSL path"
+        "$ffplay_bin" -nodisp -autoexit -hide_banner -loglevel error "$path" && return 0
+    fi
+
+    # Fallback: cmd.exe with a Windows cwd (never a UNC path).
+    local winuser tmp_win
+    winuser="$(cmd.exe /c 'echo %USERNAME%' 2>/dev/null | tr -d '\r\n')"
+    tmp_win="C:\\Users\\${winuser}\\AppData\\Local\\Temp"
+    cc_tts_log "play cmd cd $tmp_win"
+    cmd.exe /c "cd /d $tmp_win && \"$ffplay_win\" -nodisp -autoexit -hide_banner -loglevel error \"$media_win\""
+}
+
 cc_tts_play() {
-    local path="$1" player media_win ffplay_win
+    local path="$1" player
     [ -f "$path" ] && [ -s "$path" ] || return 1
     player="$(cc_tts_json .player auto)"
-    media_win="$(cc_tts_wsl_win_path "$path")"
 
     # WSL: route to Windows speakers (same headphones as Hermes).
     if [ "$player" = windows ] || { [ "$player" = auto ] && [ -d /mnt/c/Users ]; }; then
-        ffplay_win="$(cc_tts_find_ffplay_win)"
-        if [ -n "$ffplay_win" ] && command -v cmd.exe >/dev/null 2>&1; then
-            cc_tts_log "play cmd ffplay ($ffplay_win) $media_win"
-            if command -v timeout >/dev/null 2>&1; then
-                timeout 120 cmd.exe /c "ffplay -nodisp -autoexit -hide_banner -loglevel error \"$media_win\"" \
-                    && return 0
-            else
-                cmd.exe /c "ffplay -nodisp -autoexit -hide_banner -loglevel error \"$media_win\"" \
-                    && return 0
-            fi
+        if cc_tts_play_ffplay_windows "$path"; then
+            return 0
         fi
         if command -v ffplay.exe >/dev/null 2>&1; then
-            cc_tts_log "play ffplay.exe $media_win"
-            ffplay.exe -nodisp -autoexit -hide_banner -loglevel quiet "$media_win" && return 0
+            cc_tts_log "play ffplay.exe $(cc_tts_wsl_win_path "$path")"
+            ffplay.exe -nodisp -autoexit -hide_banner -loglevel quiet "$(cc_tts_wsl_win_path "$path")" && return 0
         fi
         local play_ps1
         play_ps1="$(cc_tts_win_play_ps1)"
         if [ -n "$play_ps1" ] && command -v pwsh.exe >/dev/null 2>&1; then
             cc_tts_log "play pwsh $(cc_tts_wsl_win_path "$play_ps1")"
-            if command -v timeout >/dev/null 2>&1; then
-                timeout 120 pwsh.exe -NoLogo -NonInteractive -ExecutionPolicy Bypass \
-                    -File "$(cc_tts_wsl_win_path "$play_ps1")" \
-                    -MediaPath "$media_win" && return 0
-            fi
+            pwsh.exe -NoLogo -NonInteractive -ExecutionPolicy Bypass \
+                -File "$(cc_tts_wsl_win_path "$play_ps1")" \
+                -MediaPath "$(cc_tts_wsl_win_path "$path")" && return 0
         fi
         if [ "$player" = auto ] && [ -d /mnt/c/Users ]; then
-            cc_tts_log "WSL: install Windows ffplay (winget install Gyan.FFmpeg) then restart WSL"
+            cc_tts_log "WSL: install Windows ffplay (winget install Gyan.FFmpeg)"
         fi
     fi
 

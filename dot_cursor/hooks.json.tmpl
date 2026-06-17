@@ -1,11 +1,13 @@
 {
   "version": 1,
-  "hooks": {{ if eq (index . "ccTtsEnabled" | default "false") "true" }}{
+  "hooks": {
+{{- if eq (index . "ccTtsEnabled" | default "false") "true" }}
     "stop": [
       {
         "command": "{{ .chezmoi.homeDir }}/.cursor/hooks/cursor-tts.sh",
         "timeout": 15
       }
     ]
-  }{{ else }}{}{ end }}
+{{- end }}
+  }
 }
