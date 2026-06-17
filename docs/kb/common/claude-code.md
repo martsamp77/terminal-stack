@@ -32,7 +32,7 @@ Optional voice when **Claude Code** finishes (`Stop`) / errors (`StopFailure`) o
 | Claude Code | `~/.claude/settings.json` | `cc-speak.sh` / `cc-speak.ps1` (WezTerm panes only) |
 | Cursor Agent | `~/.cursor/hooks.json` | `cursor-tts.sh` / `cursor-tts.ps1` (no WezTerm guard) |
 
-Both call shared **`cc-tts-notify`** → Kokoro → **`cc-tts-play`** (WSL uses `cmd.exe ffplay` for Windows audio).
+Both call shared **`cc-tts-notify`** → Kokoro → **`cc-tts-play`** (WSL uses `cmd.exe ffplay` for Windows audio). Spoken text is prefixed **`Claude.`** or **`Cursor.`** so you can tell which app finished.
 
 ### Prerequisites
 

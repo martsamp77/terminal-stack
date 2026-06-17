@@ -10,6 +10,8 @@ All notable changes captured here. Format loosely follows [Keep a Changelog](htt
 
 ### Changed
 
+- **TTS app prefix.** Claude Code hooks speak `Claude. …`; Cursor Agent stop hook speaks `Cursor. …` (prefix added in each hook path, same templates).
+
 - **WezTerm right status follows the active pane**, not the GUI host. Top-right `user@host │ path` now reads OSC 7 cwd (with hostname), shell-integration user vars, SSH/WSL domain, then pane title — so an SSH pane to Nova shows `Marty@Nova` and that pane's path instead of the Windows box. **Path falls back to the pane title** (`host: ~/path` from zsh `_set_title`) when OSC 7 is absent — fixes empty paths on Mac/Linux SSH panes. pwsh OSC 7 uses `$env:COMPUTERNAME`; zsh prefers WezTerm's shell-integration script, else emits OSC 7 on precmd. Both `windows/.wezterm.lua.tmpl` and `dot_wezterm.lua.tmpl`.
 
 ### Added

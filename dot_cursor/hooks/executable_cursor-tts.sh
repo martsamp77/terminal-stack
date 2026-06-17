@@ -21,6 +21,7 @@ if [ ! -f "$notify" ]; then
 fi
 
 export CC_TTS_HOOK_JSON="$input"
+export CC_TTS_PREFIX=Cursor
 "$notify" "$state" &
 printf '{}\n'
 exit 0

@@ -68,6 +68,9 @@ resolve_text() {
     fi
     text="${text//$'\n'/ }"
     text="${text//$'\r'/ }"
+    if [ -n "${CC_TTS_PREFIX:-}" ]; then
+        text="${CC_TTS_PREFIX}. ${text}"
+    fi
     [ "${#text}" -gt "$max_chars" ] && text="${text:0:max_chars}"
     printf '%s' "$text"
 }

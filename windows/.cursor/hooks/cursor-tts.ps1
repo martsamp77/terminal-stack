@@ -46,7 +46,8 @@ if (-not (Test-Path -LiteralPath $notify)) {
 $args = @(
     '-NoLogo', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
     '-File', $notify,
-    '-State', $state
+    '-State', $state,
+    '-Prefix', 'Cursor'
 )
 if ($env:CURSOR_PROJECT_DIR) {
     $args += @('-ProjectDir', $env:CURSOR_PROJECT_DIR)

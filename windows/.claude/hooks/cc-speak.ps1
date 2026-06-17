@@ -154,7 +154,16 @@ function Invoke-PlayMedia([string]$Path) {
     }
 }
 
+function Add-ClaudePrefix([string]$SpeakText) {
+    if (-not $SpeakText) { return $SpeakText }
+    if ($SpeakText.StartsWith('Claude. ')) { return $SpeakText }
+    $p = "Claude. $SpeakText"
+    if ($p.Length -gt $cfg.maxChars) { return $p.Substring(0, $cfg.maxChars) }
+    return $p
+}
+
 function Start-SpeakWorker([string]$SpeakText) {
+    $SpeakText = Add-ClaudePrefix $SpeakText
     $ext = if ($cfg.kokoro.format) { $cfg.kokoro.format } else { 'mp3' }
     $out = Join-Path $env:TEMP ("cc-tts-{0}.{1}" -f [guid]::NewGuid().ToString('N'), $ext)
     try {

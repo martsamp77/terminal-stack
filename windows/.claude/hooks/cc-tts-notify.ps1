@@ -1,7 +1,8 @@
 param(
     [Parameter(Mandatory)][ValidateSet('waiting', 'error')][string]$State,
     [string]$OverrideText,
-    [string]$ProjectDir
+    [string]$ProjectDir,
+    [string]$Prefix
 )
 
 $configPath = Join-Path $env:USERPROFILE '.claude\tts.json'
@@ -26,6 +27,7 @@ $text = if ($OverrideText) {
     ($cfg.templates.$State -replace '\{project\}', $project)
 }
 $text = ($text -replace "[\r\n]+", ' ').Trim()
+if ($Prefix) { $text = "$Prefix. $text" }
 if ($text.Length -gt $cfg.maxChars) { $text = $text.Substring(0, $cfg.maxChars) }
 
 $k = $cfg.kokoro
