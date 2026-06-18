@@ -10,10 +10,18 @@ function Merge-CcTtsHashtable {
     if ($Over -isnot [hashtable] -and $Over -isnot [pscustomobject]) { return $Base }
     $out = @{}
     foreach ($k in $Base.Keys) { $out[$k] = $Base[$k] }
-    foreach ($prop in $Over.PSObject.Properties) {
-        if ($prop.Name.StartsWith('_')) { continue }
-        if ($out.ContainsKey($prop.Name) -and $out[$prop.Name] -is [hashtable] -and $prop.Value -is [pscustomobject]) {
-            $out[$prop.Name] = Merge-CcTtsHashtable $out[$prop.Name] ($prop.Value | ConvertTo-Hashtable)
+    # Normalize the override into name/value pairs. $Over is usually a [hashtable]
+    # (its PSObject.Properties exposes Count/Keys/Values, NOT the data keys), but may
+    # also be a [pscustomobject]. Iterating the wrong one silently drops all overrides.
+    $pairs = if ($Over -is [hashtable]) {
+        $Over.GetEnumerator() | ForEach-Object { [pscustomobject]@{ Name = $_.Key; Value = $_.Value } }
+    } else {
+        $Over.PSObject.Properties | ForEach-Object { [pscustomobject]@{ Name = $_.Name; Value = $_.Value } }
+    }
+    foreach ($prop in $pairs) {
+        if ([string]$prop.Name -like '_*') { continue }
+        if ($out.ContainsKey($prop.Name) -and $out[$prop.Name] -is [hashtable] -and ($prop.Value -is [pscustomobject] -or $prop.Value -is [hashtable])) {
+            $out[$prop.Name] = Merge-CcTtsHashtable $out[$prop.Name] (ConvertTo-Hashtable $prop.Value)
         } else {
             $out[$prop.Name] = $prop.Value
         }
